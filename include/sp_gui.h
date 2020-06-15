@@ -22,6 +22,9 @@
 errno_t spooky_load_image(const char * file_path, size_t file_path_len, SDL_Surface ** surface_out);
 errno_t spooky_load_texture(SDL_Renderer * renderer, const char * file_path, size_t file_path_len, SDL_Texture ** out_texture);
 
+const int spooky_window_default_width;
+const int spooky_window_default_height;
+
 /*
 #define WINDOW_SCALE (2)
 #define WINDOW_WIDTH (320 * WINDOW_SCALE)
@@ -35,9 +38,6 @@ const int spooky_ratcliff_factor;
 const int spooky_gui_is_fullscreen;
 
 const int spooky_window_scale;
-const int spooky_window_width;
-const int spooky_window_height;
-
 const int spooky_gui_x_padding;
 const int spooky_gui_y_padding;
 

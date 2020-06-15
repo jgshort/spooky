@@ -25,5 +25,7 @@ extern const errno_t SP_SUCCESS;
 /** Return value indicating failure. */
 extern const errno_t SP_FAILURE;
 
+int spooky_is_sdl_error(const char * msg);
+
 #endif /* SP_ERROR__H */
 

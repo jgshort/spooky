@@ -1,6 +1,7 @@
 #include <assert.h>
-#include <stdbool.h>
 #include <stdlib.h>
+#include <stdbool.h>
+#include <stdio.h>
 
 #include "config.h"
 #include "sp_error.h"
@@ -14,6 +15,7 @@ typedef struct sp_game_context {
 
 static errno_t spooky_init_game_context(sp_game_context * context);
 static errno_t spooky_quit_game_context(sp_game_context * context);
+static errno_t spooky_test_game_resources(SDL_Renderer * renderer);
 
 int main(int argc, char **argv) {
   (void)argc;
@@ -22,20 +24,10 @@ int main(int argc, char **argv) {
   sp_game_context context;
 
   if(spooky_init_game_context(&context) != SP_SUCCESS) { goto err0; }
+  if(spooky_test_game_resources(context.renderer) != SP_SUCCESS) { goto err0; }
 
   SDL_Renderer * renderer = context.renderer;
-
-  /* check surface resource path and method */
-  SDL_Surface * test_surface = NULL;
-  if(spooky_load_image("res/test0.png", 13, &test_surface) == SP_FAILURE) { goto err0; }
-  if(test_surface == NULL) goto err0;
-  SDL_FreeSurface(test_surface), test_surface = NULL;
-
-  /* check texture method */
-  SDL_Texture * test_texture = NULL;
-  if(spooky_load_texture(renderer, "res/test0.png", 13, &test_texture) == SP_FAILURE) { goto err0; }
-  if(test_texture == NULL) { goto err0; }
-  SDL_DestroyTexture(test_texture), test_texture = NULL;
+  (void)renderer;
 
   /* clean up */
   if(spooky_quit_game_context(&context) != SP_SUCCESS) { goto err1; }
@@ -55,7 +47,7 @@ err:
   return SP_FAILURE;
 }
 
-static errno_t spooky_init_game_context(sp_game_context * context) {
+errno_t spooky_init_game_context(sp_game_context * context) {
   assert(!(context == NULL));
 
   if(context == NULL) { return SP_FAILURE; }
@@ -75,19 +67,29 @@ static errno_t spooky_init_game_context(sp_game_context * context) {
 
   bool spooky_gui_is_fullscreen = false;
   uint32_t window_flags = 
-    spooky_gui_is_fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0
+      spooky_gui_is_fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0
     | SDL_WINDOW_OPENGL
     | SDL_WINDOW_HIDDEN
     | SDL_WINDOW_ALLOW_HIGHDPI
     | SDL_WINDOW_RESIZABLE
     ;
 
-  SDL_Window * window = SDL_CreateWindow(PACKAGE_STRING, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1024, 768, window_flags);
+  int window_width = spooky_window_default_width;
+  int window_height = spooky_window_default_height;
+
+  SDL_ClearError();
+  SDL_Window * window = SDL_CreateWindow(PACKAGE_STRING, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, window_width, window_height, window_flags);
   if(window == NULL) { goto err4; }
 
-  SDL_Renderer * renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED|SDL_RENDERER_PRESENTVSYNC);
+  uint32_t renderer_flags =
+      SDL_RENDERER_ACCELERATED
+    | SDL_RENDERER_PRESENTVSYNC
+    ;
+  SDL_ClearError();
+  SDL_Renderer * renderer = SDL_CreateRenderer(window, -1, renderer_flags);
   if(renderer == NULL) { goto err5; }
 
+  SDL_ClearError();
   SDL_GLContext glContext = SDL_GL_CreateContext(window);
   if(glContext == NULL) { goto err6; }
 
@@ -129,16 +131,68 @@ err:
   return SP_FAILURE;
 }
 
-static errno_t spooky_quit_game_context(sp_game_context * context) {
+errno_t spooky_quit_game_context(sp_game_context * context) {
   assert(!(context == NULL));
   if(context == NULL) { return SP_FAILURE; }
 
-  fprintf(stdout, "Freeing resources...");
-  SDL_GL_DeleteContext(context->glContext), context->glContext = NULL;
-  SDL_DestroyRenderer(context->renderer), context->renderer = NULL;
-  SDL_DestroyWindow(context->window), context->window = NULL;
+  fprintf(stdout, "Shutting down...");
+
+  if(context->glContext != NULL) {
+    SDL_ClearError();
+    SDL_GL_DeleteContext(context->glContext), context->glContext = NULL;
+    const char * error = SDL_GetError();
+    if(spooky_is_sdl_error(error)) {
+      fprintf(stderr, "Non-fatal error: Unable to release GL context, '%s'.\n", error);
+    }
+  }
+
+  if(context->renderer != NULL) {
+    SDL_ClearError();
+    SDL_DestroyRenderer(context->renderer), context->renderer = NULL;
+    const char * error = SDL_GetError();
+    if(spooky_is_sdl_error(error)) {
+      fprintf(stderr, "Non-fatal error: Unable to destroy renderer, '%s'.\n", error);
+    }
+  }
+
+  if(context->window != NULL) {
+    SDL_ClearError();
+    SDL_DestroyWindow(context->window), context->window = NULL;
+    const char * error = SDL_GetError();
+    if(spooky_is_sdl_error(error)) {
+      fprintf(stderr, "Non-fatal error: Unable to destroy window, '%s'.\n", error);
+    }
+  }
+
   TTF_Quit();
   SDL_Quit();
   fprintf(stdout, " Done!\n");
+
   return SP_SUCCESS;
 }
+
+errno_t spooky_test_game_resources(SDL_Renderer * renderer) {
+  assert(!(renderer == NULL));
+  if(renderer == NULL) { goto err0; }
+
+  fprintf(stdout, "Testing resources...");
+
+  /* check surface resource path and method */
+  SDL_Surface * test_surface = NULL;
+  if(spooky_load_image("res/test0.png", 13, &test_surface) != SP_SUCCESS) { goto err0; }
+  if(test_surface == NULL) goto err0;
+  SDL_FreeSurface(test_surface), test_surface = NULL;
+
+  /* check texture method */
+  SDL_Texture * test_texture = NULL;
+  if(spooky_load_texture(renderer, "res/test0.png", 13, &test_texture) != SP_SUCCESS) { goto err0; }
+  if(test_texture == NULL) { goto err0; }
+  SDL_DestroyTexture(test_texture), test_texture = NULL;
+
+  fprintf(stdout, " Done!\n");
+  return SP_SUCCESS;
+
+err0:
+  return SP_FAILURE;
+}
+
