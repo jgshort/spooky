@@ -6,6 +6,7 @@
 #include "config.h"
 #include "sp_error.h"
 #include "sp_gui.h"
+#include "sp_time.h"
 
 typedef struct sp_game_context {
   SDL_Window * window;
@@ -16,6 +17,7 @@ typedef struct sp_game_context {
 static errno_t spooky_init_game_context(sp_game_context * context);
 static errno_t spooky_quit_game_context(sp_game_context * context);
 static errno_t spooky_test_game_resources(SDL_Renderer * renderer);
+static errno_t spooky_loop(const sp_game_context * context);
 
 int main(int argc, char **argv) {
   (void)argc;
@@ -26,8 +28,7 @@ int main(int argc, char **argv) {
   if(spooky_init_game_context(&context) != SP_SUCCESS) { goto err0; }
   if(spooky_test_game_resources(context.renderer) != SP_SUCCESS) { goto err0; }
 
-  SDL_Renderer * renderer = context.renderer;
-  (void)renderer;
+  spooky_loop(&context);
 
   /* clean up */
   if(spooky_quit_game_context(&context) != SP_SUCCESS) { goto err1; }
@@ -196,3 +197,143 @@ err0:
   return SP_FAILURE;
 }
 
+errno_t spooky_loop(const sp_game_context * context) {
+  const double HERTZ = 30.0;
+  const int TARGET_FPS = 60;
+  const int BILLION = 1000000000;
+
+  const int64_t TIME_BETWEEN_UPDATES = (int64_t) (BILLION / HERTZ);
+  const int MAX_UPDATES_BEFORE_RENDER = 5;
+  const int TARGET_TIME_BETWEEN_RENDERS = BILLION / TARGET_FPS;
+
+  int64_t now;
+  int64_t last_render_time = sp_get_time_in_us();
+  int64_t last_update_time = sp_get_time_in_us();
+
+  int64_t frame_count = 0;
+  int64_t fps = 0;
+  int64_t seconds_since_start = 0;
+  uint64_t last_second_time = (uint64_t) (last_update_time / BILLION);
+
+  int last_x = 0, last_y = 0;
+
+  SDL_Window * window = context->window;
+  SDL_Renderer * renderer = context->renderer;
+
+#ifdef __APPLE__ 
+  /* On OS X Mojave, screen will appear blank until a call to PumpEvents.
+   * This temporarily fixes the blank screen problem */
+  SDL_PumpEvents();
+#endif
+
+  /* Showing the window here prevented flickering on Linux Mint */
+  SDL_ShowWindow(window);
+
+  bool running = true;
+  //bool linux_resize = false;
+  while(running) {
+    int update_loops = 0;
+
+    now = sp_get_time_in_us();
+    while ((now - last_update_time > TIME_BETWEEN_UPDATES && update_loops < MAX_UPDATES_BEFORE_RENDER)) {
+      SDL_Event evt;
+      while (SDL_PollEvent(&evt)) {
+#ifdef __APPLE__ 
+        /* On OS X Mojave, resize of a non-maximized window does not correctly update the aspect ratio */
+        if (evt.type == SDL_WINDOWEVENT && (
+               evt.window.event == SDL_WINDOWEVENT_SIZE_CHANGED 
+            || evt.window.event == SDL_WINDOWEVENT_MOVED 
+            || evt.window.event == SDL_WINDOWEVENT_RESIZED
+            /* Only happens when clicking About in OS X Mojave */
+            || evt.window.event == SDL_WINDOWEVENT_FOCUS_LOST
+        ))
+        {
+          //SDL_RenderSetLogicalSize(renderer, logical_width, logical_height);
+          //SDL_RenderSetScale(renderer, spooky_gui_get_scale_factor(), spooky_gui_get_scale_factor());
+          //if(SDL_GetWindowFlags(window) & SDL_WINDOW_MAXIMIZED) { spooky_gui_reset_scale_factor(renderer); }
+        }
+#elif __unix__
+        if (evt.type == SDL_WINDOWEVENT && (
+            evt.window.event == SDL_WINDOWEVENT_RESIZED
+        ))
+        {
+          //if(linux_resize) {
+            //spooky_gui_init_gui(win, renderer);
+   
+            //logical_width = (int)(((float)spooky_window_width / 2) * spooky_gui_get_scale_factor());
+            //logical_height = (int)(((float)spooky_window_height / 2) * spooky_gui_get_scale_factor());
+
+            //SDL_RenderSetLogicalSize(renderer, logical_width, logical_height);
+            //SDL_RenderSetScale(renderer, spooky_gui_get_scale_factor(), spooky_gui_get_scale_factor());
+          //}
+          //linux_resize = true;
+        }
+#endif
+
+        if (evt.type == SDL_QUIT) {
+          running = false;
+          goto end_of_running_loop;
+        }
+      }
+
+      last_update_time += TIME_BETWEEN_UPDATES;
+      update_loops++;
+    } /* while ((now - last_update_time ... */
+
+    if (now - last_update_time > TIME_BETWEEN_UPDATES) {
+      last_update_time = now - TIME_BETWEEN_UPDATES;
+    }
+
+    //float interpolation = spooky_float_min(1.0f, (float)(now - last_update_time) / (float)(TIME_BETWEEN_UPDATES));
+    //(void)interpolation;
+    uint64_t this_second = (uint64_t)(last_update_time / BILLION);
+ 
+    //SDL_SetRenderDrawColor(renderer, c0.r, c0.g, c0.b, c0.a);
+    SDL_RenderPresent(renderer);
+
+    last_render_time = now;
+    frame_count++;
+
+    if (this_second > last_second_time) {
+      /* Every second, calculate the following: */
+      /* TODO: Anything that needs to update every second */
+
+      int mouse_x, mouse_y;
+      SDL_GetMouseState(&mouse_x, &mouse_y);
+
+      /* Make the mouse 'sticky' in our window for 2 seconds: TODO: Doesn't work */
+      if (seconds_since_start % 2 == 0) {
+        // Every two seconds, see if the mouse needs to exit the window:
+        int x, y, w, h;
+        
+        SDL_GetWindowSize(window, &w, &h);
+        SDL_GetWindowPosition(window, &x, &y);
+        if ((mouse_x == last_x && (last_x <= 2 || last_x >= w - 2)) || (mouse_y == last_y && (last_y <= 2 || last_y >= h - 2))) {
+          //SDL_SetRelativeMouseMode(SDL_FALSE);
+          SDL_PumpEvents();
+          SDL_FlushEvent(SDL_WINDOWEVENT_LEAVE);
+        }
+      }
+
+      last_x = mouse_x;
+      last_y = mouse_y;
+
+      /* Every second, update FPS: */
+      fps = frame_count;
+      (void)fps;
+
+      frame_count = 0;
+      last_second_time = this_second;
+      seconds_since_start++;
+    }
+
+    /* Try to be friendly to the OS: */
+    while (now - last_render_time < TARGET_TIME_BETWEEN_RENDERS && now - last_update_time < TIME_BETWEEN_UPDATES) {
+      sp_sleep(1); /* Needed? */
+      now = sp_get_time_in_us();
+    }
+end_of_running_loop: ;
+  } /* >> while(running) */
+
+  return SP_SUCCESS;
+}

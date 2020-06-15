@@ -1,6 +1,10 @@
 #ifndef SP_ERROR__H
 #define SP_ERROR__H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*! @file sp_error.h
  * @brief spooky error handling types and variables.
  *
@@ -25,7 +29,11 @@ extern const errno_t SP_SUCCESS;
 /** Return value indicating failure. */
 extern const errno_t SP_FAILURE;
 
-int spooky_is_sdl_error(const char * msg);
+int spooky_is_sdl_error(const char * /* msg */);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* SP_ERROR__H */
 
