@@ -29,7 +29,7 @@ int main(int argc, char **argv) {
   (void)argc;
   (void)argv;
 
-  sp_game_context context;
+  sp_game_context context = { 0 };
 
   if(spooky_init_game_context(&context) != SP_SUCCESS) { goto err0; }
   if(spooky_test_game_resources(context.renderer) != SP_SUCCESS) { goto err0; }
@@ -230,8 +230,6 @@ errno_t spooky_loop(sp_game_context * context) {
 
   uint64_t last_second_time = (uint64_t) (last_update_time / BILLION);
 
-  int last_x = 0, last_y = 0;
-
   SDL_Window * window = context->window;
   SDL_Renderer * renderer = context->renderer;
 
@@ -338,9 +336,6 @@ errno_t spooky_loop(sp_game_context * context) {
 
       int mouse_x, mouse_y;
       SDL_GetMouseState(&mouse_x, &mouse_y);
-
-      last_x = mouse_x;
-      last_y = mouse_y;
 
       /* Every second, update FPS: */
       fps = frame_count;

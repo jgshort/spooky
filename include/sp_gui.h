@@ -26,8 +26,8 @@ extern "C" {
 errno_t spooky_load_image(const char * /* file_path */, size_t /* file_path_len */, SDL_Surface ** /* surface_out */);
 errno_t spooky_load_texture(SDL_Renderer * /* renderer */, const char * /* file_path */, size_t /* file_path_len */, SDL_Texture ** /* out_texture */);
 
-const int spooky_window_default_width;
-const int spooky_window_default_height;
+extern const int spooky_window_default_width;
+extern const int spooky_window_default_height;
 
 #ifdef __cplusplus
 }
