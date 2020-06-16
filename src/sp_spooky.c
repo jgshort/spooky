@@ -29,6 +29,11 @@ typedef struct sp_game_context {
   int logical_width;
   int logical_height;
 
+  bool show_hud;
+  bool is_fullscreen;
+
+  char padding[6]; /* not portable */
+
   const spooky_font * font;
 } sp_game_context;
 
@@ -102,7 +107,7 @@ errno_t spooky_init_context(sp_game_context * context) {
     | SDL_WINDOW_ALLOW_HIGHDPI
     | SDL_WINDOW_RESIZABLE
     ;
-  
+
   context->window_scale_factor = 1.0f;
   if(!spooky_gui_is_fullscreen) {
     SDL_Rect window_bounds;
@@ -242,7 +247,7 @@ errno_t spooky_test_resources(sp_game_context * context) {
 
   fprintf(stdout, "Testing resources...");
   fflush(stdout);
-  
+
   SDL_Renderer * renderer = context->renderer;
 
   /* check surface resource path and method */
@@ -303,13 +308,17 @@ errno_t spooky_loop(sp_game_context * context) {
   bool running = true;
   //bool linux_resize = false;
 
+  char hud[1024] = { 0 };
+
   while(running) {
     int update_loops = 0;
     now = sp_get_time_in_us();
     while((now - last_update_time > TIME_BETWEEN_UPDATES && update_loops < MAX_UPDATES_BEFORE_RENDER)) {
-      assert(!spooky_is_sdl_error(SDL_GetError()));
-      
-      SDL_Event evt;
+      if(spooky_is_sdl_error(SDL_GetError())) {
+        fprintf(stderr, "%s\n", SDL_GetError());
+      }
+
+      SDL_Event evt = { 0 };
       while(SDL_PollEvent(&evt)) {
         /* NOTE: SDL_PollEvent can set the Error message returned by SDL_GetError; so clear it, here: */
         SDL_ClearError();
@@ -323,28 +332,70 @@ errno_t spooky_loop(sp_game_context * context) {
               || evt.window.event == SDL_WINDOWEVENT_FOCUS_LOST
               ))
 #elif __unix__
-        if (evt.type == SDL_WINDOWEVENT && (
-              evt.window.event == SDL_WINDOWEVENT_RESIZED
-              ))
+          if (evt.type == SDL_WINDOWEVENT && (
+                evt.window.event == SDL_WINDOWEVENT_RESIZED
+                ))
 #endif
-        {
-          if(SDL_RenderSetLogicalSize(renderer, context->logical_width, context->logical_height) != 0) {
-            fprintf(stderr, "%s\n", SDL_GetError());
+          {
+            if(SDL_RenderSetLogicalSize(renderer, context->logical_width, context->logical_height) != 0) {
+              fprintf(stderr, "%s\n", SDL_GetError());
+            }
+
+            if(SDL_GetWindowFlags(window) & SDL_WINDOW_MAXIMIZED) {
+              context->scale_factor_x = context->scale_factor_y = 1.0f;
+            }
+
+            spooky_font_release(context->font), context->font = NULL;
+            const spooky_font * font = spooky_font_acquire();
+            context->font = font->ctor(font, renderer, "./res/fonts/PrintChar21.ttf", spooky_default_font_size);
           }
 
-          if(SDL_GetWindowFlags(window) & SDL_WINDOW_MAXIMIZED) {
-            context->scale_factor_x = context->scale_factor_y = 1.0f;
-          }
-          
-          spooky_font_release(context->font), context->font = NULL;
-          const spooky_font * font = spooky_font_acquire();
-          context->font = font->ctor(font, renderer, "./res/fonts/PrintChar21.ttf", spooky_default_font_size);
-        }
-
-        if (evt.type == SDL_QUIT) {
-          running = false;
-          goto end_of_running_loop;
-        }
+        switch(evt.type) {
+          case SDL_QUIT:
+            running = false;
+            goto end_of_running_loop;
+          case SDL_KEYUP:
+            {
+              SDL_Keycode sym = evt.key.keysym.sym;
+              switch(sym) {
+                case SDLK_F3: /* show HUD */
+                  context->show_hud = !context->show_hud;
+                  break;
+                case SDLK_F12: /* fullscreen window */
+                  {
+                    bool previous_is_fullscreen = context->is_fullscreen;
+                    context->is_fullscreen = !context->is_fullscreen;
+                    if(SDL_SetWindowFullscreen(window, context->is_fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0) != 0) {
+                      /* on failure, reset to previous is_fullscreen value */
+                      context->is_fullscreen = previous_is_fullscreen;
+                    }
+                  }
+                  break;
+                default:
+                  break;
+              } /* >> switch(sym ... */
+            }
+            break;
+          case SDL_KEYDOWN:
+            {
+              SDL_Keycode sym = evt.key.keysym.sym;
+              switch(sym) {
+                case SDLK_q:
+                  {
+                    /* ctrl-q to quit */
+                    if((SDL_GetModState() & KMOD_CTRL) != 0) {
+                      running = false;
+                      goto end_of_running_loop;
+                    }
+                  }
+                  break;
+                default:
+                  break;
+              }
+            }
+          default:
+            break;
+        } /* >> switch(evt.type ... */
       }
 
       last_update_time += TIME_BETWEEN_UPDATES;
@@ -371,12 +422,19 @@ errno_t spooky_loop(sp_game_context * context) {
       SDL_SetRenderDrawColor(renderer, c.r, c.g, c.b, c.a);
       SDL_RenderFillRect(renderer, NULL); /* screen color */
     }
-    
+
+    int mouse_x, mouse_y;
+    SDL_GetMouseState(&mouse_x, &mouse_y);
+
     SDL_RenderCopy(renderer, background, NULL, NULL);
 
-    spooky_point p = { .x = 10, .y = 10 };
+    spooky_point p = { .x = 5, .y = 5 };
     SDL_Color fc = { .r = 255, .g = 255, .b = 255, .a = 255}; 
-    context->font->write(context->font, &p, &fc, "Hello, World!", NULL, NULL);
+    //context->font->write(context->font, &p, &fc, "Hello, World!", NULL, NULL);
+    if(context->show_hud) {
+      snprintf(hud, sizeof(hud), "TIME: %llu\nFPS: %llu\nDELTA: %f\n\tX: %i,\n\tY: %i", seconds_since_start, fps, interpolation, mouse_x, mouse_y);
+      context->font->write(context->font, &p, &fc, hud, NULL, NULL);
+    }
 
     SDL_SetRenderDrawColor(renderer, c0.r, c0.g, c0.b, c0.a);
     SDL_RenderPresent(renderer);
@@ -384,15 +442,9 @@ errno_t spooky_loop(sp_game_context * context) {
     last_render_time = now;
     frame_count++;
 
-    if (this_second > last_second_time) {
-      /* Every second, calculate the following: */
-      int mouse_x, mouse_y;
-      SDL_GetMouseState(&mouse_x, &mouse_y);
-
+    if(this_second > last_second_time) {
       /* Every second, update FPS: */
       fps = frame_count;
-      (void)fps;
-
       frame_count = 0;
       last_second_time = this_second;
       seconds_since_start++;

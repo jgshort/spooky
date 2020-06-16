@@ -394,6 +394,7 @@ SDL_Texture * spooky_font_glyph_create_texture(SDL_Renderer * renderer, TTF_Font
   return texture;
 
 err0:
+  SDL_ClearError();
   return NULL;
 }
 
