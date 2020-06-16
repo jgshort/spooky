@@ -7,7 +7,7 @@ extern "C" {
 
 #include <stdbool.h>
 
-const float SMATH_FLT_EPSILON;
+extern const float SMATH_FLT_EPSILON;
 
 bool spooky_float_equal(float /* left */, float /* right */, float /* max_rel_diff */ /*SMATH_FLT_EPSILON*/);
 

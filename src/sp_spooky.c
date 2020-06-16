@@ -432,7 +432,7 @@ errno_t spooky_loop(sp_game_context * context) {
     SDL_Color fc = { .r = 255, .g = 255, .b = 255, .a = 255}; 
     //context->font->write(context->font, &p, &fc, "Hello, World!", NULL, NULL);
     if(context->show_hud) {
-      snprintf(hud, sizeof(hud), "TIME: %llu\nFPS: %llu\nDELTA: %f\n\tX: %i,\n\tY: %i", seconds_since_start, fps, interpolation, mouse_x, mouse_y);
+      snprintf(hud, sizeof(hud), "TIME: %lu\nFPS: %lu\nDELTA: %f\n\tX: %i,\n\tY: %i", seconds_since_start, fps, interpolation, mouse_x, mouse_y);
       context->font->write(context->font, &p, &fc, hud, NULL, NULL);
     }
 
