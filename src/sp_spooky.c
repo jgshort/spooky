@@ -8,6 +8,7 @@
 #include "sp_error.h"
 #include "sp_math.h"
 #include "sp_gui.h"
+#include "sp_font.h"
 #include "sp_time.h"
 
 typedef struct sp_game_context {
@@ -18,11 +19,16 @@ typedef struct sp_game_context {
   float scale_factor_x;
   float scale_factor_y;
 
+  float window_scale_factor;
+  float reserved0;
+
   int window_width;
   int window_height;
 
   int logical_width;
   int logical_height;
+
+  const spooky_font * font;
 } sp_game_context;
 
 static errno_t spooky_init_context(sp_game_context * context);
@@ -95,12 +101,14 @@ errno_t spooky_init_context(sp_game_context * context) {
     | SDL_WINDOW_ALLOW_HIGHDPI
     | SDL_WINDOW_RESIZABLE
     ;
-
+  
+  context->window_scale_factor = 1.0f;
   if(!spooky_gui_is_fullscreen) {
     SDL_Rect window_bounds;
     if(SDL_GetDisplayUsableBounds(0, &window_bounds) == 0) {
       while(context->window_width + spooky_window_default_width < window_bounds.w) {
         context->window_width += spooky_window_default_width;
+        context->window_scale_factor += 1.0f;
       }
       while(context->window_height + spooky_window_default_height < window_bounds.h) {
         context->window_height += spooky_window_default_height;
@@ -133,6 +141,11 @@ errno_t spooky_init_context(sp_game_context * context) {
   context->renderer = renderer;
   context->window = window;
   context->glContext = glContext;
+
+  int font_size = 12 * (int)context->window_scale_factor;
+  TTF_Font * ttf_font = spooky_font_open_font((const char *)"./res/fonts/PrintChar21.ttf", font_size);
+  const spooky_font * font = spooky_font_acquire();
+  context->font = font->ctor(font, renderer, ttf_font);
 
   fprintf(stdout, " Done!\n");
   fflush(stdout);
@@ -295,6 +308,9 @@ errno_t spooky_loop(sp_game_context * context) {
 
   bool running = true;
   //bool linux_resize = false;
+
+  
+
   while(running) {
     int update_loops = 0;
 
@@ -317,6 +333,19 @@ errno_t spooky_loop(sp_game_context * context) {
           SDL_RenderSetScale(renderer, context->scale_factor_x, context->scale_factor_y);
           if(SDL_GetWindowFlags(window) & SDL_WINDOW_MAXIMIZED) {
             context->scale_factor_x = context->scale_factor_y = 1.0f;
+          }
+          
+          /* readjust font point size based on window scale */
+          SDL_Rect window_bounds;
+          if(SDL_GetDisplayUsableBounds(0, &window_bounds) == 0) {
+            int w, h;
+            SDL_GetWindowSize(window, &w, &h);
+            float scale_factor =  w / spooky_window_default_width;
+            spooky_font_release(context->font), context->font = NULL;
+            int font_size = (int)(12.f * scale_factor);
+            TTF_Font * ttf_font = spooky_font_open_font("./res/fonts/PrintChar21.ttf", font_size);
+            const spooky_font * font = spooky_font_acquire();
+            context->font = font->ctor(font, renderer, ttf_font);
           }
         }
 #elif __unix__
@@ -367,8 +396,12 @@ errno_t spooky_loop(sp_game_context * context) {
       SDL_SetRenderDrawColor(renderer, c.r, c.g, c.b, c.a);
       SDL_RenderFillRect(renderer, NULL); /* screen color */
     }
-
+    
     SDL_RenderCopy(renderer, background, NULL, NULL);
+
+    spooky_point p = { .x = 10, .y = 10 };
+    SDL_Color fc = { .r = 255, .g = 255, .b = 255, .a = 255}; 
+    context->font->write(context->font, &p, &fc, "Hello, World!", NULL, NULL);
 
     SDL_SetRenderDrawColor(renderer, c0.r, c0.g, c0.b, c0.a);
     SDL_RenderPresent(renderer);
@@ -402,6 +435,8 @@ end_of_running_loop: ;
   if(background != NULL) {
     SDL_DestroyTexture(background), background = NULL;
   }
+  spooky_font_release(context->font);
+
 
   return SP_SUCCESS;
 
