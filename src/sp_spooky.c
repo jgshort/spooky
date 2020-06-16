@@ -11,6 +11,7 @@
 #include "sp_font.h"
 #include "sp_time.h"
 
+
 typedef struct sp_game_context {
   SDL_Window * window;
   SDL_Renderer * renderer;
@@ -136,24 +137,17 @@ errno_t spooky_init_context(sp_game_context * context) {
   context->logical_height = 200;
 
   if(SDL_RenderSetLogicalSize(renderer, context->logical_width, context->logical_height) != 0) { goto err7; }
-  if(SDL_RenderSetScale(renderer, context->scale_factor_x, context->scale_factor_y) != 0) { goto err8; }
 
   context->renderer = renderer;
   context->window = window;
   context->glContext = glContext;
 
-  int font_size = 12 * (int)context->window_scale_factor;
-  TTF_Font * ttf_font = spooky_font_open_font((const char *)"./res/fonts/PrintChar21.ttf", font_size);
   const spooky_font * font = spooky_font_acquire();
-  context->font = font->ctor(font, renderer, ttf_font);
+  context->font = font->ctor(font, renderer, "./res/fonts/PrintChar21.ttf", spooky_default_font_size);
 
   fprintf(stdout, " Done!\n");
   fflush(stdout);
   return SP_SUCCESS;
-
-err8:
-  /* unable to set scale */
-  if(!error_message) { error_message = "Unable to set render scale."; }
 
 err7:
   /* unable to set logical size */
@@ -309,15 +303,16 @@ errno_t spooky_loop(sp_game_context * context) {
   bool running = true;
   //bool linux_resize = false;
 
-  
-
   while(running) {
     int update_loops = 0;
-
     now = sp_get_time_in_us();
-    while ((now - last_update_time > TIME_BETWEEN_UPDATES && update_loops < MAX_UPDATES_BEFORE_RENDER)) {
+    while((now - last_update_time > TIME_BETWEEN_UPDATES && update_loops < MAX_UPDATES_BEFORE_RENDER)) {
+      assert(!spooky_is_sdl_error(SDL_GetError()));
+      
       SDL_Event evt;
-      while (SDL_PollEvent(&evt)) {
+      while(SDL_PollEvent(&evt)) {
+        /* NOTE: SDL_PollEvent can set the Error message returned by SDL_GetError; so clear it, here: */
+        SDL_ClearError();
 #ifdef __APPLE__ 
         /* On OS X Mojave, resize of a non-maximized window does not correctly update the aspect ratio */
         if (evt.type == SDL_WINDOWEVENT && (
@@ -327,46 +322,24 @@ errno_t spooky_loop(sp_game_context * context) {
               /* Only happens when clicking About in OS X Mojave */
               || evt.window.event == SDL_WINDOWEVENT_FOCUS_LOST
               ))
-        {
-          SDL_RenderSetLogicalSize(renderer, context->logical_width, context->logical_height);
-
-          SDL_RenderSetScale(renderer, context->scale_factor_x, context->scale_factor_y);
-          if(SDL_GetWindowFlags(window) & SDL_WINDOW_MAXIMIZED) {
-            context->scale_factor_x = context->scale_factor_y = 1.0f;
-          }
-          
-          /* readjust font point size based on window scale */
-          SDL_Rect window_bounds;
-          if(SDL_GetDisplayUsableBounds(0, &window_bounds) == 0) {
-            int w, h;
-            SDL_GetWindowSize(window, &w, &h);
-            float scale_factor =  w / spooky_window_default_width;
-            spooky_font_release(context->font), context->font = NULL;
-            int font_size = (int)(12.f * scale_factor);
-            TTF_Font * ttf_font = spooky_font_open_font("./res/fonts/PrintChar21.ttf", font_size);
-            const spooky_font * font = spooky_font_acquire();
-            context->font = font->ctor(font, renderer, ttf_font);
-          }
-        }
 #elif __unix__
         if (evt.type == SDL_WINDOWEVENT && (
               evt.window.event == SDL_WINDOWEVENT_RESIZED
               ))
+#endif
         {
-#if 1==0
-          if(linux_resize) {
-            spooky_gui_init_gui(win, renderer);
-
-            logical_width = (int)(((float)spooky_window_width / 2) * spooky_gui_get_scale_factor());
-            logical_height = (int)(((float)spooky_window_height / 2) * spooky_gui_get_scale_factor());
-
-            SDL_RenderSetLogicalSize(renderer, logical_width, logical_height);
-            SDL_RenderSetScale(renderer, spooky_gui_get_scale_factor(), spooky_gui_get_scale_factor());
+          if(SDL_RenderSetLogicalSize(renderer, context->logical_width, context->logical_height) != 0) {
+            fprintf(stderr, "%s\n", SDL_GetError());
           }
-          linux_resize = true;
-#endif
+
+          if(SDL_GetWindowFlags(window) & SDL_WINDOW_MAXIMIZED) {
+            context->scale_factor_x = context->scale_factor_y = 1.0f;
+          }
+          
+          spooky_font_release(context->font), context->font = NULL;
+          const spooky_font * font = spooky_font_acquire();
+          context->font = font->ctor(font, renderer, "./res/fonts/PrintChar21.ttf", spooky_default_font_size);
         }
-#endif
 
         if (evt.type == SDL_QUIT) {
           running = false;
@@ -383,6 +356,8 @@ errno_t spooky_loop(sp_game_context * context) {
     }
 
     double interpolation = fmin(1.0f, (double)(now - last_update_time) / (double)(TIME_BETWEEN_UPDATES));
+    (void)interpolation;
+
     uint64_t this_second = (uint64_t)(last_update_time / BILLION);
 
     SDL_Color c0;
@@ -411,7 +386,6 @@ errno_t spooky_loop(sp_game_context * context) {
 
     if (this_second > last_second_time) {
       /* Every second, calculate the following: */
-      fprintf(stdout, "%f\n", interpolation);
       int mouse_x, mouse_y;
       SDL_GetMouseState(&mouse_x, &mouse_y);
 
