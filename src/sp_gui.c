@@ -1,8 +1,8 @@
 #include <assert.h>
 #include "sp_gui.h"
 
-const int spooky_window_default_width = 1024;
-const int spooky_window_default_height = 768;
+const int spooky_window_default_width = 320;
+const int spooky_window_default_height = 200;
 
 errno_t spooky_load_image(const char * file_path, size_t file_path_len, SDL_Surface ** surface_out) {
   assert(!(file_path == NULL || file_path_len <= 0));

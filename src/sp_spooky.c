@@ -1,10 +1,12 @@
 #include <assert.h>
+#include <math.h>
 #include <stdlib.h>
 #include <stdbool.h>
 #include <stdio.h>
 
 #include "config.h"
 #include "sp_error.h"
+#include "sp_math.h"
 #include "sp_gui.h"
 #include "sp_time.h"
 
@@ -16,14 +18,18 @@ typedef struct sp_game_context {
   float scale_factor_x;
   float scale_factor_y;
 
+  int window_width;
+  int window_height;
+
   int logical_width;
   int logical_height;
 } sp_game_context;
 
-static errno_t spooky_init_game_context(sp_game_context * context);
-static errno_t spooky_quit_game_context(sp_game_context * context);
-static errno_t spooky_test_game_resources(SDL_Renderer * renderer);
+static errno_t spooky_init_context(sp_game_context * context);
+static errno_t spooky_quit_context(sp_game_context * context);
+static errno_t spooky_test_resources(sp_game_context * context);
 static errno_t spooky_loop(sp_game_context * context);
+static void spooky_release_context(sp_game_context * context);
 
 int main(int argc, char **argv) {
   (void)argc;
@@ -31,35 +37,41 @@ int main(int argc, char **argv) {
 
   sp_game_context context = { 0 };
 
-  if(spooky_init_game_context(&context) != SP_SUCCESS) { goto err0; }
-  if(spooky_test_game_resources(context.renderer) != SP_SUCCESS) { goto err0; }
-
-  spooky_loop(&context);
-
-  /* clean up */
-  if(spooky_quit_game_context(&context) != SP_SUCCESS) { goto err1; }
+  if(spooky_init_context(&context) != SP_SUCCESS) { goto err0; }
+  if(spooky_test_resources(&context) != SP_SUCCESS) { goto err0; }
+  if(spooky_loop(&context) != SP_SUCCESS) { goto err1; }
+  if(spooky_quit_context(&context) != SP_SUCCESS) { goto err2; }
 
   fprintf(stdout, "\nThank you for playing! Happy gaming!\n");
+  fflush(stdout);
   return SP_SUCCESS;
 
+err2:
+  fprintf(stderr, "A fatal error occurred during shutdown.\n");
+  goto err;
+
 err1:
-  fprintf(stderr, "A fatal error occurred on shutdown.\n");
+  fprintf(stderr, "A fatal error occurred in the main loop.\n");
+  spooky_release_context(&context);
   goto err;
 
 err0:
-  fprintf(stderr, "A fatal error occurred on initialization.\n");
+  fprintf(stderr, "A fatal error occurred during initialization.\n");
   goto err;
 
 err:
   return SP_FAILURE;
 }
 
-errno_t spooky_init_game_context(sp_game_context * context) {
+errno_t spooky_init_context(sp_game_context * context) {
   assert(!(context == NULL));
 
   if(context == NULL) { return SP_FAILURE; }
 
   fprintf(stdout, "Initializing...");
+  fflush(stdout);
+  const char * error_message = NULL;
+
   /* allow high-DPI windows */
   if(!SDL_SetHint(SDL_HINT_VIDEO_HIGHDPI_DISABLED, "0")) { goto err0; }
 
@@ -72,6 +84,9 @@ errno_t spooky_init_game_context(sp_game_context * context) {
   if(SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2) != 0) { goto err3; }
   if(SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2) != 0) { goto err3; }
 
+  context->window_width = spooky_window_default_width;
+  context->window_height = spooky_window_default_height;
+
   bool spooky_gui_is_fullscreen = false;
   uint32_t window_flags = 
     spooky_gui_is_fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0
@@ -81,116 +96,147 @@ errno_t spooky_init_game_context(sp_game_context * context) {
     | SDL_WINDOW_RESIZABLE
     ;
 
-  int window_width = spooky_window_default_width;
-  int window_height = spooky_window_default_height;
+  if(!spooky_gui_is_fullscreen) {
+    SDL_Rect window_bounds;
+    if(SDL_GetDisplayUsableBounds(0, &window_bounds) == 0) {
+      while(context->window_width + spooky_window_default_width < window_bounds.w) {
+        context->window_width += spooky_window_default_width;
+      }
+      while(context->window_height + spooky_window_default_height < window_bounds.h) {
+        context->window_height += spooky_window_default_height;
+      }
+    }
+  }
 
   SDL_ClearError();
-  SDL_Window * window = SDL_CreateWindow(PACKAGE_STRING, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, window_width, window_height, window_flags);
-  if(window == NULL) { goto err4; }
+  SDL_Window * window = SDL_CreateWindow(PACKAGE_STRING, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, context->window_width, context->window_height, window_flags);
+  if(window == NULL || spooky_is_sdl_error(SDL_GetError())) { goto err4; }
 
-  uint32_t renderer_flags =
-    SDL_RENDERER_ACCELERATED
-    | SDL_RENDERER_PRESENTVSYNC
-    ;
+  uint32_t renderer_flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC;
   SDL_ClearError();
-  SDL_Renderer * renderer = SDL_CreateRenderer(window, -1, renderer_flags);
-  if(renderer == NULL) { goto err5; }
+  const int default_driver = -1;
+  SDL_Renderer * renderer = SDL_CreateRenderer(window, default_driver, renderer_flags);
+  if(renderer == NULL || spooky_is_sdl_error(SDL_GetError())) { goto err5; }
 
   SDL_ClearError();
   SDL_GLContext glContext = SDL_GL_CreateContext(window);
-  if(glContext == NULL) { goto err6; }
+  if(glContext == NULL || spooky_is_sdl_error(SDL_GetError())) { goto err6; }
 
   context->scale_factor_x = 1.0f;
   context->scale_factor_y = 1.0f;
   context->logical_width = 320;
   context->logical_height = 200;
 
-  SDL_RenderSetLogicalSize(renderer, context->logical_width, context->logical_height);
-  SDL_RenderSetScale(renderer, context->scale_factor_x, context->scale_factor_y);
+  if(SDL_RenderSetLogicalSize(renderer, context->logical_width, context->logical_height) != 0) { goto err7; }
+  if(SDL_RenderSetScale(renderer, context->scale_factor_x, context->scale_factor_y) != 0) { goto err8; }
 
   context->renderer = renderer;
   context->window = window;
   context->glContext = glContext;
 
   fprintf(stdout, " Done!\n");
-
+  fflush(stdout);
   return SP_SUCCESS;
+
+err8:
+  /* unable to set scale */
+  if(!error_message) { error_message = "Unable to set render scale."; }
+
+err7:
+  /* unable to set logical size */
+  if(!error_message) { error_message = "Unable to set render logical size."; }
 
 err6:
   /* unable to create GL context */
+  if(!error_message) { error_message = "Unable to create GL context."; }
   SDL_DestroyRenderer(renderer), renderer = NULL;
 
 err5:
   /* unable to create SDL renderer */
+  if(!error_message) { error_message = "Unable to create renderer."; }
   SDL_DestroyWindow(window), window = NULL;
 
 err4:
   /* unable to create SDL window */
+  if(!error_message) { error_message = "Unable to create window."; }
 
 err3:
   /* unable to set GL attributes */
+  if(!error_message) { error_message = "Unable to set GL attributes."; }
   TTF_Quit();
 
 err2:
   /* unable to initialize TTF */
+  if(!error_message) { error_message = "Unable to initialize font library."; }
   SDL_Quit();
 
 err1:
   /* unable to initialize SDL */
+  if(!error_message) { error_message = "Unable to initialize media library."; }
 
 err0:
   /* unable to enable high DPI hint */
-  goto err;
+  if(!error_message) { error_message = "Unable to enable high DPI hint."; }
 
-err:
+  fprintf(stderr, "\n%s\n", error_message);
   return SP_FAILURE;
 }
 
-errno_t spooky_quit_game_context(sp_game_context * context) {
+void spooky_release_context(sp_game_context * context) {
+  if(context != NULL) {
+    if(context->glContext != NULL) {
+      SDL_ClearError();
+      SDL_GL_DeleteContext(context->glContext), context->glContext = NULL;
+      const char * error = SDL_GetError();
+      if(spooky_is_sdl_error(error)) {
+        fprintf(stderr, "Non-fatal error: Unable to release GL context, '%s'.\n", error);
+      }
+    }
+
+    if(context->renderer != NULL) {
+      SDL_ClearError();
+      SDL_DestroyRenderer(context->renderer), context->renderer = NULL;
+      const char * error = SDL_GetError();
+      if(spooky_is_sdl_error(error)) {
+        fprintf(stderr, "Non-fatal error: Unable to destroy renderer, '%s'.\n", error);
+      }
+    }
+
+    if(context->window != NULL) {
+      SDL_ClearError();
+      SDL_DestroyWindow(context->window), context->window = NULL;
+      const char * error = SDL_GetError();
+      if(spooky_is_sdl_error(error)) {
+        fprintf(stderr, "Non-fatal error: Unable to destroy window, '%s'.\n", error);
+      }
+    }
+  }
+}
+
+errno_t spooky_quit_context(sp_game_context * context) {
   assert(!(context == NULL));
   if(context == NULL) { return SP_FAILURE; }
 
   fprintf(stdout, "Shutting down...");
+  fflush(stdout);
 
-  if(context->glContext != NULL) {
-    SDL_ClearError();
-    SDL_GL_DeleteContext(context->glContext), context->glContext = NULL;
-    const char * error = SDL_GetError();
-    if(spooky_is_sdl_error(error)) {
-      fprintf(stderr, "Non-fatal error: Unable to release GL context, '%s'.\n", error);
-    }
-  }
-
-  if(context->renderer != NULL) {
-    SDL_ClearError();
-    SDL_DestroyRenderer(context->renderer), context->renderer = NULL;
-    const char * error = SDL_GetError();
-    if(spooky_is_sdl_error(error)) {
-      fprintf(stderr, "Non-fatal error: Unable to destroy renderer, '%s'.\n", error);
-    }
-  }
-
-  if(context->window != NULL) {
-    SDL_ClearError();
-    SDL_DestroyWindow(context->window), context->window = NULL;
-    const char * error = SDL_GetError();
-    if(spooky_is_sdl_error(error)) {
-      fprintf(stderr, "Non-fatal error: Unable to destroy window, '%s'.\n", error);
-    }
-  }
+  spooky_release_context(context);
 
   TTF_Quit();
   SDL_Quit();
   fprintf(stdout, " Done!\n");
-
+  fflush(stdout);
   return SP_SUCCESS;
 }
 
-errno_t spooky_test_game_resources(SDL_Renderer * renderer) {
-  assert(!(renderer == NULL));
-  if(renderer == NULL) { goto err0; }
+errno_t spooky_test_resources(sp_game_context * context) {
+  assert(!(context == NULL || context->renderer == NULL));
+  if(context == NULL || context->renderer == NULL) { goto err0; }
 
   fprintf(stdout, "Testing resources...");
+  fflush(stdout);
+  
+  SDL_Renderer * renderer = context->renderer;
 
   /* check surface resource path and method */
   SDL_Surface * test_surface = NULL;
@@ -205,6 +251,7 @@ errno_t spooky_test_game_resources(SDL_Renderer * renderer) {
   SDL_DestroyTexture(test_texture), test_texture = NULL;
 
   fprintf(stdout, " Done!\n");
+  fflush(stdout);
   return SP_SUCCESS;
 
 err0:
@@ -306,8 +353,7 @@ errno_t spooky_loop(sp_game_context * context) {
       last_update_time = now - TIME_BETWEEN_UPDATES;
     }
 
-    //float interpolation = spooky_float_min(1.0f, (float)(now - last_update_time) / (float)(TIME_BETWEEN_UPDATES));
-    //(void)interpolation;
+    double interpolation = fmin(1.0f, (double)(now - last_update_time) / (double)(TIME_BETWEEN_UPDATES));
     uint64_t this_second = (uint64_t)(last_update_time / BILLION);
 
     SDL_Color c0;
@@ -332,8 +378,7 @@ errno_t spooky_loop(sp_game_context * context) {
 
     if (this_second > last_second_time) {
       /* Every second, calculate the following: */
-      /* TODO: Anything that needs to update every second */
-
+      fprintf(stdout, "%f\n", interpolation);
       int mouse_x, mouse_y;
       SDL_GetMouseState(&mouse_x, &mouse_y);
 
