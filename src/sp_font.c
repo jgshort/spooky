@@ -30,6 +30,7 @@ typedef struct spooky_glyph_index {
 typedef struct spooky_font_data {
   SDL_Renderer * renderer;
   TTF_Font * font;
+  const char * name;
   int height;
   int ascent;
   int descent;
@@ -56,6 +57,7 @@ static spooky_glyph * spooky_font_glyph_create(TTF_Font * font, uint32_t charact
 
 static int spooky_glyph_compare(const void * a, const void * b);
 
+static const char * spooky_font_get_name(const spooky_font * self);
 static int spooky_font_get_height(const spooky_font * self);
 static int spooky_font_get_ascent(const spooky_font * self);
 static int spooky_font_get_descent(const spooky_font * self);
@@ -110,6 +112,7 @@ const spooky_font * spooky_font_init(spooky_font * self) {
   self->release = &spooky_font_release;
   self->write = &spooky_font_write;
   self->write_to_renderer = &spooky_font_write_to_renderer;
+  self->get_name = &spooky_font_get_name;
   self->get_height = &spooky_font_get_height;
   self->get_ascent = &spooky_font_get_ascent;
   self->get_descent = &spooky_font_get_descent;
@@ -140,6 +143,7 @@ const spooky_font * spooky_font_ctor(const spooky_font * self, SDL_Renderer * re
 
   TTF_Font * ttf_font = NULL;
   if(spooky_font_open_font(file_path, point_size, &ttf_font) != SP_SUCCESS) { abort(); }
+  data->name = TTF_FontFaceFamilyName(ttf_font);
   data->font = ttf_font;
   data->renderer = renderer;
   data->height = 0;
@@ -196,6 +200,9 @@ void spooky_font_release(const spooky_font * self) {
   self->free(self->dtor(self));
 }
 
+const char * spooky_font_get_name(const spooky_font * self) {
+  return self->data->name;
+}
 int spooky_glyph_binary_search(const spooky_glyph_index * arr, int low, int n, uint32_t x) {
   int i = low, j = n - 1;
 

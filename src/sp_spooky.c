@@ -1,3 +1,4 @@
+#include <inttypes.h>
 #include <assert.h>
 #include <math.h>
 #include <stdlib.h>
@@ -308,7 +309,7 @@ errno_t spooky_loop(sp_game_context * context) {
   bool running = true;
   //bool linux_resize = false;
 
-  char hud[1024] = { 0 };
+  char hud[80 * 24] = { 0 };
 
   while(running) {
     int update_loops = 0;
@@ -423,16 +424,41 @@ errno_t spooky_loop(sp_game_context * context) {
       SDL_RenderFillRect(renderer, NULL); /* screen color */
     }
 
-    int mouse_x, mouse_y;
-    SDL_GetMouseState(&mouse_x, &mouse_y);
-
     SDL_RenderCopy(renderer, background, NULL, NULL);
 
-    spooky_point p = { .x = 5, .y = 5 };
-    SDL_Color fc = { .r = 255, .g = 255, .b = 255, .a = 255}; 
-    //context->font->write(context->font, &p, &fc, "Hello, World!", NULL, NULL);
+   //context->font->write(context->font, &p, &fc, "Hello, World!", NULL, NULL);
     if(context->show_hud) {
-      snprintf(hud, sizeof(hud), "TIME: %lu\nFPS: %lu\nDELTA: %f\n\tX: %i,\n\tY: %i", seconds_since_start, fps, interpolation, mouse_x, mouse_y);
+      static_assert(sizeof(hud) == 1920, "HUD buffer must be 1024 bytes.");
+      int mouse_x, mouse_y;
+      SDL_GetMouseState(&mouse_x, &mouse_y);
+      const spooky_font * font = context->font;
+      int hud_out = snprintf(hud, sizeof(hud),
+          " TIME: %" PRId64 "\n"
+          "  FPS: %" PRId64 "\n"
+          "DELTA: %1.5f\n"
+          "    X: %i,\n"
+          "    Y: %i"
+          "\n"
+          " FONT: Name   : '%s'\n"
+          "       Shadow : %i\n"
+          "       Height : %i\n"
+          "       Ascent : %i\n"
+          "       Descent: %i\n"
+          "       M-Dash : %i\n"
+          , seconds_since_start, fps, interpolation, mouse_x, mouse_y
+          , font->get_name(font)
+          , font->get_is_drop_shadow(font)
+          , font->get_height(font)
+          , font->get_ascent(font)
+          , font->get_descent(font)
+          , font->get_m_dash(font)
+        );
+
+      assert(hud_out > 0 && (size_t)hud_out < sizeof(hud));
+      hud[hud_out] = '\0';
+
+      const spooky_point p = { .x = 5, .y = 5 };
+      const SDL_Color fc = { .r = 255, .g = 255, .b = 255, .a = 255};
       context->font->write(context->font, &p, &fc, hud, NULL, NULL);
     }
 

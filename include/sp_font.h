@@ -21,6 +21,7 @@ typedef struct spooky_font {
   void (*release)(const spooky_font * self);
   void (*write)(const spooky_font * self, const spooky_point * destination, const SDL_Color * color, const char * s, int * w, int * h); 
   void (*write_to_renderer)(const spooky_font * self, SDL_Renderer * renderer, const spooky_point * destination, const SDL_Color * color, const char * s, int * w, int * h);
+  const char * (*get_name)(const spooky_font * self);
   int (*get_height)(const spooky_font * self);
   int (*get_ascent)(const spooky_font * self);
   int (*get_descent)(const spooky_font * self);
