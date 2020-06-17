@@ -85,17 +85,38 @@ errno_t spooky_init_context(sp_game_context * context) {
   fflush(stdout);
   const char * error_message = NULL;
 
+  SDL_ClearError();
   /* allow high-DPI windows */
   if(!SDL_SetHint(SDL_HINT_VIDEO_HIGHDPI_DISABLED, "0")) { goto err0; }
+  if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
 
+  SDL_ClearError();
   if(SDL_Init(SDL_INIT_VIDEO) != 0) { goto err1; }
-  if(TTF_Init() != 0) { goto err2; };
+  if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
 
+  SDL_ClearError();
+  if(TTF_Init() != 0) { goto err2; };
+  if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
+
+  SDL_ClearError();
   if(SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1) != 0) { goto err3; }
+  if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
+
+  SDL_ClearError();
   if(SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24) != 0) { goto err3; }
+  if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
+
+  SDL_ClearError();
   if(SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8) != 0) { goto err3; }
+  if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
+
+  SDL_ClearError();
   if(SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2) != 0) { goto err3; }
+  if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
+
+  SDL_ClearError();
   if(SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2) != 0) { goto err3; }
+  if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
 
   context->window_width = spooky_window_default_width;
   context->window_height = spooky_window_default_height;
@@ -112,6 +133,7 @@ errno_t spooky_init_context(sp_game_context * context) {
   context->window_scale_factor = 1.0f;
   if(!spooky_gui_is_fullscreen) {
     SDL_Rect window_bounds;
+    SDL_ClearError();
     if(SDL_GetDisplayUsableBounds(0, &window_bounds) == 0) {
       while(context->window_width + spooky_window_default_width < window_bounds.w) {
         context->window_width += spooky_window_default_width;
@@ -121,20 +143,24 @@ errno_t spooky_init_context(sp_game_context * context) {
         context->window_height += spooky_window_default_height;
       }
     }
+    if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
   }
 
   SDL_ClearError();
   SDL_Window * window = SDL_CreateWindow(PACKAGE_STRING, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, context->window_width, context->window_height, window_flags);
+  if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
   if(window == NULL || spooky_is_sdl_error(SDL_GetError())) { goto err4; }
 
   uint32_t renderer_flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC;
   SDL_ClearError();
   const int default_driver = -1;
   SDL_Renderer * renderer = SDL_CreateRenderer(window, default_driver, renderer_flags);
+  if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
   if(renderer == NULL || spooky_is_sdl_error(SDL_GetError())) { goto err5; }
 
   SDL_ClearError();
   SDL_GLContext glContext = SDL_GL_CreateContext(window);
+  if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
   if(glContext == NULL || spooky_is_sdl_error(SDL_GetError())) { goto err6; }
 
   context->scale_factor_x = 1.0f;
@@ -142,8 +168,10 @@ errno_t spooky_init_context(sp_game_context * context) {
   context->logical_width = 320;
   context->logical_height = 200;
 
+  SDL_ClearError();
   if(SDL_RenderSetLogicalSize(renderer, context->logical_width, context->logical_height) != 0) { goto err7; }
-
+  if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
+ 
   context->renderer = renderer;
   context->window = window;
   context->glContext = glContext;
@@ -200,6 +228,7 @@ void spooky_release_context(sp_game_context * context) {
     if(context->glContext != NULL) {
       SDL_ClearError();
       SDL_GL_DeleteContext(context->glContext), context->glContext = NULL;
+      if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
       const char * error = SDL_GetError();
       if(spooky_is_sdl_error(error)) {
         fprintf(stderr, "Non-fatal error: Unable to release GL context, '%s'.\n", error);
@@ -209,6 +238,7 @@ void spooky_release_context(sp_game_context * context) {
     if(context->renderer != NULL) {
       SDL_ClearError();
       SDL_DestroyRenderer(context->renderer), context->renderer = NULL;
+      if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
       const char * error = SDL_GetError();
       if(spooky_is_sdl_error(error)) {
         fprintf(stderr, "Non-fatal error: Unable to destroy renderer, '%s'.\n", error);
@@ -218,6 +248,7 @@ void spooky_release_context(sp_game_context * context) {
     if(context->window != NULL) {
       SDL_ClearError();
       SDL_DestroyWindow(context->window), context->window = NULL;
+      if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
       const char * error = SDL_GetError();
       if(spooky_is_sdl_error(error)) {
         fprintf(stderr, "Non-fatal error: Unable to destroy window, '%s'.\n", error);
@@ -255,14 +286,18 @@ errno_t spooky_test_resources(sp_game_context * context) {
   SDL_Surface * test_surface = NULL;
   if(spooky_load_image("res/test0.png", 13, &test_surface) != SP_SUCCESS) { goto err0; }
   if(test_surface == NULL) goto err0;
+  SDL_ClearError();
   SDL_FreeSurface(test_surface), test_surface = NULL;
-
+  if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
+  
   /* check texture method */
   SDL_Texture * test_texture = NULL;
   if(spooky_load_texture(renderer, "res/test0.png", 13, &test_texture) != SP_SUCCESS) { goto err0; }
   if(test_texture == NULL) { goto err0; }
+  SDL_ClearError();
   SDL_DestroyTexture(test_texture), test_texture = NULL;
-
+  if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
+  
   fprintf(stdout, " Done!\n");
   fflush(stdout);
   return SP_SUCCESS;
@@ -303,7 +338,14 @@ errno_t spooky_loop(sp_game_context * context) {
   SDL_ShowWindow(window);
 
   SDL_Texture * background = NULL;
+  SDL_ClearError();
   if(spooky_load_texture(renderer, "./res/bg3.png", 13, &background) != SP_SUCCESS) { goto err0; }
+  if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
+ 
+  SDL_Texture * letterbox_background = NULL;
+  SDL_ClearError();
+  if(spooky_load_texture(renderer, "./res/bg4.png", 13, &letterbox_background) != SP_SUCCESS) { goto err0; }
+  if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
   assert(background != NULL);
 
   bool running = true;
@@ -320,7 +362,10 @@ errno_t spooky_loop(sp_game_context * context) {
       }
 
       SDL_Event evt = { 0 };
+      SDL_ClearError();
       while(SDL_PollEvent(&evt)) {
+        if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
+        
         /* NOTE: SDL_PollEvent can set the Error message returned by SDL_GetError; so clear it, here: */
         SDL_ClearError();
 #ifdef __APPLE__ 
@@ -349,6 +394,12 @@ errno_t spooky_loop(sp_game_context * context) {
             spooky_font_release(context->font), context->font = NULL;
             const spooky_font * font = spooky_font_acquire();
             context->font = font->ctor(font, renderer, "./res/fonts/PrintChar21.ttf", spooky_default_font_size);
+
+
+            int w, h;
+            SDL_GetWindowSize(window, &w, &h);
+            context->window_width = w;
+            context->window_height = h;
           }
 
         switch(evt.type) {
@@ -366,7 +417,9 @@ errno_t spooky_loop(sp_game_context * context) {
                   {
                     bool previous_is_fullscreen = context->is_fullscreen;
                     context->is_fullscreen = !context->is_fullscreen;
+                    SDL_ClearError();
                     if(SDL_SetWindowFullscreen(window, context->is_fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0) != 0) {
+                      if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
                       /* on failure, reset to previous is_fullscreen value */
                       context->is_fullscreen = previous_is_fullscreen;
                     }
@@ -415,20 +468,29 @@ errno_t spooky_loop(sp_game_context * context) {
     SDL_Color c0;
     SDL_GetRenderDrawColor(renderer, &c0.r, &c0.g, &c0.b, & c0.a);
     {
-      SDL_Color bg = { .r = 20, .g = 1, .b = 36, .a = 255 };
+      const SDL_Color bg = { .r = 20, .g = 1, .b = 36, .a = 255 };
       SDL_SetRenderDrawColor(renderer, bg.r, bg.g, bg.b, bg.a);
       SDL_RenderClear(renderer); /* letterbox color */
 
-      SDL_Color c = { .r = 1, .g = 20, .b = 36, .a = 255 };
+      const SDL_Color c = { .r = 1, .g = 20, .b = 36, .a = 255 };
       SDL_SetRenderDrawColor(renderer, c.r, c.g, c.b, c.a);
       SDL_RenderFillRect(renderer, NULL); /* screen color */
     }
 
+    /* This block will render a non-scaled background on the letterbox region around the
+     * scaled foreground, sprites, and effects: */
+    {
+      SDL_ClearError();
+      SDL_RenderSetLogicalSize(renderer, context->window_width, context->window_height);
+      if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
+      SDL_RenderCopy(renderer, letterbox_background, NULL, NULL);
+      SDL_RenderSetLogicalSize(renderer, context->logical_width, context->logical_height);
+    }
+ 
     SDL_RenderCopy(renderer, background, NULL, NULL);
 
-   //context->font->write(context->font, &p, &fc, "Hello, World!", NULL, NULL);
     if(context->show_hud) {
-      static_assert(sizeof(hud) == 1920, "HUD buffer must be 1024 bytes.");
+      static_assert(sizeof(hud) == 1920, "HUD buffer must be 1920 bytes.");
       int mouse_x, mouse_y;
       SDL_GetMouseState(&mouse_x, &mouse_y);
       const spooky_font * font = context->font;
@@ -454,7 +516,7 @@ errno_t spooky_loop(sp_game_context * context) {
           , font->get_m_dash(font)
         );
 
-      assert(hud_out > 0 && (size_t)hud_out < sizeof(hud));
+      assert(hud_out > 0 && (size_t)hud_out < sizeof(hud) - 1);
       hud[hud_out] = '\0';
 
       const spooky_point p = { .x = 5, .y = 5 };
@@ -462,7 +524,7 @@ errno_t spooky_loop(sp_game_context * context) {
       context->font->write(context->font, &p, &fc, hud, NULL, NULL);
     }
 
-    SDL_SetRenderDrawColor(renderer, c0.r, c0.g, c0.b, c0.a);
+    //SDL_SetRenderDrawColor(renderer, c0.r, c0.g, c0.b, c0.a);
     SDL_RenderPresent(renderer);
 
     last_render_time = now;
@@ -486,6 +548,9 @@ end_of_running_loop: ;
 
   if(background != NULL) {
     SDL_DestroyTexture(background), background = NULL;
+  }
+  if(letterbox_background != NULL) {
+    SDL_DestroyTexture(letterbox_background), letterbox_background = NULL;
   }
   spooky_font_release(context->font);
 
