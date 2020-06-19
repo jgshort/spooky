@@ -102,6 +102,7 @@ const spooky_font * spooky_font_alloc() {
 }
 
 const spooky_font * spooky_font_init(spooky_font * self) {
+  assert(self != NULL);
   if(!self) { abort(); }
 
   self->ctor = &spooky_font_ctor;
@@ -136,11 +137,15 @@ const spooky_font * spooky_font_acquire() {
 }
 
 const spooky_font * spooky_font_ctor(const spooky_font * self, SDL_Renderer * renderer, const char * file_path, int point_size) {
+  assert(self != NULL && renderer != NULL);
   spooky_font_data * data = calloc(1, sizeof * data);
   if(!data) { abort(); }
 
   TTF_Font * ttf_font = NULL;
-  if(spooky_font_open_font(file_path, point_size, &ttf_font) != SP_SUCCESS) { abort(); }
+  if(spooky_font_open_font(file_path, point_size, &ttf_font) != SP_SUCCESS) {
+    fprintf(stderr, "Resource '%s' not found.", file_path);
+    abort();
+  }
   data->name = TTF_FontFaceFamilyName(ttf_font);
   data->font = ttf_font;
   data->renderer = renderer;
@@ -158,7 +163,10 @@ const spooky_font * spooky_font_ctor(const spooky_font * self, SDL_Renderer * re
   data->glyphs_count = 0;
 
   data->glyphs = calloc(data->glyphs_capacity, sizeof * data->glyphs);
-
+  if(data->glyphs == NULL) {
+    fprintf(stderr, "Unable to allocate memory for glyphs.");
+    abort();
+  }
   ((spooky_font *)(uintptr_t)self)->data = data;
 
   /* Set font attributes requires self->data, set above */
@@ -201,24 +209,23 @@ const char * spooky_font_get_name(const spooky_font * self) {
   return self->data->name;
 }
 
-bool spooky_glyph_binary_search(const spooky_glyph * glyphs, size_t low, size_t n, uint32_t x, size_t * out_index) {
+bool spooky_glyph_binary_search(const spooky_glyph * glyphs, size_t low, size_t n, uint32_t c, size_t * out_index) {
   assert(out_index != NULL && n > 0);
-
   size_t i = low, j = n - 1;
 
-  while(i <= j)
-  {
+  while(i <= j) {
+    assert(j != 0);
     size_t k = i + ((j - i) / 2);
-    assert(k <= n && k >= 0);
+    assert(k <= n);
 
-    if(glyphs[k].c == x) {
+    if(glyphs[k].c < c) {
+      i = k + 1;
+    } else if(glyphs[k].c > c) {
+      j = k - 1;
+    } else {
       *out_index = k;
       return true;
-    } else if(glyphs[k].c < x) {
-      i = k + 1;
-    } else {
-      j = k - 1;
-    }
+    } 
   }
 
   return false;
@@ -228,6 +235,7 @@ const spooky_glyph * spooky_font_search_glyph_index(const spooky_font * self, ui
   spooky_font_data * data = self->data;
 
   size_t n = data->glyphs_count, index = 0; 
+  assert(n > index);
   bool found = spooky_glyph_binary_search(data->glyphs, 0, n, c, &index);
   return found ? data->glyphs + index : NULL;
 }
@@ -239,9 +247,13 @@ void spooky_font_write(const spooky_font * self, const spooky_point * destinatio
 void spooky_font_write_to_renderer(const spooky_font * self, SDL_Renderer * renderer, const spooky_point * destination, const SDL_Color * color, const char * s, int * w, int * h) {
   spooky_font_data * data = self->data;
 
-  const spooky_glyph * space =  spooky_font_search_glyph_index(self, ' ');
+  static const spooky_glyph * space = NULL;
+  if(space == NULL) {
+    space = spooky_font_search_glyph_index(self, ' ');
+    assert(space != NULL);
+  }
+  
   int space_advance = space->advance;
-
   int destX = destination->x;
   int destY = destination->y;
 
@@ -256,7 +268,7 @@ void spooky_font_write_to_renderer(const spooky_font * self, SDL_Renderer * rend
 
     if (c == '\n') {
       if (w && *w == 0) *w = width;
-      y += self->get_line_skip(self) + 1;
+      y += spooky_font_get_line_skip(self) + 1;
       x = 0;
     } else if (c == '\t') {
       x += (space_advance * 4);
@@ -272,11 +284,10 @@ void spooky_font_write_to_renderer(const spooky_font * self, SDL_Renderer * rend
           
           spooky_glyph * temp_glyphs = realloc(data->glyphs, sizeof * data->glyphs * data->glyphs_capacity);
           if(temp_glyphs == NULL) {
-            fprintf(stderr, "Failed to resize glyph index\n");
+            fprintf(stderr, "Failed to resize glyph index.\n");
             abort();
           }
           data->glyphs = temp_glyphs;
-
           fprintf(stdout, "Resized glyph index %i\n", (int)data->glyphs_capacity);
         }
 
@@ -291,8 +302,8 @@ void spooky_font_write_to_renderer(const spooky_font * self, SDL_Renderer * rend
         glyph->texture = spooky_font_glyph_create_texture(renderer, ttf_font, s);
 
         data->glyphs_count++;
-        qsort(data->glyphs, data->glyphs_count, sizeof data->glyphs[0], &spooky_glyph_compare);
-
+        qsort(data->glyphs, data->glyphs_count, sizeof * data->glyphs, &spooky_glyph_compare);
+        
         g = spooky_font_search_glyph_index(self, c); 
       }
       int advance = space_advance;
@@ -300,7 +311,7 @@ void spooky_font_write_to_renderer(const spooky_font * self, SDL_Renderer * rend
         SDL_Texture * texture = g->texture;
         advance = g->advance;
         if(texture != NULL) {
-          SDL_Rect dest = { .x = 0, .y = 0, .w = advance, .h = self->get_height(self) };
+          SDL_Rect dest = { .x = 0, .y = 0, .w = advance, .h = spooky_font_get_height(self) };
 
           dest.x = x + destX;
           dest.y = y + destY;
@@ -347,17 +358,22 @@ int spooky_font_get_height_line_skip_difference(const spooky_font * self) { retu
 int spooky_font_get_height_line_skip_delta(const spooky_font * self) { return self->data->height - spooky_font_get_height_line_skip_difference(self); }
 
 int spooky_font_nearest_x(const spooky_font * self, int x) {
-  const spooky_glyph * m_dash = spooky_font_search_glyph_index(self, 'M');
-  int Advance =  m_dash->advance;
-  float fx = (float)x / (float)Advance;
+  static const spooky_glyph * m_dash = NULL;
+  if(m_dash == NULL) {
+    m_dash = spooky_font_search_glyph_index(self, 'M');
+  }
+  assert(m_dash != NULL && x > 0);
+  int advance = m_dash->advance;
+  assert(advance > 0);
+  float fx = (float)x / (float)advance;
   int rx = fx >= 0.0 ? (int)(fx + 0.5) : (int)(fx - 0.5);
-  return rx * Advance;
+  return rx * advance;
 }
 
 int spooky_font_nearest_y(const spooky_font * self, int y) {
-  float fy = (float)y /(float)self->get_height_line_skip_delta(self);
+  float fy = (float)y /(float)spooky_font_get_height_line_skip_delta(self);
   int iy = fy >= 0.0 ? (int)(fy + 0.5) : (int)(fy - 0.5);
-  return iy * self->get_height_line_skip_delta(self);
+  return iy * spooky_font_get_height_line_skip_delta(self);
 }
 
 /* TODO: Load font from memory
@@ -421,16 +437,17 @@ spooky_glyph * spooky_font_glyph_create(TTF_Font * font, uint32_t character, spo
 }
 
 int spooky_glyph_compare(const void * a, const void * b) {
-  spooky_glyph l;
-  spooky_glyph r;
-  l = *(const spooky_glyph *)a;
-  r = *(const spooky_glyph *)b;
-  if(l.c < r.c) return -1;
-  if(l.c == r.c) return 0;
+  const spooky_glyph * l;
+  const spooky_glyph * r;
+  l = (const spooky_glyph *)a;
+  r = (const spooky_glyph *)b;
+  if(l->c < r->c) return -1;
+  if(l->c == r->c) return 0;
   else return 1;
 }
 
 void spooky_font_set_font_attributes(const spooky_font * self) {
+  assert(self != NULL && self->data != NULL && self->data->font != NULL);
   spooky_font_data * data = self->data;
 
   TTF_Font * ttf_font = data->font;
@@ -444,7 +461,6 @@ void spooky_font_set_font_attributes(const spooky_font * self) {
   /* create glyphs from table */
   for(size_t i = 0; i < data->glyphs_capacity; i++) {
     spooky_glyph * glyph = &(data->glyphs[i]);
-    
     if(i < UINT_MAX) {
       glyph->c = (uint32_t)i;
       glyph = spooky_font_glyph_create(ttf_font, glyph->c, glyph);
@@ -454,11 +470,12 @@ void spooky_font_set_font_attributes(const spooky_font * self) {
       w += (size_t)glyph->advance;
       data->glyphs_count++;
     } else {
+      fprintf(stderr, "Fatal error generating glyph index.");
       abort();
     }
   }
 
-  qsort(data->glyphs, data->glyphs_count, sizeof data->glyphs[0], &spooky_glyph_compare);
+  qsort(data->glyphs, data->glyphs_count, sizeof * data->glyphs, &spooky_glyph_compare);
 
   // get an M for an em dash. Which is cheezy
   const spooky_glyph * m = spooky_font_search_glyph_index(self, 'M');
