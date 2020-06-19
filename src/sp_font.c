@@ -8,6 +8,8 @@
 #include "sp_error.h"
 #include "sp_font.h"
 
+static const size_t spooky_glyphs_alloc_unit = 127;
+
 const int spooky_default_font_size = 8;
 
 typedef struct spooky_glyph {
@@ -44,6 +46,7 @@ typedef struct spooky_font_data {
   spooky_glyph * glyphs;
 } spooky_font_data;
 
+static void spooky_font_realloc_glyphs(const spooky_font * self);
 static errno_t spooky_font_open_font(const char * file_path, int point_size, TTF_Font ** ttf_font);
 static void spooky_font_write(const spooky_font * self, const spooky_point * destination, const SDL_Color * color, const char * s, int * w, int * h);
 static void spooky_font_write_to_renderer(const spooky_font * self, SDL_Renderer * renderer, const spooky_point * destination, const SDL_Color * color, const char * s, int * w, int * h);
@@ -88,14 +91,14 @@ errno_t spooky_font_open_font(const char * file_path, int point_size, TTF_Font *
   return SP_SUCCESS;
 
 err0:
-  fprintf(stderr, "Unable to load font '%s'. %s\n", file_path, TTF_GetError());
+  fprintf(stderr, "Unable to load resource '%s'. %s\n", file_path, TTF_GetError());
   abort();
 }
 
 const spooky_font * spooky_font_alloc() {
   spooky_font * self = calloc(1, sizeof * self);
   if(self == NULL) { 
-    fprintf(stderr, "Unable to allocate font memory.");
+    fprintf(stderr, "Unable to allocate memory.");
     abort();
   }
   return self;
@@ -159,7 +162,7 @@ const spooky_font * spooky_font_ctor(const spooky_font * self, SDL_Renderer * re
   data->drop_x = 1;
   data->drop_y = 1;
 
-  data->glyphs_capacity = 127;
+  data->glyphs_capacity = spooky_glyphs_alloc_unit;
   data->glyphs_count = 0;
 
   data->glyphs = calloc(data->glyphs_capacity, sizeof * data->glyphs);
@@ -278,32 +281,19 @@ void spooky_font_write_to_renderer(const spooky_font * self, SDL_Renderer * rend
       width += space_advance;
     } else {
       const spooky_glyph * g = spooky_font_search_glyph_index(self, c);
-      if(!g) {
-        if(data->glyphs_count >= data->glyphs_capacity) {
-          data->glyphs_capacity += 127;
-          
-          spooky_glyph * temp_glyphs = realloc(data->glyphs, sizeof * data->glyphs * data->glyphs_capacity);
-          if(temp_glyphs == NULL) {
-            fprintf(stderr, "Failed to resize glyph index.\n");
-            abort();
-          }
-          data->glyphs = temp_glyphs;
-          fprintf(stdout, "Resized glyph index %i\n", (int)data->glyphs_capacity);
-        }
+      if(g == NULL) {
+        spooky_font_realloc_glyphs(self);
 
         spooky_glyph * glyph = data->glyphs + data->glyphs_count;
         memset(glyph, 0, sizeof * glyph);
 
-        glyph->c = c;
         TTF_Font * ttf_font = data->font;
         glyph = spooky_font_glyph_create(ttf_font, c, glyph);
+        glyph->c = c;
         glyph->offset = data->glyphs_count;
-
         glyph->texture = spooky_font_glyph_create_texture(renderer, ttf_font, s);
-
         data->glyphs_count++;
         qsort(data->glyphs, data->glyphs_count, sizeof * data->glyphs, &spooky_glyph_compare);
-        
         g = spooky_font_search_glyph_index(self, c); 
       }
       int advance = space_advance;
@@ -347,6 +337,23 @@ void spooky_font_write_to_renderer(const spooky_font * self, SDL_Renderer * rend
 
   if(h) { *h = y; }
   if(w && *w == 0) { *w = width; }
+}
+
+void spooky_font_realloc_glyphs(const spooky_font * self) {
+  assert(self != NULL && self->data != NULL);
+
+  spooky_font_data * data = self->data;
+  if(data->glyphs_count >= data->glyphs_capacity) {
+    data->glyphs_capacity += spooky_glyphs_alloc_unit;
+
+    spooky_glyph * temp_glyphs = realloc(data->glyphs, sizeof * data->glyphs * data->glyphs_capacity);
+    if(temp_glyphs == NULL) {
+      fprintf(stderr, "Failed to resize glyph index.\n");
+      abort();
+    }
+    data->glyphs = temp_glyphs;
+    fprintf(stdout, "Resized glyph index %i\n", (int)data->glyphs_capacity);
+  }
 }
 
 int spooky_font_get_height(const spooky_font * self) { return self->data->height; }
@@ -459,8 +466,8 @@ void spooky_font_set_font_attributes(const spooky_font * self) {
 
   size_t w = 0;
   /* create glyphs from table */
-  for(size_t i = 0; i < data->glyphs_capacity; i++) {
-    spooky_glyph * glyph = &(data->glyphs[i]);
+  for(size_t i = 0; i < data->glyphs_capacity; ++i) {
+    spooky_glyph * glyph = data->glyphs + i;
     if(i < UINT_MAX) {
       glyph->c = (uint32_t)i;
       glyph = spooky_font_glyph_create(ttf_font, glyph->c, glyph);

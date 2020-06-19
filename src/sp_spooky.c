@@ -461,7 +461,6 @@ errno_t spooky_loop(sp_game_context * context) {
     }
 
     double interpolation = fmin(1.0f, (double)(now - last_update_time) / (double)(TIME_BETWEEN_UPDATES));
-    (void)interpolation;
 
     uint64_t this_second = (uint64_t)(last_update_time / BILLION);
 
