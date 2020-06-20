@@ -12,7 +12,6 @@
 #include "sp_font.h"
 #include "sp_time.h"
 
-
 typedef struct sp_game_context {
   SDL_Window * window;
   SDL_Renderer * renderer;
@@ -315,7 +314,7 @@ errno_t spooky_loop(sp_game_context * context) {
   const int MAX_UPDATES_BEFORE_RENDER = 5;
   const int TARGET_TIME_BETWEEN_RENDERS = BILLION / TARGET_FPS;
 
-  int64_t now;
+  int64_t now = 0;
   int64_t last_render_time = sp_get_time_in_us();
   int64_t last_update_time = sp_get_time_in_us();
 
@@ -395,9 +394,9 @@ errno_t spooky_loop(sp_game_context * context) {
             const spooky_font * font = spooky_font_acquire();
             context->font = font->ctor(font, renderer, "./res/fonts/PrintChar21.ttf", spooky_default_font_size);
 
-
-            int w, h;
+            int w = 0, h = 0;
             SDL_GetWindowSize(window, &w, &h);
+            assert(w > 0 && h > 0);
             context->window_width = w;
             context->window_height = h;
           }
@@ -464,21 +463,22 @@ errno_t spooky_loop(sp_game_context * context) {
 
     uint64_t this_second = (uint64_t)(last_update_time / BILLION);
 
-    SDL_Color c0;
+    SDL_Color c0 = { 0 };
     SDL_GetRenderDrawColor(renderer, &c0.r, &c0.g, &c0.b, & c0.a);
     {
-      const SDL_Color bg = { .r = 20, .g = 1, .b = 36, .a = 255 };
-      SDL_SetRenderDrawColor(renderer, bg.r, bg.g, bg.b, bg.a);
-      SDL_RenderClear(renderer); /* letterbox color */
-
+      /** If not rendering non-scaled background below, render the letterbox color instead:
+      *** const SDL_Color bg = { .r = 20, .g = 1, .b = 36, .a = 255 };
+      *** SDL_SetRenderDrawColor(renderer, bg.r, bg.g, bg.b, bg.a);
+      *** SDL_RenderClear(renderer); // letterbox color 
+      */
       const SDL_Color c = { .r = 1, .g = 20, .b = 36, .a = 255 };
       SDL_SetRenderDrawColor(renderer, c.r, c.g, c.b, c.a);
       SDL_RenderFillRect(renderer, NULL); /* screen color */
     }
 
-    /* This block will render a non-scaled background on the letterbox region around the
-     * scaled foreground, sprites, and effects: */
     {
+      /* This block will render a non-scaled background on the letterbox region around the
+       * scaled foreground, sprites, and effects: */
       SDL_ClearError();
       SDL_RenderSetLogicalSize(renderer, context->window_width, context->window_height);
       if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
@@ -490,7 +490,7 @@ errno_t spooky_loop(sp_game_context * context) {
 
     if(context->show_hud) {
       static_assert(sizeof(hud) == 1920, "HUD buffer must be 1920 bytes.");
-      int mouse_x, mouse_y;
+      int mouse_x = 0, mouse_y = 0;
       SDL_GetMouseState(&mouse_x, &mouse_y);
       const spooky_font * font = context->font;
       int hud_out = snprintf(hud, sizeof(hud),
@@ -518,9 +518,9 @@ errno_t spooky_loop(sp_game_context * context) {
       assert(hud_out > 0 && (size_t)hud_out < sizeof(hud) - 1);
       hud[hud_out] = '\0';
 
-      const spooky_point p = { .x = 5, .y = 5 };
-      const SDL_Color fc = { .r = 255, .g = 255, .b = 255, .a = 255};
-      context->font->write(context->font, &p, &fc, hud, NULL, NULL);
+      const SDL_Point hud_point = { .x = 5, .y = 5 };
+      const SDL_Color hud_fore_color = { .r = 255, .g = 255, .b = 255, .a = 255};
+      context->font->write(context->font, &hud_point, &hud_fore_color, hud, NULL, NULL);
     }
 
     //SDL_SetRenderDrawColor(renderer, c0.r, c0.g, c0.b, c0.a);
