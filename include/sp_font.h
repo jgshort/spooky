@@ -4,14 +4,9 @@
 #include "sp_gui.h"
 
 extern const int spooky_default_font_size;
+extern const char * spooky_default_font_name;
 
-typedef struct spooky_point {
-  int x;
-  int y;
-} spooky_point;
-
-typedef struct spooky_glyph spooky_glyph;
-typedef struct spooky_font_data spooky_font_data;
+struct spooky_font_data;
 typedef struct spooky_font spooky_font;
 
 typedef struct spooky_font {
@@ -19,8 +14,8 @@ typedef struct spooky_font {
   const spooky_font * (*dtor)(const spooky_font * self);
   void (*free)(const spooky_font * self);
   void (*release)(const spooky_font * self);
-  void (*write)(const spooky_font * self, const spooky_point * destination, const SDL_Color * color, const char * s, int * w, int * h); 
-  void (*write_to_renderer)(const spooky_font * self, SDL_Renderer * renderer, const spooky_point * destination, const SDL_Color * color, const char * s, int * w, int * h);
+  void (*write)(const spooky_font * self, const SDL_Point * destination, const SDL_Color * color, const char * s, int * w, int * h); 
+  void (*write_to_renderer)(const spooky_font * self, SDL_Renderer * renderer, const SDL_Point * destination, const SDL_Color * color, const char * s, int * w, int * h);
   const char * (*get_name)(const spooky_font * self);
   int (*get_height)(const spooky_font * self);
   int (*get_ascent)(const spooky_font * self);
@@ -38,8 +33,8 @@ typedef struct spooky_font {
   int  (*get_drop_x)(const spooky_font * self);
   void (*set_drop_y)(const spooky_font * self, int drop_y);
   int (*get_drop_y)(const spooky_font * self);
-
-  spooky_font_data * data;
+  int (*get_point_size)(const spooky_font * self);
+  struct spooky_font_data * data;
 } spooky_font;
 
 /* Allocate (malloc) interface */
@@ -62,8 +57,5 @@ void spooky_font_release(const spooky_font * self);
 
 // TODO: const spooky_font * spooky_font_load_from_memory(SDL_Renderer * renderer, int pointSize, const char * memory, size_t size);
 
-uint32_t spooky_font_get_code_point(const char * s, int * skip);
-
 #endif /* SPOOKY_FONT__H */
-
 

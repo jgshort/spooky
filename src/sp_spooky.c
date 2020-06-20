@@ -176,7 +176,7 @@ errno_t spooky_init_context(sp_game_context * context) {
   context->glContext = glContext;
 
   const spooky_font * font = spooky_font_acquire();
-  context->font = font->ctor(font, renderer, "./res/fonts/PrintChar21.ttf", spooky_default_font_size);
+  context->font = font->ctor(font, renderer, spooky_default_font_name, spooky_default_font_size);
 
   fprintf(stdout, " Done!\n");
   fflush(stdout);
@@ -389,10 +389,11 @@ errno_t spooky_loop(sp_game_context * context) {
             if(SDL_GetWindowFlags(window) & SDL_WINDOW_MAXIMIZED) {
               context->scale_factor_x = context->scale_factor_y = 1.0f;
             }
-
+            
+            int point_size = context->font->get_point_size(context->font);
             spooky_font_release(context->font), context->font = NULL;
             const spooky_font * font = spooky_font_acquire();
-            context->font = font->ctor(font, renderer, "./res/fonts/PrintChar21.ttf", spooky_default_font_size);
+            context->font = font->ctor(font, renderer, spooky_default_font_name, point_size);
 
             int w = 0, h = 0;
             SDL_GetWindowSize(window, &w, &h);
@@ -424,6 +425,23 @@ errno_t spooky_loop(sp_game_context * context) {
                     }
                   }
                   break;
+                case SDLK_EQUALS: 
+                  {
+                    int new_point_size = context->font->get_point_size(context->font) + 1;
+                    if(new_point_size >= 72) { new_point_size = 72; }
+                    spooky_font_release(context->font), context->font = NULL;
+                    const spooky_font * new_font = spooky_font_acquire();
+                    context->font = new_font->ctor(new_font, renderer, spooky_default_font_name, new_point_size);
+                  }
+                  break;
+                case SDLK_MINUS:
+                  {
+                    int new_point_size = context->font->get_point_size(context->font) - 1;
+                    if(new_point_size <= 0) { new_point_size = 1; }
+                    spooky_font_release(context->font), context->font = NULL;
+                    const spooky_font * new_font = spooky_font_acquire();
+                    context->font = new_font->ctor(new_font, renderer, spooky_default_font_name, new_point_size);
+                  }
                 default:
                   break;
               } /* >> switch(sym ... */
@@ -479,6 +497,7 @@ errno_t spooky_loop(sp_game_context * context) {
     {
       /* This block will render a non-scaled background on the letterbox region around the
        * scaled foreground, sprites, and effects: */
+
       SDL_ClearError();
       SDL_RenderSetLogicalSize(renderer, context->window_width, context->window_height);
       if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
@@ -520,7 +539,15 @@ errno_t spooky_loop(sp_game_context * context) {
 
       const SDL_Point hud_point = { .x = 5, .y = 5 };
       const SDL_Color hud_fore_color = { .r = 255, .g = 255, .b = 255, .a = 255};
+      
+      int w, h;
+      int old_w, old_h;
+      SDL_GetRendererOutputSize(renderer, &w, &h);
+      SDL_RenderGetLogicalSize(renderer, &old_w, &old_h);
+      SDL_RenderSetLogicalSize(renderer, w, h);
+
       context->font->write(context->font, &hud_point, &hud_fore_color, hud, NULL, NULL);
+      SDL_RenderSetLogicalSize(renderer, old_w, old_h);
     }
 
     //SDL_SetRenderDrawColor(renderer, c0.r, c0.g, c0.b, c0.a);
