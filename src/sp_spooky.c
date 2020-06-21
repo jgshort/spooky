@@ -89,6 +89,9 @@ errno_t spooky_init_context(sp_game_context * context) {
   if(!SDL_SetHint(SDL_HINT_VIDEO_HIGHDPI_DISABLED, "0")) { goto err0; }
   if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
 
+  if(!SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0")) { goto err0; }
+  if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
+
   SDL_ClearError();
   if(SDL_Init(SDL_INIT_VIDEO) != 0) { goto err1; }
   if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
@@ -382,10 +385,11 @@ errno_t spooky_loop(sp_game_context * context) {
                 ))
 #endif
           {
+            
             if(SDL_RenderSetLogicalSize(renderer, context->logical_width, context->logical_height) != 0) {
               fprintf(stderr, "%s\n", SDL_GetError());
             }
-
+            
             if(SDL_GetWindowFlags(window) & SDL_WINDOW_MAXIMIZED) {
               context->scale_factor_x = context->scale_factor_y = 1.0f;
             }
@@ -504,7 +508,7 @@ errno_t spooky_loop(sp_game_context * context) {
       SDL_RenderCopy(renderer, letterbox_background, NULL, NULL);
       SDL_RenderSetLogicalSize(renderer, context->logical_width, context->logical_height);
     }
- 
+   
     SDL_RenderCopy(renderer, background, NULL, NULL);
 
     if(context->show_hud) {
@@ -539,15 +543,15 @@ errno_t spooky_loop(sp_game_context * context) {
 
       const SDL_Point hud_point = { .x = 5, .y = 5 };
       const SDL_Color hud_fore_color = { .r = 255, .g = 255, .b = 255, .a = 255};
-      
+    /* 
       int w, h;
       int old_w, old_h;
       SDL_GetRendererOutputSize(renderer, &w, &h);
       SDL_RenderGetLogicalSize(renderer, &old_w, &old_h);
       SDL_RenderSetLogicalSize(renderer, w, h);
-
+*/
       context->font->write(context->font, &hud_point, &hud_fore_color, hud, NULL, NULL);
-      SDL_RenderSetLogicalSize(renderer, old_w, old_h);
+ //     SDL_RenderSetLogicalSize(renderer, old_w, old_h);
     }
 
     //SDL_SetRenderDrawColor(renderer, c0.r, c0.g, c0.b, c0.a);
