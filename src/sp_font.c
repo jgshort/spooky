@@ -48,6 +48,8 @@ typedef struct spooky_font_data {
   spooky_glyph * glyphs;
 } spooky_font_data;
 
+const spooky_font * spooky_font_cctor(const spooky_font * self, SDL_Renderer * renderer, int point_size, TTF_Font * ttf_font, TTF_Font * ttf_font_outline);
+
 static int spooky_font_get_point_size(const spooky_font * self);
 static uint32_t spooky_font_get_code_point(const char * s, int * skip);
 static void spooky_font_realloc_glyphs(const spooky_font * self);
@@ -55,7 +57,7 @@ static errno_t spooky_font_open_font(const char * file_path, int point_size, TTF
 static void spooky_font_write(const spooky_font * self, const SDL_Point * destination, const SDL_Color * color, const char * s, int * w, int * h);
 static void spooky_font_write_to_renderer(const spooky_font * self, SDL_Renderer * renderer, const SDL_Point * destination, const SDL_Color * color, const char * s, int * w, int * h);
 
-static SDL_Texture * spooky_font_glyph_create_texture(const spooky_font * self, const char * character);
+static errno_t spooky_font_glyph_create_texture(const spooky_font * self, const char * text, SDL_Texture ** out_texture);
 static spooky_glyph * spooky_font_glyph_create(const spooky_font * self, uint32_t character, spooky_glyph * glyph);
 
 static int spooky_glyph_compare(const void * a, const void * b);
@@ -143,23 +145,10 @@ const spooky_font * spooky_font_acquire() {
   return spooky_font_init((spooky_font *)(uintptr_t)spooky_font_alloc());
 }
 
-const spooky_font * spooky_font_ctor(const spooky_font * self, SDL_Renderer * renderer, const char * file_path, int point_size) {
+const spooky_font * spooky_font_cctor(const spooky_font * self, SDL_Renderer * renderer, int point_size, TTF_Font * ttf_font, TTF_Font * ttf_font_outline) {
   assert(self != NULL && renderer != NULL);
   spooky_font_data * data = calloc(1, sizeof * data);
   if(!data) { abort(); }
-
-  TTF_Font * ttf_font = NULL;
-  if(spooky_font_open_font(file_path, point_size, &ttf_font) != SP_SUCCESS) {
-    fprintf(stderr, "Resource '%s' not found.", file_path);
-    abort();
-  }
-
-  TTF_Font * ttf_font_outline = NULL;
-  if(spooky_font_open_font(file_path, point_size, &ttf_font_outline) != SP_SUCCESS) {
-    fprintf(stderr, "Resource '%s' not found.", file_path);
-    abort();
-  }
-  TTF_SetFontOutline(ttf_font_outline, spooky_font_outline);
 
   assert(ttf_font != NULL && ttf_font_outline != NULL);
 
@@ -192,6 +181,24 @@ const spooky_font * spooky_font_ctor(const spooky_font * self, SDL_Renderer * re
   spooky_font_set_font_attributes(self);
 
   return self;
+}
+
+const spooky_font * spooky_font_ctor(const spooky_font * self, SDL_Renderer * renderer, const char * file_path, int point_size) {
+
+  TTF_Font * ttf_font = NULL;
+  if(spooky_font_open_font(file_path, point_size, &ttf_font) != SP_SUCCESS) {
+    fprintf(stderr, "Resource '%s' not found.", file_path);
+    abort();
+  }
+
+  TTF_Font * ttf_font_outline = NULL;
+  if(spooky_font_open_font(file_path, point_size, &ttf_font_outline) != SP_SUCCESS) {
+    fprintf(stderr, "Resource '%s' not found.", file_path);
+    abort();
+  }
+  TTF_SetFontOutline(ttf_font_outline, spooky_font_outline);
+
+  return spooky_font_cctor(self, renderer, point_size, ttf_font, ttf_font_outline); 
 }
 
 const spooky_font * spooky_font_dtor(const spooky_font * self) {
@@ -302,7 +309,7 @@ void spooky_font_write_to_renderer(const spooky_font * self, SDL_Renderer * rend
         glyph = spooky_font_glyph_create(self, c, glyph);
         glyph->c = c;
         glyph->offset = data->glyphs_count;
-        glyph->texture = spooky_font_glyph_create_texture(self, s);
+        (void)spooky_font_glyph_create_texture(self, s, &glyph->texture);
         data->glyphs_count++;
         qsort(data->glyphs, data->glyphs_count, sizeof * data->glyphs, &spooky_glyph_compare);
         g = spooky_font_search_glyph_index(self, c); 
@@ -383,93 +390,103 @@ int spooky_font_nearest_y(const spooky_font * self, int y) {
   return iy * spooky_font_get_height_line_skip_delta(self);
 }
 
-/* TODO: Load font from memory
 const spooky_font * spooky_font_load_from_memory(SDL_Renderer * renderer, int point_size, const char * memory, size_t size) {
-  static const int AutoReleaseSource = 1;
+  static const int AUTO_RELEASE_SOURCE = 0;
 
   SDL_RWops * rw = SDL_RWFromConstMem(memory, (int)size);
-  TTF_Font * ttf_font = TTF_OpenFontRW(rw, AutoReleaseSource, point_size);
+  TTF_Font * ttf_font = TTF_OpenFontRW(rw, AUTO_RELEASE_SOURCE, point_size);
   if (!ttf_font) {
     fprintf(stderr,  "Unable to load font from memory. %s\n", TTF_GetError());
     abort();
   }
 
+  TTF_Font * ttf_font_outline = TTF_OpenFontRW(rw, AUTO_RELEASE_SOURCE, point_size);
+  if (!ttf_font) {
+    fprintf(stderr,  "Unable to load font from memory. %s\n", TTF_GetError());
+    abort();
+  }
+  TTF_SetFontOutline(ttf_font_outline, point_size);
   const spooky_font * font = spooky_font_acquire();
-  font = font->ctor(font, renderer, ttf_font);
-  return font;
+  return spooky_font_cctor(font, renderer, point_size, ttf_font, ttf_font_outline);
 }
-*/
 
-SDL_Texture * spooky_font_glyph_create_texture(const spooky_font * self, const char * text) {
-  //int skip = 0;
-  //uint32_t cp = spooky_font_get_code_point(text, &skip);
-  /*
-     char c[5] = { '\0', '\0', '\0', '\0' };
-     c[0] = (char)(cp & 0x000000ff);
-     c[1] = (char)(cp & 0x0000ff00) >>  8;
-     c[2] = (char)(cp & 0x00ff0000) >> 16;
-     c[3] = (char)(cp & 0xff000000) >> 24;
-     c[4] = '\0';
-     */
-
-  int w, h;
-  int old_w, old_h;
-  SDL_GetRendererOutputSize(self->data->renderer, &w, &h);
-  SDL_RenderGetLogicalSize(self->data->renderer, &old_w, &old_h);
-  SDL_RenderSetLogicalSize(self->data->renderer, w, h);
+errno_t spooky_font_glyph_create_texture(const spooky_font * self, const char * text, SDL_Texture ** out_texture) {
+  assert(out_texture != NULL && self->data->font_outline != NULL);
 
   const SDL_Color black = { .r = 0, .g = 0, .b = 0, .a = 255 }; 
-  assert(self->data->font_outline != NULL);
-  
-  SDL_ClearError();
-  SDL_Surface *bg_surface = TTF_RenderUTF8_Blended(self->data->font_outline, text, black);
-  if(!bg_surface || spooky_is_sdl_error(SDL_GetError())) {
-    return NULL;
-  }
- 
   const SDL_Color white = { .r = 255, .g = 255, .b = 255, .a = 255 };
   
   SDL_ClearError();
-  SDL_Surface *fg_surface = TTF_RenderUTF8_Blended(self->data->font, text, white);
-  if(!fg_surface || spooky_is_sdl_error(SDL_GetError())) {
-    return NULL;
-  }
-  assert(bg_surface != NULL && fg_surface != NULL);
+  SDL_Surface *bg_surface = TTF_RenderUTF8_Blended(self->data->font_outline, text, black);
+  if(!bg_surface || spooky_is_sdl_error(SDL_GetError())) { goto err0; }
   
+  SDL_ClearError();
+  SDL_Surface *fg_surface = TTF_RenderUTF8_Blended(self->data->font, text, white);
+  if(!fg_surface || spooky_is_sdl_error(SDL_GetError())) { goto err1; }
+  
+  assert(bg_surface != NULL && fg_surface != NULL);
+ 
+  SDL_ClearError();
   SDL_Texture * fg_texture = SDL_CreateTextureFromSurface(self->data->renderer, fg_surface);
-  SDL_Texture * bg_texture = SDL_CreateTextureFromSurface(self->data->renderer, bg_surface);
+  if(!fg_texture || spooky_is_sdl_error(SDL_GetError())) { goto err2; }
 
+  SDL_ClearError();
+  SDL_Texture * bg_texture = SDL_CreateTextureFromSurface(self->data->renderer, bg_surface);
+  if(!bg_texture || spooky_is_sdl_error(SDL_GetError())) { goto err3; }
+
+  SDL_ClearError();
   SDL_Texture * texture = SDL_CreateTexture(self->data->renderer
       , SDL_PIXELFORMAT_RGBA8888
       , SDL_TEXTUREACCESS_TARGET
       , bg_surface->w + 1
       , bg_surface->h + 1
       );
+  if(!texture || spooky_is_sdl_error(SDL_GetError())) { goto err4; }
 
+  assert(fg_texture != NULL && bg_texture != NULL && texture != NULL);
+
+  /* make texture a temporary render target */
   SDL_SetRenderTarget(self->data->renderer, texture);
 
+  /* clear the texture render target */
   SDL_SetRenderDrawColor(self->data->renderer, 0, 0, 0, 0);
   SDL_RenderFillRect(self->data->renderer, NULL);
-
   SDL_RenderClear(self->data->renderer);
 
+  /* render the outline */
   SDL_Rect bg_rect = {.x = 0, .y = 0, .w = bg_surface->w, .h = bg_surface->h}; 
   SDL_RenderCopy(self->data->renderer, bg_texture, NULL, &bg_rect);
-  
+ 
+  /* render the text */
   SDL_Rect fg_rect = {.x = 1, .y = 1, .w = fg_surface->w, .h = fg_surface->h}; 
   SDL_RenderCopy(self->data->renderer, fg_texture, NULL, &fg_rect);
-  
+
+  /* reset the render target */
   SDL_SetRenderTarget(self->data->renderer, NULL);
  
-  SDL_RenderSetLogicalSize(self->data->renderer, old_w, old_h);
-
   SDL_FreeSurface(bg_surface), bg_surface = NULL;
   SDL_FreeSurface(fg_surface), fg_surface = NULL;
-
   SDL_DestroyTexture(bg_texture), bg_texture = NULL;
   SDL_DestroyTexture(fg_texture), fg_texture = NULL;
- 
-  return texture;
+
+  *out_texture = texture;
+  return SP_SUCCESS;
+
+err4:
+  SDL_DestroyTexture(bg_texture), bg_texture = NULL;
+
+err3:
+  SDL_DestroyTexture(fg_texture), fg_texture = NULL;
+
+err2:
+  SDL_FreeSurface(fg_surface), fg_surface = NULL;
+
+err1:
+  SDL_FreeSurface(bg_surface), bg_surface = NULL;
+
+err0:
+  *out_texture = NULL;
+  return SP_FAILURE;
 }
 
 spooky_glyph * spooky_font_glyph_create(const spooky_font * self, uint32_t character, spooky_glyph * glyph) {
@@ -487,10 +504,8 @@ spooky_glyph * spooky_font_glyph_create(const spooky_font * self, uint32_t chara
 }
 
 int spooky_glyph_compare(const void * a, const void * b) {
-  const spooky_glyph * l;
-  const spooky_glyph * r;
-  l = (const spooky_glyph *)a;
-  r = (const spooky_glyph *)b;
+  const spooky_glyph * l = (const spooky_glyph *)a;
+  const spooky_glyph * r = (const spooky_glyph *)b;
   if(l->c < r->c) return -1;
   if(l->c == r->c) return 0;
   else return 1;
@@ -512,10 +527,13 @@ void spooky_font_set_font_attributes(const spooky_font * self) {
   for(size_t i = 0; i < data->glyphs_capacity; ++i) {
     spooky_glyph * glyph = data->glyphs + i;
     if(i < UINT_MAX) {
+      char buf[256] = { 0 };
       glyph->c = (uint32_t)i;
       glyph = spooky_font_glyph_create(self, glyph->c, glyph);
       glyph->offset = w;
-      glyph->texture = spooky_font_glyph_create_texture(self, (char *)&i);
+      int out = snprintf(buf, sizeof(buf), "%c", glyph->c);
+      assert(out > 0 && (size_t)out < sizeof(buf));
+      (void)spooky_font_glyph_create_texture(self, buf, &glyph->texture);
       assert(glyph->advance >= 0);
       w += (size_t)glyph->advance;
       data->glyphs_count++;
