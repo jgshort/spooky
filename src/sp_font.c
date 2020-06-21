@@ -320,7 +320,7 @@ void spooky_font_write_to_renderer(const spooky_font * self, SDL_Renderer * rend
         advance = g->advance;
         if(texture != NULL) {
           SDL_Rect dest = { .x = 0, .y = 0, .w = advance, .h = spooky_font_get_height(self) };
-          (void)color;
+          
           dest.x = x + destX;
           dest.y = y + destY;
 
@@ -393,6 +393,8 @@ int spooky_font_nearest_y(const spooky_font * self, int y) {
 const spooky_font * spooky_font_load_from_memory(SDL_Renderer * renderer, int point_size, const char * memory, size_t size) {
   static const int AUTO_RELEASE_SOURCE = 0;
 
+  assert(size < INT_MAX);
+
   SDL_RWops * rw = SDL_RWFromConstMem(memory, (int)size);
   TTF_Font * ttf_font = TTF_OpenFontRW(rw, AUTO_RELEASE_SOURCE, point_size);
   if (!ttf_font) {
@@ -405,6 +407,7 @@ const spooky_font * spooky_font_load_from_memory(SDL_Renderer * renderer, int po
     fprintf(stderr,  "Unable to load font from memory. %s\n", TTF_GetError());
     abort();
   }
+
   TTF_SetFontOutline(ttf_font_outline, point_size);
   const spooky_font * font = spooky_font_acquire();
   return spooky_font_cctor(font, renderer, point_size, ttf_font, ttf_font_outline);

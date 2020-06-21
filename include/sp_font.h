@@ -55,7 +55,7 @@ void spooky_font_free(const spooky_font * self);
 /* Destruct and free interface */
 void spooky_font_release(const spooky_font * self);
 
-// TODO: const spooky_font * spooky_font_load_from_memory(SDL_Renderer * renderer, int pointSize, const char * memory, size_t size);
+const spooky_font * spooky_font_load_from_memory(SDL_Renderer * renderer, int point_size, const char * memory, size_t size);
 
 #endif /* SPOOKY_FONT__H */
 

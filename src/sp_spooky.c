@@ -16,6 +16,7 @@ typedef struct sp_game_context {
   SDL_Window * window;
   SDL_Renderer * renderer;
   SDL_GLContext glContext;
+  SDL_Texture * canvas;
 
   float scale_factor_x;
   float scale_factor_y;
@@ -181,9 +182,23 @@ errno_t spooky_init_context(sp_game_context * context) {
   const spooky_font * font = spooky_font_acquire();
   context->font = font->ctor(font, renderer, spooky_default_font_name, spooky_default_font_size);
 
+  SDL_ClearError();
+  SDL_Texture * canvas = SDL_CreateTexture(renderer
+      , SDL_PIXELFORMAT_RGBA8888
+      , SDL_TEXTUREACCESS_TARGET
+      , context->logical_width
+      , context->logical_height 
+      );
+  if(!canvas || spooky_is_sdl_error(SDL_GetError())) { goto err8; }
+  context->canvas = canvas;
+
   fprintf(stdout, " Done!\n");
   fflush(stdout);
+
   return SP_SUCCESS;
+
+err8:
+  if(!error_message) { error_message = "Unable to create canvas."; }
 
 err7:
   /* unable to set logical size */
@@ -227,6 +242,16 @@ err0:
 
 void spooky_release_context(sp_game_context * context) {
   if(context != NULL) {
+    if(context->canvas != NULL) {
+      SDL_ClearError();
+      SDL_DestroyTexture(context->canvas), context->canvas = NULL;
+      if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
+      const char * error = SDL_GetError();
+      if(spooky_is_sdl_error(error)) {
+        fprintf(stderr, "Non-fatal error: Unable to destroy canvas, '%s'.\n", error);
+      }
+    }
+
     if(context->glContext != NULL) {
       SDL_ClearError();
       SDL_GL_DeleteContext(context->glContext), context->glContext = NULL;
@@ -351,7 +376,6 @@ errno_t spooky_loop(sp_game_context * context) {
   assert(background != NULL);
 
   bool running = true;
-  //bool linux_resize = false;
 
   char hud[80 * 24] = { 0 };
 
@@ -382,7 +406,7 @@ errno_t spooky_loop(sp_game_context * context) {
 #elif __unix__
           if (evt.type == SDL_WINDOWEVENT && (
                 evt.window.event == SDL_WINDOWEVENT_RESIZED
-                ))
+             ))
 #endif
           {
             
@@ -576,18 +600,16 @@ errno_t spooky_loop(sp_game_context * context) {
 end_of_running_loop: ;
   } /* >> while(running) */
 
-  if(background != NULL) {
-    SDL_DestroyTexture(background), background = NULL;
-  }
-  if(letterbox_background != NULL) {
-    SDL_DestroyTexture(letterbox_background), letterbox_background = NULL;
-  }
+  if(background != NULL) { SDL_DestroyTexture(background), background = NULL; }
+  if(letterbox_background != NULL) { SDL_DestroyTexture(letterbox_background), letterbox_background = NULL; }
   spooky_font_release(context->font);
-
 
   return SP_SUCCESS;
 
 err0:
+  if(background != NULL) { SDL_DestroyTexture(background), background = NULL; }
+  if(letterbox_background != NULL) { SDL_DestroyTexture(letterbox_background), letterbox_background = NULL; }
+
   return SP_FAILURE;
 }
 
