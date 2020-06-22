@@ -4,6 +4,9 @@
 const int spooky_window_default_width = 320;
 const int spooky_window_default_height = 200;
 
+const int spooky_window_default_logical_width = 320;
+const int spooky_window_default_logical_height = 200;
+
 errno_t spooky_load_image(const char * file_path, size_t file_path_len, SDL_Surface ** out_surface) {
   assert(!(file_path == NULL || file_path_len <= 0));
 

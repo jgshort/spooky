@@ -28,6 +28,8 @@ errno_t spooky_load_texture(SDL_Renderer * /* renderer */, const char * /* file_
 
 extern const int spooky_window_default_width;
 extern const int spooky_window_default_height;
+extern const int spooky_window_default_logical_width;
+extern const int spooky_window_default_logical_height;
 
 #ifdef __cplusplus
 }
