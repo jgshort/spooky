@@ -4,7 +4,7 @@
 const int spooky_window_default_width = 320;
 const int spooky_window_default_height = 200;
 
-errno_t spooky_load_image(const char * file_path, size_t file_path_len, SDL_Surface ** surface_out) {
+errno_t spooky_load_image(const char * file_path, size_t file_path_len, SDL_Surface ** out_surface) {
   assert(!(file_path == NULL || file_path_len <= 0));
 
   if(file_path == NULL || file_path_len <= 0) { goto err0; }
@@ -14,7 +14,7 @@ errno_t spooky_load_image(const char * file_path, size_t file_path_len, SDL_Surf
   if(!surface) { goto err1; }
 
   assert(surface != NULL);
-  *surface_out = surface;
+  *out_surface = surface;
 
   return SP_SUCCESS;
 
@@ -23,6 +23,7 @@ err1: ;
   fprintf(stderr, "> %s\n", error);
 
 err0:
+  *out_surface = NULL;
   fprintf(stderr, "Could not load surface from path '%s'.\n", file_path);
   fprintf(stderr, "This is a fatal error. Check the resources path and restart.\n");
   abort(); 
@@ -32,6 +33,7 @@ errno_t spooky_load_texture(SDL_Renderer * renderer, const char * file_path, siz
   assert(!(*out_texture != NULL || renderer == NULL || file_path == NULL || file_path_len <= 0));
   
   if(*out_texture != NULL || renderer == NULL || file_path == NULL || file_path_len <= 0) { goto err0; }
+
 
   SDL_Surface * surface = NULL;
   errno_t surface_error = spooky_load_image(file_path, file_path_len, &surface);
@@ -58,6 +60,7 @@ err1:
   fprintf(stderr, "Could not load texture from surface from path '%s'.\n", file_path);
 
 err0:
+  *out_texture = NULL;
   fprintf(stderr, "This is a fatal error. Check the resources path and restart.\n");
   abort();
 }

@@ -1,9 +1,9 @@
-#include <inttypes.h>
 #include <assert.h>
-#include <math.h>
 #include <stdlib.h>
-#include <stdbool.h>
 #include <stdio.h>
+#include <stdbool.h>
+#include <inttypes.h>
+#include <math.h>
 
 #include "config.h"
 #include "sp_error.h"
@@ -368,16 +368,16 @@ errno_t spooky_loop(sp_game_context * context) {
   SDL_ClearError();
   if(spooky_load_texture(renderer, "./res/bg3.png", 13, &background) != SP_SUCCESS) { goto err0; }
   if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
- 
+
   SDL_Texture * letterbox_background = NULL;
   SDL_ClearError();
-  if(spooky_load_texture(renderer, "./res/bg4.png", 13, &letterbox_background) != SP_SUCCESS) { goto err0; }
-  if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
-  assert(background != NULL);
+  if(spooky_load_texture(renderer, "./res/bg4.png", 13, &letterbox_background) != SP_SUCCESS) { goto err1; }
+  if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); } 
 
-  bool running = true;
+  assert(background != NULL && letterbox_background != NULL);
 
   char hud[80 * 24] = { 0 };
+  bool running = true;
 
   while(running) {
     int update_loops = 0;
@@ -606,9 +606,12 @@ end_of_running_loop: ;
 
   return SP_SUCCESS;
 
+
+err1:
+  if(letterbox_background != NULL) { SDL_DestroyTexture(letterbox_background), letterbox_background = NULL; }
+
 err0:
   if(background != NULL) { SDL_DestroyTexture(background), background = NULL; }
-  if(letterbox_background != NULL) { SDL_DestroyTexture(letterbox_background), letterbox_background = NULL; }
 
   return SP_FAILURE;
 }
