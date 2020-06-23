@@ -322,11 +322,13 @@ void spooky_font_write_to_renderer(const spooky_font * self, SDL_Renderer * rend
           
           dest.x = x + destX;
           dest.y = y + destY;
+
           (void)color;
-          /* Render font */
-          SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
-          SDL_SetTextureAlphaMod(texture, color->a);
-          SDL_SetTextureColorMod(texture, color->r, color->g, color->b);
+          /* Render font in a specific color:
+           * SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
+           * SDL_SetTextureAlphaMod(texture, color->a);
+           * SDL_SetTextureColorMod(texture, color->r, color->g, color->b);
+           */
           
           if (SDL_RenderCopy(renderer, texture, NULL, &dest) != 0) {
             fprintf(stderr, "Unable to render glyph during Write: %s\n", SDL_GetError()); 
@@ -419,7 +421,6 @@ errno_t spooky_font_glyph_create_texture(const spooky_font * self, const char * 
   const SDL_Color black = { .r = 0, .g = 0, .b = 0, .a = 255 }; 
   const SDL_Color white = { .r = 255, .g = 255, .b = 255, .a = 255 };
   
-       
   SDL_ClearError();
   SDL_Surface *bg_surface = TTF_RenderUTF8_Blended(self->data->font_outline, text, black);
   if(!bg_surface || spooky_is_sdl_error(SDL_GetError())) { goto err0; }
@@ -434,17 +435,9 @@ errno_t spooky_font_glyph_create_texture(const spooky_font * self, const char * 
   SDL_Texture * fg_texture = SDL_CreateTextureFromSurface(self->data->renderer, fg_surface);
   if(!fg_texture || spooky_is_sdl_error(SDL_GetError())) { goto err2; }
 
-  SDL_SetTextureBlendMode(fg_texture, SDL_BLENDMODE_BLEND);
-  SDL_SetTextureAlphaMod(fg_texture, 255);
-  SDL_SetTextureColorMod(fg_texture, 255, 255, 255);
-
   SDL_ClearError();
   SDL_Texture * bg_texture = SDL_CreateTextureFromSurface(self->data->renderer, bg_surface);
   if(!bg_texture || spooky_is_sdl_error(SDL_GetError())) { goto err3; }
-
-  SDL_SetTextureBlendMode(bg_texture, SDL_BLENDMODE_BLEND);
-  SDL_SetTextureAlphaMod(bg_texture, 255);
-  SDL_SetTextureColorMod(bg_texture, 0, 0, 0);
 
   SDL_ClearError();
   SDL_Texture * texture = SDL_CreateTexture(self->data->renderer
@@ -456,11 +449,7 @@ errno_t spooky_font_glyph_create_texture(const spooky_font * self, const char * 
   if(!texture || spooky_is_sdl_error(SDL_GetError())) { goto err4; }
 
   assert(fg_texture != NULL && bg_texture != NULL && texture != NULL);
-
-  SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
-  //jSDL_SetTextureAlphaMod(texture, 255);
-  //SDL_SetTextureColorMod(texture, 0, 0, 0);
-   
+  
   uint8_t r, g, b, a;
   SDL_GetRenderDrawColor(self->data->renderer, &r, &g, &b, &a);
   /* make texture a temporary render target */
@@ -468,11 +457,12 @@ errno_t spooky_font_glyph_create_texture(const spooky_font * self, const char * 
 
   /* clear the texture render target */
   SDL_SetRenderDrawColor(self->data->renderer, 0, 0, 0, 0);
-  //SDL_RenderFillRect(self->data->renderer, NULL); /* screen color */
+  SDL_RenderFillRect(self->data->renderer, NULL); /* screen color */
   SDL_RenderClear(self->data->renderer);
 
   /* render the outline */
   SDL_Rect bg_rect = {.x = 0, .y = 0, .w = bg_surface->w, .h = bg_surface->h}; 
+  
   SDL_RenderCopy(self->data->renderer, bg_texture, NULL, &bg_rect);
 
   /* render the text */
@@ -487,6 +477,10 @@ errno_t spooky_font_glyph_create_texture(const spooky_font * self, const char * 
   SDL_FreeSurface(fg_surface), fg_surface = NULL;
   SDL_DestroyTexture(bg_texture), bg_texture = NULL;
   SDL_DestroyTexture(fg_texture), fg_texture = NULL;
+
+  SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
+  SDL_SetTextureAlphaMod(texture, 255);
+  SDL_SetTextureColorMod(texture, 255, 255, 255);
 
   *out_texture = texture;
   return SP_SUCCESS;

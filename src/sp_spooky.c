@@ -155,6 +155,14 @@ errno_t spooky_init_context(sp_game_context * context) {
   if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
   if(renderer == NULL || spooky_is_sdl_error(SDL_GetError())) { goto err5; }
 
+  SDL_Color c0 = { 0 };
+  SDL_GetRenderDrawColor(renderer, &c0.r, &c0.g, &c0.b, & c0.a);
+  const SDL_Color c = { .r = 1, .g = 20, .b = 36, .a = 255 };
+  SDL_SetRenderDrawColor(renderer, c.r, c.g, c.b, c.a);
+  SDL_RenderFillRect(renderer, NULL);
+  SDL_SetRenderDrawColor(renderer, c0.r, c0.g, c0.b, c0.a);
+  SDL_RenderPresent(renderer);
+
   SDL_ClearError();
   SDL_GLContext glContext = SDL_GL_CreateContext(window);
   if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
@@ -165,10 +173,6 @@ errno_t spooky_init_context(sp_game_context * context) {
    * context->logical_height = spooky_window_default_logical_height;
    */
 
-  //SDL_ClearError();
-  //if(SDL_RenderSetLogicalSize(renderer, spooky_window_default_logical_width, spooky_window_default_logical_height) != 0) { goto err7; }
-  //if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
- 
   SDL_ClearError();
   SDL_Texture * canvas = SDL_CreateTexture(renderer
       , SDL_PIXELFORMAT_RGBA8888
@@ -178,13 +182,9 @@ errno_t spooky_init_context(sp_game_context * context) {
       );
   if(!canvas || spooky_is_sdl_error(SDL_GetError())) { goto err8; }
 
-  const spooky_font * font = spooky_font_acquire();
-  font = font->ctor(font, renderer, spooky_default_font_name, spooky_default_font_size * (int)floor(context->window_scale_factor));
-  
   context->renderer = renderer;
   context->window = window;
   context->glContext = glContext;
-  context->font = font;
   context->canvas = canvas;
   context->show_hud = false;
 
@@ -375,6 +375,11 @@ errno_t spooky_loop(sp_game_context * context) {
   static char hud[80 * 24] = { 0 };
   bool running = true;
 
+  {
+    const spooky_font * font = spooky_font_acquire();
+    context->font = font->ctor(font, renderer, spooky_default_font_name, spooky_default_font_size * (int)floor(context->window_scale_factor));
+  }
+
   while(running) {
     int update_loops = 0;
     now = sp_get_time_in_us();
@@ -497,7 +502,6 @@ errno_t spooky_loop(sp_game_context * context) {
 
     uint64_t this_second = (uint64_t)(last_update_time / BILLION);
 
-  
     {
       SDL_Color c0 = { 0 };
       SDL_GetRenderDrawColor(renderer, &c0.r, &c0.g, &c0.b, & c0.a);
