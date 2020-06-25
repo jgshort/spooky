@@ -12,6 +12,14 @@
 #include "sp_font.h"
 #include "sp_time.h"
 
+typedef struct spooky_console {
+  SDL_Rect rect;
+  int direction;
+  bool show_console;
+  bool is_animating;
+  char padding[2]; /* not portable */
+} spooky_console;
+
 typedef struct spooky_game_context {
   SDL_Window * window;
   SDL_Renderer * renderer;
@@ -25,10 +33,9 @@ typedef struct spooky_game_context {
   int window_height;
 
   bool show_hud;
-  bool show_console;
   bool is_fullscreen;
   
-  char padding[5]; /* not portable */
+  char padding[6]; /* not portable */
 
   const spooky_font * font;
 } spooky_game_context;
@@ -39,6 +46,9 @@ static errno_t spooky_test_resources(spooky_game_context * context);
 static errno_t spooky_loop(spooky_game_context * context);
 static void spooky_release_context(spooky_game_context * context);
 static void spooky_scale_font(spooky_game_context * context, int new_point_size);
+
+static void spooky_console_handle(spooky_game_context * context, spooky_console * console, double interpolation);
+static void spooky_show_console(spooky_game_context * context, spooky_console * console);
 
 int main(int argc, char **argv) {
   (void)argc;
@@ -189,7 +199,6 @@ errno_t spooky_init_context(spooky_game_context * context) {
   context->glContext = glContext;
   context->canvas = canvas;
   context->show_hud = false;
-  context->show_console = false;
 
   fprintf(stdout, " Done!\n");
   fflush(stdout);
@@ -374,6 +383,20 @@ errno_t spooky_loop(spooky_game_context * context) {
   static char hud[80 * 24] = { 0 };
   bool running = true;
 
+  const int console_direction = 73;
+
+  
+  spooky_console console = {
+    .direction = -console_direction,
+    .rect = {.x = 100, .y = -300, .w = context->window_width - 100, .h = 300 },
+    .show_console = false,
+    .is_animating = false
+  };
+  {
+    int w, h;
+    SDL_GetRendererOutputSize(context->renderer, &w, &h);
+    console.rect.w = w - 200;
+  }
   {
     /* Note: Weird bug in rendering/windowing/idk caused the font to render
      * incorrectly until after calling SDL_ShowWindow, but not for reasons I
@@ -382,7 +405,7 @@ errno_t spooky_loop(spooky_game_context * context) {
     const spooky_font * font = spooky_font_acquire();
     context->font = font->ctor(font, renderer, spooky_default_font_name, spooky_default_font_size * (int)floor(context->window_scale_factor));
   }
-
+  double interpolation = 0.0;
   while(running) {
     int update_loops = 0;
     now = sp_get_time_in_us();
@@ -418,7 +441,9 @@ errno_t spooky_loop(spooky_game_context * context) {
           assert(w > 0 && h > 0);
           context->window_width = w;
           context->window_height = h;
-          
+        
+          SDL_GetRendererOutputSize(context->renderer, &w, &h);
+          console.rect.w = w - 200;
           int new_point_size = context->font->get_point_size(context->font);
           spooky_scale_font(context, new_point_size);
         }
@@ -432,7 +457,13 @@ errno_t spooky_loop(spooky_game_context * context) {
               SDL_Keycode sym = evt.key.keysym.sym;
               switch(sym) {
                 case SDLK_BACKQUOTE: /* show console window */
-                  context->show_console = !context->show_console;
+                  {
+                    bool old_show_console = console.show_console;
+                    console.show_console = !console.show_console;
+                    if(console.is_animating) { console.show_console = old_show_console; }
+                    console.is_animating = console.rect.y + console.rect.h > 0 || console.rect.y + console.rect.h < console.rect.h;
+                    console.direction = console.direction < 0 ? console_direction : -console_direction;
+                  }
                   break;
                 case SDLK_F3: /* show HUD */
                   context->show_hud = !context->show_hud;
@@ -488,6 +519,10 @@ errno_t spooky_loop(spooky_game_context * context) {
         } /* >> switch(evt.type ... */
       }
 
+      if(console.show_console) {
+        spooky_console_handle(context, &console, interpolation);
+      }
+
       last_update_time += TIME_BETWEEN_UPDATES;
       update_loops++;
     } /* >> while ((now - last_update_time ... */
@@ -496,7 +531,7 @@ errno_t spooky_loop(spooky_game_context * context) {
       last_update_time = now - TIME_BETWEEN_UPDATES;
     }
 
-    double interpolation = fmin(1.0f, (double)(now - last_update_time) / (double)(TIME_BETWEEN_UPDATES));
+    interpolation = fmin(1.0f, (double)(now - last_update_time) / (double)(TIME_BETWEEN_UPDATES));
 
     uint64_t this_second = (uint64_t)(last_update_time / BILLION);
 
@@ -513,9 +548,10 @@ errno_t spooky_loop(spooky_game_context * context) {
       SDL_RenderFillRect(renderer, NULL); /* screen color */
       SDL_SetRenderDrawColor(renderer, saved_color.r, saved_color.g, saved_color.b, saved_color.a);
      }
-   
+  
     SDL_RenderCopy(renderer, background, NULL, NULL);
 
+    if(console.show_console) { spooky_show_console(context, &console); }
     if(context->show_hud) {
       static_assert(sizeof(hud) == 1920, "HUD buffer must be 1920 bytes.");
       int mouse_x = 0, mouse_y = 0;
@@ -549,6 +585,7 @@ errno_t spooky_loop(spooky_game_context * context) {
       const SDL_Color hud_fore_color = { .r = 255, .g = 255, .b = 255, .a = 255};
       font->write(font, &hud_point, &hud_fore_color, hud, NULL, NULL);
     }
+
 
     //SDL_SetRenderDrawColor(renderer, c0.r, c0.g, c0.b, c0.a);
     SDL_RenderPresent(renderer);
@@ -598,5 +635,33 @@ void spooky_scale_font(spooky_game_context * context, int new_point_size) {
 
   const spooky_font * new_font = spooky_font_acquire();
   context->font = new_font->ctor(new_font, context->renderer, spooky_default_font_name, new_point_size);
+}
+
+void spooky_console_handle(spooky_game_context * context, spooky_console * console, double interpolation) {
+  (void)context;
+
+  console->rect.y += (int)floor((double)console->direction * interpolation); 
+
+  if(console->rect.y < 0 - console->rect.h) { console->rect.y = 0 - console->rect.h; }
+  if(console->rect.y > 0) { console->rect.y = 0; }
+}
+
+void spooky_show_console(spooky_game_context * context, spooky_console * console) {
+  SDL_Renderer * renderer = context->renderer;
+
+  uint8_t r, g, b, a;
+  SDL_GetRenderDrawColor(renderer, &r, &g, &b, &a);
+
+  SDL_BlendMode blend_mode;
+  SDL_GetRenderDrawBlendMode(renderer, &blend_mode);
+ 
+  SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+  SDL_SetRenderDrawColor(renderer, 255, 255, 255, 173);
+  SDL_RenderFillRect(renderer, &console->rect);
+  
+  //SDL_RenderPresent(renderer);
+  
+  SDL_SetRenderDrawBlendMode(renderer, blend_mode);
+  SDL_SetRenderDrawColor(renderer, r, g, b, a);
 }
 
