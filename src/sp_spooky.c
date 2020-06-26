@@ -10,15 +10,8 @@
 #include "sp_math.h"
 #include "sp_gui.h"
 #include "sp_font.h"
+#include "sp_console.h"
 #include "sp_time.h"
-
-typedef struct spooky_console {
-  SDL_Rect rect;
-  int direction;
-  bool show_console;
-  bool is_animating;
-  char padding[2]; /* not portable */
-} spooky_console;
 
 typedef struct spooky_game_context {
   SDL_Window * window;
@@ -46,9 +39,6 @@ static errno_t spooky_test_resources(spooky_game_context * context);
 static errno_t spooky_loop(spooky_game_context * context);
 static void spooky_release_context(spooky_game_context * context);
 static void spooky_scale_font(spooky_game_context * context, int new_point_size);
-
-static void spooky_console_handle(spooky_game_context * context, spooky_console * console, double interpolation);
-static void spooky_show_console(spooky_game_context * context, spooky_console * console);
 
 int main(int argc, char **argv) {
   (void)argc;
@@ -383,20 +373,9 @@ errno_t spooky_loop(spooky_game_context * context) {
   static char hud[80 * 24] = { 0 };
   bool running = true;
 
-  const int console_direction = 73;
-
+  const spooky_console * console = spooky_console_acquire();
+  console = console->ctor(console, renderer);
   
-  spooky_console console = {
-    .direction = -console_direction,
-    .rect = {.x = 100, .y = -300, .w = context->window_width - 100, .h = 300 },
-    .show_console = false,
-    .is_animating = false
-  };
-  {
-    int w, h;
-    SDL_GetRendererOutputSize(context->renderer, &w, &h);
-    console.rect.w = w - 200;
-  }
   {
     /* Note: Weird bug in rendering/windowing/idk caused the font to render
      * incorrectly until after calling SDL_ShowWindow, but not for reasons I
@@ -441,9 +420,11 @@ errno_t spooky_loop(spooky_game_context * context) {
           assert(w > 0 && h > 0);
           context->window_width = w;
           context->window_height = h;
-        
-          SDL_GetRendererOutputSize(context->renderer, &w, &h);
-          console.rect.w = w - 200;
+          
+          /* TODO: Update console width on window resize */
+          // SDL_GetRendererOutputSize(context->renderer, &w, &h);
+          // console.rect.w = w - 200;
+          
           int new_point_size = context->font->get_point_size(context->font);
           spooky_scale_font(context, new_point_size);
         }
@@ -457,13 +438,7 @@ errno_t spooky_loop(spooky_game_context * context) {
               SDL_Keycode sym = evt.key.keysym.sym;
               switch(sym) {
                 case SDLK_BACKQUOTE: /* show console window */
-                  {
-                    bool old_show_console = console.show_console;
-                    console.show_console = !console.show_console;
-                    if(console.is_animating) { console.show_console = old_show_console; }
-                    console.is_animating = console.rect.y + console.rect.h > 0 || console.rect.y + console.rect.h < console.rect.h;
-                    console.direction = console.direction < 0 ? console_direction : -console_direction;
-                  }
+                  spooky_console_handle_event(console);
                   break;
                 case SDLK_F3: /* show HUD */
                   context->show_hud = !context->show_hud;
@@ -519,9 +494,7 @@ errno_t spooky_loop(spooky_game_context * context) {
         } /* >> switch(evt.type ... */
       }
 
-      if(console.show_console) {
-        spooky_console_handle(context, &console, interpolation);
-      }
+      spooky_console_handle_delta(console, interpolation);
 
       last_update_time += TIME_BETWEEN_UPDATES;
       update_loops++;
@@ -551,7 +524,8 @@ errno_t spooky_loop(spooky_game_context * context) {
   
     SDL_RenderCopy(renderer, background, NULL, NULL);
 
-    if(console.show_console) { spooky_show_console(context, &console); }
+    spooky_console_render(console, renderer);
+
     if(context->show_hud) {
       static_assert(sizeof(hud) == 1920, "HUD buffer must be 1920 bytes.");
       int mouse_x = 0, mouse_y = 0;
@@ -603,7 +577,7 @@ errno_t spooky_loop(spooky_game_context * context) {
 
     /* Try to be friendly to the OS: */
     while (now - last_render_time < TARGET_TIME_BETWEEN_RENDERS && now - last_update_time < TIME_BETWEEN_UPDATES) {
-      sp_sleep(1); /* Needed? */
+      sp_sleep(0); /* Needed? */
       now = sp_get_time_in_us();
     }
 end_of_running_loop: ;
@@ -637,31 +611,4 @@ void spooky_scale_font(spooky_game_context * context, int new_point_size) {
   context->font = new_font->ctor(new_font, context->renderer, spooky_default_font_name, new_point_size);
 }
 
-void spooky_console_handle(spooky_game_context * context, spooky_console * console, double interpolation) {
-  (void)context;
-
-  console->rect.y += (int)floor((double)console->direction * interpolation); 
-
-  if(console->rect.y < 0 - console->rect.h) { console->rect.y = 0 - console->rect.h; }
-  if(console->rect.y > 0) { console->rect.y = 0; }
-}
-
-void spooky_show_console(spooky_game_context * context, spooky_console * console) {
-  SDL_Renderer * renderer = context->renderer;
-
-  uint8_t r, g, b, a;
-  SDL_GetRenderDrawColor(renderer, &r, &g, &b, &a);
-
-  SDL_BlendMode blend_mode;
-  SDL_GetRenderDrawBlendMode(renderer, &blend_mode);
- 
-  SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-  SDL_SetRenderDrawColor(renderer, 255, 255, 255, 173);
-  SDL_RenderFillRect(renderer, &console->rect);
-  
-  //SDL_RenderPresent(renderer);
-  
-  SDL_SetRenderDrawBlendMode(renderer, blend_mode);
-  SDL_SetRenderDrawColor(renderer, r, g, b, a);
-}
 
