@@ -10,6 +10,7 @@
 #include "sp_math.h"
 #include "sp_gui.h"
 #include "sp_font.h"
+#include "sp_base.h"
 #include "sp_console.h"
 #include "sp_time.h"
 
@@ -373,9 +374,16 @@ errno_t spooky_loop(spooky_game_context * context) {
   static char hud[80 * 24] = { 0 };
   bool running = true;
 
+  const spooky_base ** objects = calloc(2, sizeof * objects);
+  const spooky_base ** first = objects;
+  const spooky_base ** last = objects + 1;
+  const spooky_base ** iter = first;
+
   const spooky_console * console = spooky_console_acquire();
   console = console->ctor(console, renderer);
-  
+
+  objects[0] = (const spooky_base *)console;
+
   {
     /* Note: Weird bug in rendering/windowing/idk caused the font to render
      * incorrectly until after calling SDL_ShowWindow, but not for reasons I
@@ -437,9 +445,6 @@ errno_t spooky_loop(spooky_game_context * context) {
             {
               SDL_Keycode sym = evt.key.keysym.sym;
               switch(sym) {
-                case SDLK_BACKQUOTE: /* show console window */
-                  spooky_console_handle_event(console);
-                  break;
                 case SDLK_F3: /* show HUD */
                   context->show_hud = !context->show_hud;
                   break;
@@ -494,8 +499,13 @@ errno_t spooky_loop(spooky_game_context * context) {
         } /* >> switch(evt.type ... */
       }
 
-      spooky_console_handle_delta(console, interpolation);
-
+      /* handle base events */
+      iter = first;
+      while(iter < last) {
+        (*iter)->handle_event(*iter, &evt);
+        iter++;
+      }
+ 
       last_update_time += TIME_BETWEEN_UPDATES;
       update_loops++;
     } /* >> while ((now - last_update_time ... */
@@ -505,6 +515,13 @@ errno_t spooky_loop(spooky_game_context * context) {
     }
 
     interpolation = fmin(1.0f, (double)(now - last_update_time) / (double)(TIME_BETWEEN_UPDATES));
+
+    /* handle base deltas */
+    iter = first;
+    while(iter < last) {
+      (*iter)->handle_delta(*iter, interpolation);
+      iter++;
+    }
 
     uint64_t this_second = (uint64_t)(last_update_time / BILLION);
 
@@ -523,8 +540,13 @@ errno_t spooky_loop(spooky_game_context * context) {
      }
   
     SDL_RenderCopy(renderer, background, NULL, NULL);
-
-    spooky_console_render(console, renderer);
+    
+    /* render bases */
+    iter = first;
+    while(iter < last) {
+      (*iter)->render(*iter, renderer);
+      iter++;
+    }
 
     if(context->show_hud) {
       static_assert(sizeof(hud) == 1920, "HUD buffer must be 1920 bytes.");
