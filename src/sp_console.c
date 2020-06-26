@@ -56,7 +56,6 @@ const spooky_console * spooky_console_ctor(const spooky_console * self, SDL_Rend
   assert(self != NULL);
   spooky_console_data * data = calloc(1, sizeof * data);
   if(!data) { abort(); }
-
   
   data->direction = -console_direction;
   data->rect = (SDL_Rect){.x = 100, .y = -300, .w = 0, .h = 300 };
@@ -93,24 +92,10 @@ void spooky_console_release(const spooky_console * self) {
 
 void spooky_console_handle_event(const spooky_base * self, SDL_Event * event) {
   spooky_console_data * data = ((const spooky_console *)self)->data;
- 
-  switch(event->type) {
-    case SDL_KEYUP:
-      {
-        SDL_Keycode sym = event->key.keysym.sym;
-        switch(sym) {
-          case SDLK_BACKQUOTE: /* show console window */
-            {
-              bool old_show_console = data->show_console;
-              data->show_console = !data->show_console;
-              if(data->is_animating) { data->show_console = old_show_console; }
-              data->is_animating = data->rect.y + data->rect.h > 0 || data->rect.y + data->rect.h < data->rect.h;
-              data->direction = data->direction < 0 ? console_direction : -console_direction;
-            }
-            break; 
-        }
-      }
-      break;
+  if(event->type == SDL_KEYUP && event->key.keysym.sym == SDLK_BACKQUOTE) {
+    if(!data->is_animating) { data->show_console = !data->show_console; }
+    data->direction = data->direction < 0 ? console_direction : -console_direction;
+    data->is_animating = data->rect.y + data->rect.h > 0 || data->rect.y + data->rect.h < data->rect.h;
   }
 }
 
@@ -136,7 +121,7 @@ void spooky_console_render(const spooky_base * self, SDL_Renderer * renderer) {
     SDL_GetRenderDrawBlendMode(renderer, &blend_mode);
    
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 173);
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 173);
     SDL_RenderFillRect(renderer, &(data->rect));
    
     SDL_SetRenderDrawBlendMode(renderer, blend_mode);
