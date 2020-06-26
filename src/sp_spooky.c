@@ -374,9 +374,9 @@ errno_t spooky_loop(spooky_game_context * context) {
   static char hud[80 * 24] = { 0 };
   bool running = true;
 
-  const spooky_base ** objects = calloc(2, sizeof * objects);
+  const spooky_base * objects[2] = { 0 };
   const spooky_base ** first = objects;
-  const spooky_base ** last = objects + 1;
+  const spooky_base ** last = objects + ((sizeof objects / sizeof * objects) - 1);
   const spooky_base ** iter = first;
 
   const spooky_console * console = spooky_console_acquire();
@@ -608,6 +608,7 @@ end_of_running_loop: ;
   if(background != NULL) { SDL_DestroyTexture(background), background = NULL; }
   if(letterbox_background != NULL) { SDL_DestroyTexture(letterbox_background), letterbox_background = NULL; }
 
+  spooky_console_release(console);
   spooky_font_release(context->font);
   return SP_SUCCESS;
 

@@ -24,7 +24,6 @@ const spooky_base * spooky_base_dtor(const spooky_base * self);
 void spooky_base_free(const spooky_base * self);
 void spooky_base_release(const spooky_base * self);
 
-
 void spooky_base_handle_event(const spooky_base * base, SDL_Event * event);
 void spooky_base_handle_delta(const spooky_base * base, double interpolation);
 void spooky_base_render(const spooky_base * base, SDL_Renderer * renderer);
