@@ -377,7 +377,6 @@ errno_t spooky_loop(spooky_game_context * context) {
   const spooky_base * objects[2] = { 0 };
   const spooky_base ** first = objects;
   const spooky_base ** last = objects + ((sizeof objects / sizeof * objects) - 1);
-  const spooky_base ** iter = first;
 
   const spooky_console * console = spooky_console_acquire();
   console = console->ctor(console, renderer);
@@ -500,10 +499,10 @@ errno_t spooky_loop(spooky_game_context * context) {
       }
 
       /* handle base events */
-      iter = first;
-      while(iter < last) {
-        (*iter)->handle_event(*iter, &evt);
-        iter++;
+      const spooky_base ** event_iter = first;
+      while(event_iter < last) {
+        (*event_iter)->handle_event(*event_iter, &evt);
+        event_iter++;
       }
  
       last_update_time += TIME_BETWEEN_UPDATES;
@@ -517,10 +516,10 @@ errno_t spooky_loop(spooky_game_context * context) {
     interpolation = fmin(1.0f, (double)(now - last_update_time) / (double)(TIME_BETWEEN_UPDATES));
 
     /* handle base deltas */
-    iter = first;
-    while(iter < last) {
-      (*iter)->handle_delta(*iter, interpolation);
-      iter++;
+    const spooky_base ** delta_iter = first;
+    while(delta_iter < last) {
+      (*delta_iter)->handle_delta(*delta_iter, interpolation);
+      delta_iter++;
     }
 
     uint64_t this_second = (uint64_t)(last_update_time / BILLION);
@@ -542,10 +541,10 @@ errno_t spooky_loop(spooky_game_context * context) {
     SDL_RenderCopy(renderer, background, NULL, NULL);
     
     /* render bases */
-    iter = first;
-    while(iter < last) {
-      (*iter)->render(*iter, renderer);
-      iter++;
+    const spooky_base ** render_iter = first;
+    while(render_iter < last) {
+      (*render_iter)->render(*render_iter, renderer);
+      render_iter++;
     }
 
     if(context->show_hud) {
@@ -582,7 +581,6 @@ errno_t spooky_loop(spooky_game_context * context) {
       font->write(font, &hud_point, &hud_fore_color, hud, NULL, NULL);
     }
 
-
     //SDL_SetRenderDrawColor(renderer, c0.r, c0.g, c0.b, c0.a);
     SDL_RenderPresent(renderer);
 
@@ -611,7 +609,6 @@ end_of_running_loop: ;
   spooky_console_release(console);
   spooky_font_release(context->font);
   return SP_SUCCESS;
-
 
 err1:
   if(letterbox_background != NULL) { SDL_DestroyTexture(letterbox_background), letterbox_background = NULL; }
