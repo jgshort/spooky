@@ -15,8 +15,21 @@ typedef struct spooky_hud_data {
 } spooky_hud_data;
 
 const spooky_hud * spooky_hud_init(spooky_hud * self) {
-  (void)self;
-  return NULL;
+  assert(self != NULL);
+  if(!self) { abort(); }
+
+  self = (spooky_hud *)(uintptr_t)spooky_base_init((spooky_base *)(uintptr_t)self);
+
+  self->ctor = &spooky_hud_ctor;
+  self->dtor = &spooky_hud_dtor;
+  self->free = &spooky_hud_free;
+  self->release = &spooky_hud_release;
+
+  self->super.handle_event = &spooky_hud_handle_event;
+  self->super.handle_delta = &spooky_hud_handle_delta;
+  self->super.render = &spooky_hud_render;
+
+  return self;
 }
 
 const spooky_hud * spooky_hud_alloc() {
