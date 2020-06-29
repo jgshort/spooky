@@ -6,7 +6,7 @@ spooky_SOURCES = \
 								 sp_font.c \
 								 sp_base.c \
 								 sp_console.c \
-								 sp_hud.c \
+								 sp_debug.c \
 								 sp_spooky.c \
 								 $(NULL)
 

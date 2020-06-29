@@ -12,7 +12,7 @@
 #include "sp_font.h"
 #include "sp_base.h"
 #include "sp_console.h"
-#include "sp_hud.h"
+#include "sp_debug.h"
 #include "sp_time.h"
 
 typedef struct spooky_game_context {
@@ -20,6 +20,7 @@ typedef struct spooky_game_context {
   SDL_Renderer * renderer;
   SDL_GLContext glContext;
   SDL_Texture * canvas;
+  const spooky_font * font;
 
   float window_scale_factor;
   float reserved0;
@@ -27,12 +28,9 @@ typedef struct spooky_game_context {
   int window_width;
   int window_height;
 
-  bool show_hud;
   bool is_fullscreen;
   
-  char padding[6]; /* not portable */
-
-  const spooky_font * font;
+  char padding[7]; /* not portable */
 } spooky_game_context;
 
 static errno_t spooky_init_context(spooky_game_context * context);
@@ -190,7 +188,6 @@ errno_t spooky_init_context(spooky_game_context * context) {
   context->window = window;
   context->glContext = glContext;
   context->canvas = canvas;
-  context->show_hud = false;
 
   fprintf(stdout, " Done!\n");
   fflush(stdout);
@@ -378,6 +375,8 @@ errno_t spooky_loop(spooky_game_context * context) {
     /* Note: Weird bug in rendering/windowing/idk caused the font to render
      * incorrectly until after calling SDL_ShowWindow, but not for reasons I
      * expected. Moving font allocation/creation here resolved the issue.
+     *
+     * This is a dumb hack :(
      */
     const spooky_font * font = spooky_font_acquire();
     context->font = font->ctor(font, renderer, spooky_default_font_name, spooky_default_font_size * (int)floor(context->window_scale_factor));
@@ -390,11 +389,11 @@ errno_t spooky_loop(spooky_game_context * context) {
   const spooky_console * console = spooky_console_acquire();
   console = console->ctor(console, renderer);
 
-  const spooky_hud * hud = spooky_hud_acquire();
-  hud = hud->ctor(hud, context->font);
+  const spooky_debug * debug = spooky_debug_acquire();
+  debug = debug->ctor(debug, context->font);
 
   objects[0] = (const spooky_base *)console;
-  objects[1] = (const spooky_base *)hud;
+  objects[1] = (const spooky_base *)debug;
 
   objects[1]->set_z_order(objects[1], -100);
 
@@ -566,7 +565,7 @@ errno_t spooky_loop(spooky_game_context * context) {
       last_second_time = this_second;
       seconds_since_start++;
       
-      spooky_hud_update(hud, fps, seconds_since_start, interpolation);
+      spooky_debug_update(debug, fps, seconds_since_start, interpolation);
     }
 
     /* Try to be friendly to the OS: */
