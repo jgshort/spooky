@@ -12,6 +12,8 @@ typedef struct spooky_hud_data {
   int64_t fps;
   int64_t seconds_since_start;
   double interpolation;
+  bool show_hud;
+  char padding[7]; /* not portable */
 } spooky_hud_data;
 
 const spooky_hud * spooky_hud_init(spooky_hud * self) {
@@ -26,37 +28,54 @@ const spooky_hud * spooky_hud_init(spooky_hud * self) {
   self->release = &spooky_hud_release;
 
   self->super.handle_event = &spooky_hud_handle_event;
-  self->super.handle_delta = &spooky_hud_handle_delta;
+  self->super.handle_delta = NULL;
   self->super.render = &spooky_hud_render;
 
   return self;
 }
 
 const spooky_hud * spooky_hud_alloc() {
-  return NULL;
+  spooky_hud * self = calloc(1, sizeof * self);
+  if(self == NULL) { 
+    fprintf(stderr, "Unable to allocate memory.");
+    abort();
+  }
+  return self;
 }
 
 const spooky_hud * spooky_hud_acquire() {
-  return NULL;
+  return spooky_hud_init((spooky_hud *)(uintptr_t)spooky_hud_alloc());
 }
 
 const spooky_hud * spooky_hud_ctor(const spooky_hud * self, const spooky_font * font) {
-  (void)self;
-  (void)font;
+  assert(self != NULL);
+  spooky_hud_data * data = calloc(1, sizeof * data);
+  if(!data) { abort(); }
+ 
+  data->font = font;
+  data->show_hud = false;
+
+  ((spooky_hud *)(uintptr_t)self)->data = data;
+
   return self;
 }
 
 const spooky_hud * spooky_hud_dtor(const spooky_hud * self) {
-  (void)self;
+  if(self != NULL) {
+    /* self->data->font is not owned; do not release/free data->font */
+    free(self->data), ((spooky_hud *)(uintptr_t)self)->data = NULL;
+  }
   return self;
 }
 
 void spooky_hud_free(const spooky_hud * self) {
-  (void)self;
+  if(self != NULL) {
+    free((void *)(uintptr_t)self), self = NULL;
+  }
 }
 
 void spooky_hud_release(const spooky_hud * self) {
-  (void)self;
+  self->free(self->dtor(self));
 }
 
 void spooky_hud_update(const spooky_hud * self, int64_t fps, int64_t seconds_since_start, double interpolation) {
@@ -67,8 +86,26 @@ void spooky_hud_update(const spooky_hud * self, int64_t fps, int64_t seconds_sin
 }
 
 void spooky_hud_handle_event(const spooky_base * self, SDL_Event * event) {
-  (void)self;
-  (void)event;
+  switch(event->type) {
+    case SDL_KEYUP:
+      {
+        SDL_Keycode sym = event->key.keysym.sym;
+        switch(sym) {
+          case SDLK_F3: /* show HUD */
+            {
+              spooky_hud_data * data = ((const spooky_hud *)self)->data;
+              data->show_hud = !data->show_hud;
+            }
+            break;
+          default:
+            break;
+        }
+      }
+      break;
+    default:
+      break;
+  }
+
 }
 
 void spooky_hud_handle_delta(const spooky_base * self, double interpolation) {
@@ -77,9 +114,11 @@ void spooky_hud_handle_delta(const spooky_base * self, double interpolation) {
 }
 
 void spooky_hud_render(const spooky_base * self, SDL_Renderer * renderer) {
-  spooky_hud_data * data = ((const spooky_hud *)self)->data;
+  static char hud[1920] = { 0 };
 
-  char hud[1920] = { 0 };
+  spooky_hud_data * data = ((const spooky_hud *)self)->data;
+  
+  if(!data->show_hud) { return; }
 
   static_assert(sizeof(hud) == 1920, "HUD buffer must be 1920 bytes.");
   
@@ -114,6 +153,7 @@ void spooky_hud_render(const spooky_base * self, SDL_Renderer * renderer) {
   
   const SDL_Point hud_point = { .x = 5, .y = 5 };
   const SDL_Color hud_fore_color = { .r = 255, .g = 255, .b = 255, .a = 255};
+
   font->write_to_renderer(font, renderer, &hud_point, &hud_fore_color, hud, NULL, NULL);
 }
 

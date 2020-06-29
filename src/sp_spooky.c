@@ -12,6 +12,7 @@
 #include "sp_font.h"
 #include "sp_base.h"
 #include "sp_console.h"
+#include "sp_hud.h"
 #include "sp_time.h"
 
 typedef struct spooky_game_context {
@@ -371,17 +372,7 @@ errno_t spooky_loop(spooky_game_context * context) {
 
   assert(background != NULL && letterbox_background != NULL);
 
-  static char hud[80 * 24] = { 0 };
   bool running = true;
-
-  const spooky_base * objects[2] = { 0 };
-  const spooky_base ** first = objects;
-  const spooky_base ** last = objects + ((sizeof objects / sizeof * objects) - 1);
-
-  const spooky_console * console = spooky_console_acquire();
-  console = console->ctor(console, renderer);
-
-  objects[0] = (const spooky_base *)console;
 
   {
     /* Note: Weird bug in rendering/windowing/idk caused the font to render
@@ -391,6 +382,24 @@ errno_t spooky_loop(spooky_game_context * context) {
     const spooky_font * font = spooky_font_acquire();
     context->font = font->ctor(font, renderer, spooky_default_font_name, spooky_default_font_size * (int)floor(context->window_scale_factor));
   }
+
+  const spooky_base * objects[3] = { 0 };
+  const spooky_base ** first = objects;
+  const spooky_base ** last = objects + ((sizeof objects / sizeof * objects) - 1);
+
+  const spooky_console * console = spooky_console_acquire();
+  console = console->ctor(console, renderer);
+
+  const spooky_hud * hud = spooky_hud_acquire();
+  hud = hud->ctor(hud, context->font);
+
+  objects[0] = (const spooky_base *)console;
+  objects[1] = (const spooky_base *)hud;
+
+  objects[1]->set_z_order(objects[1], -100);
+
+  spooky_base_z_sort(objects, (sizeof objects / sizeof * objects) - 1);
+  
   double interpolation = 0.0;
   while(running) {
     int update_loops = 0;
@@ -444,9 +453,6 @@ errno_t spooky_loop(spooky_game_context * context) {
             {
               SDL_Keycode sym = evt.key.keysym.sym;
               switch(sym) {
-                case SDLK_F3: /* show HUD */
-                  context->show_hud = !context->show_hud;
-                  break;
                 case SDLK_F12: /* fullscreen window */
                   {
                     bool previous_is_fullscreen = context->is_fullscreen;
@@ -500,10 +506,10 @@ errno_t spooky_loop(spooky_game_context * context) {
 
       /* handle base events */
       const spooky_base ** event_iter = first;
-      while(event_iter < last) {
-        (*event_iter)->handle_event(*event_iter, &evt);
-        event_iter++;
-      }
+      do {
+        const spooky_base * obj = *event_iter;
+        if(obj->handle_event != NULL) { obj->handle_event(obj, &evt); }
+      } while(++event_iter < last);
  
       last_update_time += TIME_BETWEEN_UPDATES;
       update_loops++;
@@ -517,10 +523,10 @@ errno_t spooky_loop(spooky_game_context * context) {
 
     /* handle base deltas */
     const spooky_base ** delta_iter = first;
-    while(delta_iter < last) {
-      (*delta_iter)->handle_delta(*delta_iter, interpolation);
-      delta_iter++;
-    }
+    do {
+      const spooky_base * obj = *delta_iter;
+      if(obj->handle_delta != NULL) { obj->handle_delta(obj, interpolation); }
+    } while(++delta_iter < last);
 
     uint64_t this_second = (uint64_t)(last_update_time / BILLION);
 
@@ -542,44 +548,10 @@ errno_t spooky_loop(spooky_game_context * context) {
     
     /* render bases */
     const spooky_base ** render_iter = first;
-    while(render_iter < last) {
-      (*render_iter)->render(*render_iter, renderer);
-      render_iter++;
-    }
-
-    if(context->show_hud) {
-      static_assert(sizeof(hud) == 1920, "HUD buffer must be 1920 bytes.");
-      int mouse_x = 0, mouse_y = 0;
-      SDL_GetMouseState(&mouse_x, &mouse_y);
-      const spooky_font * font = context->font;
-      int hud_out = snprintf(hud, sizeof(hud),
-          " TIME: %" PRId64 "\n"
-          "  FPS: %" PRId64 "\n"
-          "DELTA: %1.5f\n"
-          "    X: %i,\n"
-          "    Y: %i"
-          "\n"
-          " FONT: Name   : '%s'\n"
-          "       Shadow : %i\n"
-          "       Height : %i\n"
-          "       Ascent : %i\n"
-          "       Descent: %i\n"
-          "       M-Dash : %i\n"
-          , seconds_since_start, fps, interpolation, mouse_x, mouse_y
-          , font->get_name(font)
-          , font->get_is_drop_shadow(font)
-          , font->get_height(font)
-          , font->get_ascent(font)
-          , font->get_descent(font)
-          , font->get_m_dash(font)
-        );
-
-      assert(hud_out > 0 && (size_t)hud_out < sizeof(hud));
-      
-      const SDL_Point hud_point = { .x = 5, .y = 5 };
-      const SDL_Color hud_fore_color = { .r = 255, .g = 255, .b = 255, .a = 255};
-      font->write(font, &hud_point, &hud_fore_color, hud, NULL, NULL);
-    }
+    do {
+      const spooky_base * obj = *render_iter;
+      if(obj->render != NULL) { obj->render(obj, renderer); }
+    } while(++render_iter < last);
 
     //SDL_SetRenderDrawColor(renderer, c0.r, c0.g, c0.b, c0.a);
     SDL_RenderPresent(renderer);
@@ -593,6 +565,8 @@ errno_t spooky_loop(spooky_game_context * context) {
       frame_count = 0;
       last_second_time = this_second;
       seconds_since_start++;
+      
+      spooky_hud_update(hud, fps, seconds_since_start, interpolation);
     }
 
     /* Try to be friendly to the OS: */
