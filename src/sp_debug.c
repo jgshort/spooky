@@ -5,10 +5,11 @@
 #include "sp_gui.h"
 #include "sp_base.h"
 #include "sp_font.h"
+#include "sp_context.h"
 #include "sp_debug.h"
 
 typedef struct spooky_debug_data {
-  const spooky_font * font;
+  const spooky_context * context;
   int64_t fps;
   int64_t seconds_since_start;
   double interpolation;
@@ -47,12 +48,12 @@ const spooky_debug * spooky_debug_acquire() {
   return spooky_debug_init((spooky_debug *)(uintptr_t)spooky_debug_alloc());
 }
 
-const spooky_debug * spooky_debug_ctor(const spooky_debug * self, const spooky_font * font) {
+const spooky_debug * spooky_debug_ctor(const spooky_debug * self, const spooky_context * context) {
   assert(self != NULL);
   spooky_debug_data * data = calloc(1, sizeof * data);
   if(!data) { abort(); }
  
-  data->font = font;
+  data->context = context;
   data->show_debug = false;
 
   ((spooky_debug *)(uintptr_t)self)->data = data;
@@ -125,7 +126,7 @@ void spooky_debug_render(const spooky_base * self, SDL_Renderer * renderer) {
   int mouse_x = 0, mouse_y = 0;
   SDL_GetMouseState(&mouse_x, &mouse_y);
 
-  const spooky_font * font = data->font;
+  const spooky_font * font = data->context->get_font(data->context);
 
   int debug_out = snprintf(debug, sizeof(debug),
       " TIME: %" PRId64 "\n"

@@ -2,13 +2,14 @@
 #define SP_DEBUG__H
 
 #include "sp_base.h"
+#include "sp_context.h"
 
 struct spooky_debug_data;
 typedef struct spooky_debug spooky_debug;
 typedef struct spooky_debug {
   spooky_base super;
 
-  const spooky_debug * (*ctor)(const spooky_debug * self, const spooky_font * font);
+  const spooky_debug * (*ctor)(const spooky_debug * self, const spooky_context * context);
   const spooky_debug * (*dtor)(const spooky_debug * self);
   void (*free)(const spooky_debug * self);
   void (*release)(const spooky_debug * self);
@@ -20,7 +21,7 @@ const spooky_debug * spooky_debug_init(spooky_debug * self);
 const spooky_debug * spooky_debug_alloc();
 const spooky_debug * spooky_debug_acquire();
 
-const spooky_debug * spooky_debug_ctor(const spooky_debug * self, const spooky_font * font);
+const spooky_debug * spooky_debug_ctor(const spooky_debug * self, const spooky_context * context);
 const spooky_debug * spooky_debug_dtor(const spooky_debug * self);
 void spooky_debug_free(const spooky_debug * self);
 void spooky_debug_release(const spooky_debug * self);
