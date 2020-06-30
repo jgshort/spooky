@@ -110,7 +110,7 @@ void spooky_help_render(const spooky_base * self, SDL_Renderer * renderer) {
   
   if(!data->show_help) { return; }
 
-  static_assert(sizeof(help) == 1920, "HUD buffer must be 1920 bytes.");
+  static_assert(sizeof(help) == 1920, "Help buffer must be 1920 bytes.");
   
   int mouse_x = 0, mouse_y = 0;
   SDL_GetMouseState(&mouse_x, &mouse_y);
@@ -118,14 +118,52 @@ void spooky_help_render(const spooky_base * self, SDL_Renderer * renderer) {
   const spooky_font * font = data->context->get_font(data->context);
 
   int help_out = snprintf(help, sizeof(help),
-      "PLEASE HELP!"
-    );
+  //"mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm\n"
+    " h or ? or F1 : Help                    \n"
+    "                                        \n"
+    " ` : Debug Console                      \n"
+    " + : Text size up    - : Text size down \n"
+    "                                        \n"
+    " F3: HUD            F12: Full screen    \n"
+    "                                        \n"
+    " Esc    : Cancel/Back Out               \n"
+    "                                        \n"
+    " Ctrl-Q : Quit                          \n"
+  );
 
   assert(help_out > 0 && (size_t)help_out < sizeof(help));
-  
-  const SDL_Point help_point = { .x = 5, .y = 5 };
+
+  int w, h;
+  font->measure_text(font, "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm", &w, &h);
   const SDL_Color help_fore_color = { .r = 255, .g = 255, .b = 255, .a = 255};
 
+  uint8_t r, g, b, a;
+  SDL_GetRenderDrawColor(renderer, &r, &g, &b, &a);
+  SDL_BlendMode blend_mode;
+  SDL_GetRenderDrawBlendMode(renderer, &blend_mode);
+
+  SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+  SDL_SetRenderDrawColor(renderer, 199, 78, 157, 150);
+  
+  int r_w, r_h;
+  SDL_GetRendererOutputSize(renderer, &r_w, &r_h);
+  SDL_Rect rect = {
+    .x = (r_w / 2) - (w / 2),
+    .y = (r_h / 2) - ((h * 24) / 2),
+    .w = w,
+    .h = h * 24
+  };
+  SDL_RenderFillRect(renderer, &rect);
+  SDL_SetRenderDrawColor(renderer, a, b, g, a);
+  SDL_SetRenderDrawBlendMode(renderer, blend_mode);
+
+  int help_w, help_h;
+  font->measure_text(font, "> HELP <", &help_w, &help_h);
+  const SDL_Point title_point = { .x = rect.x + (rect.w / 2) - (help_w / 2), .y = rect.y + help_h };
+  font->write_to_renderer(font, renderer, &title_point, &help_fore_color, "> HELP <", NULL, NULL);
+
+  int line_skip = font->get_line_skip(font);
+  const SDL_Point help_point = { .x = rect.x + (rect.w / 2) - (w / 2), .y = rect.y + (line_skip * 3) };
   font->write_to_renderer(font, renderer, &help_point, &help_fore_color, help, NULL, NULL);
 }
 

@@ -167,8 +167,9 @@ errno_t spooky_loop(spooky_context * context) {
           /* TODO: Update console width on window resize */
           // SDL_GetRendererOutputSize(context->renderer, &w, &h);
           // console.rect.w = w - 200;
-          
-          int new_point_size = context->get_font(context)->get_point_size(context->get_font(context));
+         
+          const spooky_font * font = context->get_font(context);
+          int new_point_size = font->get_point_size(font);
           spooky_context_scale_font(context, new_point_size);
         }
 
@@ -194,13 +195,15 @@ errno_t spooky_loop(spooky_context * context) {
                   break;
                 case SDLK_EQUALS: 
                   {
-                    int new_point_size = context->get_font(context)->get_point_size(context->get_font(context)) + 1;
+                    const spooky_font * font = context->get_font(context);
+                    int new_point_size = font->get_point_size(font) + 2;
                     spooky_context_scale_font(context, new_point_size);
                   }
                   break;
                 case SDLK_MINUS:
                   {
-                    int new_point_size = context->get_font(context)->get_point_size(context->get_font(context)) - 1;
+                    const spooky_font * font = context->get_font(context);
+                    int new_point_size = font->get_point_size(font) - 2;
                     spooky_context_scale_font(context, new_point_size);
                   }
                   break;
