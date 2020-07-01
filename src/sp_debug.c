@@ -128,6 +128,7 @@ void spooky_debug_render(const spooky_base * self, SDL_Renderer * renderer) {
 
   const spooky_font * font = data->context->get_font(data->context);
 
+  int64_t FPS = 60;
   int debug_out = snprintf(debug, sizeof(debug),
       " TIME: %" PRId64 "\n"
       "  FPS: %" PRId64 "\n"
@@ -135,19 +136,21 @@ void spooky_debug_render(const spooky_base * self, SDL_Renderer * renderer) {
       "    X: %i,\n"
       "    Y: %i"
       "\n"
+      /*
       " FONT: Name   : '%s'\n"
       "       Shadow : %i\n"
       "       Height : %i\n"
       "       Ascent : %i\n"
       "       Descent: %i\n"
-      "       M-Dash : %i\n"
-      , data->seconds_since_start, data->fps, data->interpolation, mouse_x, mouse_y
-      , font->get_name(font)
+      "       M-Dash : %i\n" */
+      , data->seconds_since_start, FPS, data->interpolation, mouse_x, mouse_y
+      /*, font->get_name(font)
       , font->get_is_drop_shadow(font)
       , font->get_height(font)
       , font->get_ascent(font)
       , font->get_descent(font)
       , font->get_m_dash(font)
+      */
     );
 
   assert(debug_out > 0 && (size_t)debug_out < sizeof(debug));

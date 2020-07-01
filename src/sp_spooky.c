@@ -96,16 +96,6 @@ errno_t spooky_loop(spooky_context * context) {
 
   bool running = true;
 
-  {
-    /* Note: Weird bug in rendering/windowing/idk caused the font to render
-     * incorrectly until after calling SDL_ShowWindow, but not for reasons I
-     * expected. Moving font allocation/creation here resolved the issue.
-     *
-     * This is a dumb hack :(
-     */
-    spooky_context_reload_font(context);
-  }
-
   const spooky_base * objects[4] = { 0 };
   const spooky_base ** first = objects;
   const spooky_base ** last = objects + ((sizeof objects / sizeof * objects) - 1);
@@ -128,6 +118,8 @@ errno_t spooky_loop(spooky_context * context) {
   spooky_base_z_sort(objects, (sizeof objects / sizeof * objects) - 1);
   
   double interpolation = 0.0;
+  bool is_done = false, is_up = false, is_down = false;
+
   while(running) {
     int update_loops = 0;
     now = sp_get_time_in_us();
@@ -167,10 +159,12 @@ errno_t spooky_loop(spooky_context * context) {
           /* TODO: Update console width on window resize */
           // SDL_GetRendererOutputSize(context->renderer, &w, &h);
           // console.rect.w = w - 200;
-         
+        
+          /*
           const spooky_font * font = context->get_font(context);
           int new_point_size = font->get_point_size(font);
           spooky_context_scale_font(context, new_point_size);
+          */
         }
 
         switch(evt.type) {
@@ -195,16 +189,16 @@ errno_t spooky_loop(spooky_context * context) {
                   break;
                 case SDLK_EQUALS: 
                   {
-                    const spooky_font * font = context->get_font(context);
-                    int new_point_size = font->get_point_size(font) + 2;
-                    spooky_context_scale_font(context, new_point_size);
+                    spooky_context_scale_font_up(context, &is_done);
+                    is_up = true;
+                    is_down = false;
                   }
                   break;
                 case SDLK_MINUS:
                   {
-                    const spooky_font * font = context->get_font(context);
-                    int new_point_size = font->get_point_size(font) - 2;
-                    spooky_context_scale_font(context, new_point_size);
+                    spooky_context_scale_font_down(context, &is_done);
+                    is_down = true;
+                    is_up = false;
                   }
                   break;
                 default:
@@ -240,13 +234,22 @@ errno_t spooky_loop(spooky_context * context) {
         const spooky_base * obj = *event_iter;
         if(obj->handle_event != NULL) { obj->handle_event(obj, &evt); }
       } while(++event_iter < last);
- 
+
       last_update_time += TIME_BETWEEN_UPDATES;
       update_loops++;
     } /* >> while ((now - last_update_time ... */
 
     if (now - last_update_time > TIME_BETWEEN_UPDATES) {
       last_update_time = now - TIME_BETWEEN_UPDATES;
+    }
+
+    if(!is_done) {
+      if(is_up) { 
+        spooky_context_scale_font_up(context, &is_done);
+      }
+      else if(is_down) {
+        spooky_context_scale_font_down(context, &is_done);
+      }
     }
 
     interpolation = fmin(1.0f, (double)(now - last_update_time) / (double)(TIME_BETWEEN_UPDATES));
@@ -311,7 +314,7 @@ end_of_running_loop: ;
   if(letterbox_background != NULL) { SDL_DestroyTexture(letterbox_background), letterbox_background = NULL; }
 
   spooky_console_release(console);
-  spooky_font_release(context->get_font(context));
+  
   return SP_SUCCESS;
 
 err1:

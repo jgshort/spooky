@@ -23,7 +23,10 @@ typedef struct spooky_context_data {
   SDL_GLContext glContext;
   SDL_Texture * canvas;
 
-  const spooky_font * font;
+  size_t fonts_len;
+  const spooky_font * font_current;
+  const spooky_font ** fonts_index;
+  const spooky_font ** fonts;
 
   float window_scale_factor;
   float reserved0;
@@ -32,13 +35,12 @@ typedef struct spooky_context_data {
   int window_height;
 
   bool is_fullscreen;
-  
-  char padding[7]; /* not portable */
+  bool is_paused;
+
+  char padding[6]; /* not portable */
 } spooky_context_data;
 
-static spooky_context_data global_data = {
-  0
-};
+static spooky_context_data global_data = { 0 };
 
 static SDL_Window * spooky_context_get_window(const spooky_context * context) {
   return context->data->window;
@@ -53,7 +55,7 @@ static SDL_Texture * spooky_context_get_canvas(const spooky_context * context) {
 }
 
 static const spooky_font * spooky_context_get_font(const spooky_context * context) {
-  return context->data->font;
+  return context->data->font_current;
 }
 
 static int spooky_context_get_window_width(const spooky_context * context) {
@@ -80,6 +82,14 @@ static void spooky_context_set_is_fullscreen(const spooky_context * context, boo
   context->data->is_fullscreen = is_fullscreen;
 }
 
+static bool spooky_context_get_is_paused(const spooky_context * context) {
+  return context->data->is_paused;
+}
+
+static void spooky_context_set_is_paused(const spooky_context * context, bool is_paused) {
+  context->data->is_paused = is_paused;  
+}
+
 errno_t spooky_init_context(spooky_context * context) {
   assert(!(context == NULL));
 
@@ -95,6 +105,8 @@ errno_t spooky_init_context(spooky_context * context) {
   context->set_window_height = &spooky_context_set_window_height;
   context->get_is_fullscreen = &spooky_context_get_is_fullscreen;
   context->set_is_fullscreen = &spooky_context_set_is_fullscreen;
+  context->get_is_paused = &spooky_context_get_is_paused;
+  context->set_is_paused = &spooky_context_set_is_paused;
   context->data = &global_data;
 
   fprintf(stdout, "Initializing...");
@@ -190,11 +202,6 @@ errno_t spooky_init_context(spooky_context * context) {
   if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
   if(glContext == NULL || spooky_is_sdl_error(SDL_GetError())) { goto err6; }
 
-  /* 
-   * context->logical_width = spooky_window_default_logical_width;
-   * context->logical_height = spooky_window_default_logical_height;
-   */
-
   SDL_ClearError();
   SDL_Texture * canvas = SDL_CreateTexture(renderer
       , SDL_PIXELFORMAT_RGBA8888
@@ -208,6 +215,23 @@ errno_t spooky_init_context(spooky_context * context) {
   global_data.window = window;
   global_data.glContext = glContext;
   global_data.canvas = canvas;
+
+  global_data.fonts_len = 120;
+  global_data.fonts = calloc(global_data.fonts_len, sizeof * global_data.fonts);
+
+  SDL_ShowWindow(window);
+  int index = 1;
+  const spooky_font ** next = global_data.fonts;
+  do {
+    assert(index > 0);
+    assert(index <= (int)global_data.fonts_len);
+    *next = spooky_font_acquire();
+    *next = (*next)->ctor(*next, renderer, spooky_default_font_name, index);
+    index++;
+  } while(++next < global_data.fonts + global_data.fonts_len);
+  
+  global_data.fonts_index = global_data.fonts + spooky_default_font_size * (int)floor(global_data.window_scale_factor);
+  global_data.font_current = *global_data.fonts_index;
 
   fprintf(stdout, " Done!\n");
   fflush(stdout);
@@ -256,6 +280,14 @@ err0:
 void spooky_release_context(spooky_context * context) {
   if(context != NULL) {
     spooky_context_data * data = context->data;
+
+    if(data->fonts != NULL) {
+      const spooky_font ** next = global_data.fonts;
+      do {
+        const spooky_font * font = *next;
+        if(font != NULL) { spooky_font_release(font), font = NULL; }
+      } while(++next < global_data.fonts + global_data.fonts_len);
+    }
     if(data->canvas != NULL) {
       SDL_ClearError();
       SDL_DestroyTexture(data->canvas), data->canvas = NULL;
@@ -353,23 +385,53 @@ err0:
   return SP_FAILURE;
 }
 
-void spooky_context_reload_font(spooky_context * context) {
-  const spooky_font * font = spooky_font_acquire();
-  context->data->font = font->ctor(font, context->data->renderer, spooky_default_font_name, spooky_default_font_size * (int)floor(context->data->window_scale_factor));
+void spooky_context_scale_font_up(spooky_context * context, bool * is_done) {
+  static bool is_init = false;
+  static size_t sizes[256] = { 0 };
+  if(!is_init) {
+    sizes[4] = sizes[8] = sizes[9] = sizes[10] = sizes[11] = sizes[12] = sizes[14] = sizes[18] = sizes[24] = sizes[30] = sizes[36] = sizes[48] = sizes[60] = sizes[72] = sizes[84] = true;
+    is_init = true;
+  }
+  spooky_context_data * data = context->data;
+  if(data->fonts_index + 1 > data->fonts + global_data.fonts_len - 1) {
+    data->fonts_index = data->fonts + global_data.fonts_len - 1;
+  } else {
+    data->fonts_index++;
+  }
+
+  ptrdiff_t size = data->fonts_index - data->fonts;
+  assert(size > 0);
+
+  *is_done = sizes[(size_t)size];
+
+  fprintf(stdout, "Resized to %i\n", (int)(size_t)(ptrdiff_t)(data->fonts_index - data->fonts));
+  data->font_current = *data->fonts_index;
 }
 
-void spooky_context_scale_font(spooky_context * context, int new_point_size) {
-  assert(context != NULL);
+void spooky_context_scale_font_down(spooky_context * context, bool * is_done) {
+  static bool is_init = false;
+  static size_t sizes[256] = { 0 };
+  if(!is_init) {
+    sizes[4] = sizes[8] = sizes[9] = sizes[10] = sizes[11] = sizes[12] = sizes[14] = sizes[18] = sizes[24] = sizes[30] = sizes[36] = sizes[48] = sizes[60] = sizes[72] = sizes[84] = true;
+    is_init = true;
+  }
 
   spooky_context_data * data = context->data;
-  assert(data->font != NULL);
+  if(data->fonts_index - 1 < data->fonts) {
+    data->fonts_index = data->fonts;
+  } else {
+    data->fonts_index--;
+  }
 
-  if(new_point_size >= 120) { new_point_size = 120; }
-  if(new_point_size <= 0) { new_point_size = 1; }
-   
-  spooky_font_release(data->font), data->font = NULL;
+  ptrdiff_t size = data->fonts_index - data->fonts;
+  if(size < 4) {
+    data->fonts_index = data->fonts + 4;
+    size = 4;
+  }
+ 
+  *is_done = sizes[(size_t)size];
 
-  const spooky_font * new_font = spooky_font_acquire();
-  data->font = new_font->ctor(new_font, data->renderer, spooky_default_font_name, new_point_size);
+  fprintf(stdout, "Resized to %i\n", (int)(size_t)(ptrdiff_t)(data->fonts_index - data->fonts));
+  data->font_current = *data->fonts_index;
 }
 

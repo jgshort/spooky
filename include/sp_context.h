@@ -24,6 +24,9 @@ typedef struct spooky_context {
   bool (*get_is_fullscreen)(const spooky_context * context);
   void (*set_is_fullscreen)(const spooky_context * context, bool is_fullscreen);
 
+  bool (*get_is_paused)(const spooky_context * context);
+  void (*set_is_paused)(const spooky_context * context, bool is_paused);
+
   struct spooky_context_data * data;
 } spooky_context;
 
@@ -35,6 +38,9 @@ void spooky_release_context(spooky_context * context);
 
 void spooky_context_reload_font(spooky_context * context);
 void spooky_context_scale_font(spooky_context * context, int new_point_size);
+
+void spooky_context_scale_font_up(spooky_context * context, bool * is_done);
+void spooky_context_scale_font_down(spooky_context * context, bool * is_done);
 
 #endif /* SP_CONTEXT__H */
 
