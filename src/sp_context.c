@@ -17,6 +17,28 @@
 #include "sp_help.h"
 #include "sp_time.h"
 
+#define MAX_FONT_LEN 120
+static const size_t max_font_len = MAX_FONT_LEN;
+static size_t spooky_font_sizes[MAX_FONT_LEN] = { 
+  0, 0, 0, 0,
+  4, 0, 0, 0,
+  8,
+  9,
+  10,
+  11,
+  12, 0,
+  14, 0, 0, 0,
+  18, 0, 0, 0, 0, 0,
+  24, 0, 0, 0, 0, 0,
+  30, 0, 0, 0, 0, 0,
+  36, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  48, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  60, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  72, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  84, 0
+};
+#undef MAX_FONT_LEN
+
 typedef struct spooky_context_data {
   SDL_Window * window;
   SDL_Renderer * renderer;
@@ -216,18 +238,23 @@ errno_t spooky_init_context(spooky_context * context) {
   global_data.glContext = glContext;
   global_data.canvas = canvas;
 
-  global_data.fonts_len = 120;
-  global_data.fonts = calloc(global_data.fonts_len, sizeof * global_data.fonts);
-
+  /* This is a strange defect I can't figure out: 
+   * Fonts don't render until a call to SDL_ShowWindow. So calling ShowWindow here,
+   * before the font ctor fixes the issue. I don't know why :(
+   */
   SDL_ShowWindow(window);
-  int index = 1;
+
+  global_data.fonts_len = max_font_len;
+  global_data.fonts = calloc(max_font_len, sizeof * global_data.fonts);
+
+  int point_size = 1;
   const spooky_font ** next = global_data.fonts;
   do {
-    assert(index > 0);
-    assert(index <= (int)global_data.fonts_len);
+    assert(point_size > 0);
+    assert(point_size <= (int)global_data.fonts_len);
     *next = spooky_font_acquire();
-    *next = (*next)->ctor(*next, renderer, spooky_default_font_name, index);
-    index++;
+    *next = (*next)->ctor(*next, renderer, spooky_default_font_name, point_size);
+    point_size++;
   } while(++next < global_data.fonts + global_data.fonts_len);
   
   global_data.fonts_index = global_data.fonts + spooky_default_font_size * (int)floor(global_data.window_scale_factor);
@@ -386,12 +413,6 @@ err0:
 }
 
 void spooky_context_scale_font_up(spooky_context * context, bool * is_done) {
-  static bool is_init = false;
-  static size_t sizes[256] = { 0 };
-  if(!is_init) {
-    sizes[4] = sizes[8] = sizes[9] = sizes[10] = sizes[11] = sizes[12] = sizes[14] = sizes[18] = sizes[24] = sizes[30] = sizes[36] = sizes[48] = sizes[60] = sizes[72] = sizes[84] = true;
-    is_init = true;
-  }
   spooky_context_data * data = context->data;
   if(data->fonts_index + 1 > data->fonts + global_data.fonts_len - 1) {
     data->fonts_index = data->fonts + global_data.fonts_len - 1;
@@ -402,20 +423,13 @@ void spooky_context_scale_font_up(spooky_context * context, bool * is_done) {
   ptrdiff_t size = data->fonts_index - data->fonts;
   assert(size > 0);
 
-  *is_done = sizes[(size_t)size];
+  *is_done = spooky_font_sizes[(size_t)size];
 
   fprintf(stdout, "Resized to %i\n", (int)(size_t)(ptrdiff_t)(data->fonts_index - data->fonts));
   data->font_current = *data->fonts_index;
 }
 
 void spooky_context_scale_font_down(spooky_context * context, bool * is_done) {
-  static bool is_init = false;
-  static size_t sizes[256] = { 0 };
-  if(!is_init) {
-    sizes[4] = sizes[8] = sizes[9] = sizes[10] = sizes[11] = sizes[12] = sizes[14] = sizes[18] = sizes[24] = sizes[30] = sizes[36] = sizes[48] = sizes[60] = sizes[72] = sizes[84] = true;
-    is_init = true;
-  }
-
   spooky_context_data * data = context->data;
   if(data->fonts_index - 1 < data->fonts) {
     data->fonts_index = data->fonts;
@@ -429,7 +443,7 @@ void spooky_context_scale_font_down(spooky_context * context, bool * is_done) {
     size = 4;
   }
  
-  *is_done = sizes[(size_t)size];
+  *is_done = spooky_font_sizes[(size_t)size];
 
   fprintf(stdout, "Resized to %i\n", (int)(size_t)(ptrdiff_t)(data->fonts_index - data->fonts));
   data->font_current = *data->fonts_index;

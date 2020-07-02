@@ -8,6 +8,7 @@
 #include "config.h"
 #include "sp_error.h"
 #include "sp_math.h"
+#include "sp_pak.h"
 #include "sp_gui.h"
 #include "sp_font.h"
 #include "sp_base.h"
@@ -22,6 +23,8 @@ static errno_t spooky_loop(spooky_context * context);
 int main(int argc, char **argv) {
   (void)argc;
   (void)argv;
+
+  spooky_pack_tests();
 
   spooky_context context = { 0 };
 
