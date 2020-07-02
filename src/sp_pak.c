@@ -38,8 +38,8 @@
 static const size_t MAX_PACK_STRING_LEN = 4096;
 static const unsigned char PUMPKIN[4] = { 0xf0, 0x9f, 0x8e, 0x83 };
 
-static const unsigned char HEADER[HEADER_LEN] = { 0xf0, 0x9f, 0x8e, 0x83, 'S', 'M', 'O', 'L', 'D', 'B', '!', 0xf0, 0x9f, 0x8e, 0x83, '\0' };
-static const unsigned char FOOTER[FOOTER_LEN] = { 0xf0, 0x9f, 0x8e, 0x83, '!', 'B', 'D', 'L', 'O', 'M', 'S', 0xf0, 0x9f, 0x8e, 0x83, '\0' };
+static const unsigned char HEADER[HEADER_LEN] = { 0xf0, 0x9f, 0x8e, 0x83, 'S', 'P', 'O', 'O', 'K', 'Y', '!', 0xf0, 0x9f, 0x8e, 0x83, '\0' };
+static const unsigned char FOOTER[FOOTER_LEN] = { 0xf0, 0x9f, 0x8e, 0x83, '!', 'Y', 'K', 'O', 'O', 'P', 'S', 0xf0, 0x9f, 0x8e, 0x83, '\0' };
 
 static const uint64_t ITEM_MAGIC = 0x00706b6e616e6d65;
 
@@ -596,14 +596,19 @@ static bool spooky_read_int64(FILE * fp, int64_t * value) {
 }
 
 static bool spooky_read_header(FILE * fp) {
-  char header[HEADER_LEN] = { 0 };
+  unsigned char header[HEADER_LEN] = { 0 };
 
-  if(feof(fp) != 0) return false;
+  if(feof(fp) != 0) { return false; }
 
-  size_t r = fread(&header, sizeof header, 1, fp);
+  size_t r = fread(&header, sizeof(unsigned char), HEADER_LEN, fp);
+  fprintf(stdout, "R: %i\n", (int)r);
+  fflush(stdout);
   assert(r == (sizeof header) * 1);
+  
+  fprintf(stdout, "header: '%s' HEADER: '%s'\n", header, HEADER);
+  fflush(stdout);
 
-  int eq = strncmp((const char *)header, (const char *)HEADER, sizeof HEADER) == 0;
+  int eq = strncmp((const char *)header, (const char *)HEADER, HEADER_LEN) == 0;
   assert(eq);
 
   return eq;
@@ -640,9 +645,9 @@ static bool spooky_write_index_entry(const spooky_pack_index_entry * entry, FILE
 }
 
 static bool spooky_read_footer(FILE * fp) {
-  char footer[FOOTER_LEN] = { 0 };
+  unsigned char footer[FOOTER_LEN] = { 0 };
 
-  size_t r = fread(&footer, sizeof footer, 1, fp);
+  size_t r = fread(&footer, sizeof(unsigned char), FOOTER_LEN, fp);
   assert(r == (sizeof footer) * 1);
 
   bool eq = strncmp((const char *)footer, (const char *)FOOTER, sizeof FOOTER) == 0;
@@ -651,7 +656,7 @@ static bool spooky_read_footer(FILE * fp) {
   return eq;
 }
 
-bool spooky_build_pack(FILE * fp) {
+bool spooky_pack_create(FILE * fp) {
   const unsigned char P[4] = { 0xf0, 0x9f, 0x8e, 0x83 };
 
   spooky_pack_file spf = {
@@ -684,7 +689,7 @@ bool spooky_build_pack(FILE * fp) {
   return ret;
 }
 
-void spooky_verify_pack(const char * pack_path) {
+void spooky_pack_verify(FILE * fp) {
   spooky_pack_version version = {
     .major = 0,
     .minor = 0,
@@ -692,14 +697,13 @@ void spooky_verify_pack(const char * pack_path) {
     .subrevision = 0
   };
 
-  FILE * fp = fopen((const char *)pack_path, "r");
   if(fp) {
     if(!spooky_read_header(fp)) goto err0;
     if(!spooky_read_version(fp, &version)) goto err1;
     if(!spooky_read_footer(fp)) goto err2;
   }
 
-  fprintf(stdout, "\nValid SMOLDB! database v%hu.%hu.%hu.%hu\n", version.major, version.minor, version.revision, version.subrevision);
+  fprintf(stdout, "\nValid SPOOKY! database v%hu.%hu.%hu.%hu\n", version.major, version.minor, version.revision, version.subrevision);
   goto done;
 
 err0:

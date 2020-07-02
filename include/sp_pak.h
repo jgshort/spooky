@@ -3,8 +3,8 @@
 
 #include <stdbool.h>
 
-bool spooky_build_pack(FILE * /* fp */);
-void spooky_verify_pack(const char * /* pack_path */);
+bool spooky_pack_create(FILE * /* fp */);
+void spooky_pack_verify(FILE * /* fp */);
 
 void spooky_pack_tests();
 

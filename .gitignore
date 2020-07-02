@@ -58,3 +58,4 @@ src/spooky.exe
 **/target
 **/target/*
 .Tpo
+*.spdb

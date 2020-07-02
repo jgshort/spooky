@@ -25,7 +25,7 @@ int main(int argc, char **argv) {
   (void)argv;
 
   spooky_pack_tests();
-
+  
   spooky_context context = { 0 };
 
   if(spooky_init_context(&context) != SP_SUCCESS) { goto err0; }
