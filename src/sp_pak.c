@@ -12,8 +12,12 @@
 #include "sp_pak.h"
 #include "sp_math.h"
 
-/* Data saved in little endian format 
+const uint16_t SPOOKY_PACK_MAJOR_VERSION = 0;
+const uint16_t SPOOKY_PACK_MINOR_VERSION = 0;
+const uint16_t SPOOKY_PACK_REVISION_VERSION = 1;
+const uint16_t SPOOKY_PACK_SUBREVISION_VERSION = 0;
 
+/* Data saved in little endian format 
    unpack example: 
       i = (data[0]<<0) | (data[1]<<8) | (data[2]<<16) | (data[3]<<24);
 */
@@ -159,18 +163,12 @@ typedef struct spooky_pack_index {
 typedef struct spooky_pack_file {
   unsigned char header[HEADER_LEN];
   spooky_pack_version version;
-
-  uint64_t content_length;
-
-  spooky_pack_hash content_hash0;
-
-  spooky_pack_hash content_hash1;
-
-  unsigned char footer[FOOTER_LEN];
+  uint64_t content_len;
 } spooky_pack_file;
 
 /* Writers */
 static bool spooky_write_raw(void * value, size_t len, FILE * fp);
+static bool spooky_write_file(const char * file_path, FILE * fp);
 
 static bool spooky_write_char(char value, FILE * fp);
 static bool spooky_write_uint8(uint8_t value, FILE * fp);
@@ -249,6 +247,13 @@ static bool spooky_read_raw(FILE * fp, size_t len, void * buf) {
 	assert(hir);
 
   return hir > 0 && ferror(fp) == 0;
+}
+
+static bool spooky_write_file(const char * file_path, FILE * fp) {
+  assert(file_path != NULL);
+  assert(fp != NULL);
+  // TODO: finish it
+  return true;
 }
 
 static bool spooky_write_char(char value, FILE * fp) {
@@ -601,13 +606,8 @@ static bool spooky_read_header(FILE * fp) {
   if(feof(fp) != 0) { return false; }
 
   size_t r = fread(&header, sizeof(unsigned char), HEADER_LEN, fp);
-  fprintf(stdout, "R: %i\n", (int)r);
-  fflush(stdout);
   assert(r == (sizeof header) * 1);
   
-  fprintf(stdout, "header: '%s' HEADER: '%s'\n", header, HEADER);
-  fflush(stdout);
-
   int eq = strncmp((const char *)header, (const char *)HEADER, HEADER_LEN) == 0;
   assert(eq);
 
@@ -657,35 +657,32 @@ static bool spooky_read_footer(FILE * fp) {
 }
 
 bool spooky_pack_create(FILE * fp) {
-  const unsigned char P[4] = { 0xf0, 0x9f, 0x8e, 0x83 };
+  const unsigned char * P = PUMPKIN;
+  const unsigned char * F = FOOTER;
 
   spooky_pack_file spf = {
     .header = { P[0], P[1], P[2], P[3], 'S', 'P', 'O', 'O', 'K', 'Y', '!', P[0], P[1], P[2], P[3], '\0' },
 
     .version = { 
-      .major = 1,
-      .minor = 0,
-      .revision = 0,
-      .subrevision = 0
+      .major = SPOOKY_PACK_MAJOR_VERSION,
+      .minor = SPOOKY_PACK_MINOR_VERSION,
+      .revision = SPOOKY_PACK_REVISION_VERSION,
+      .subrevision = SPOOKY_PACK_SUBREVISION_VERSION
     },
-
-    .footer = { P[0], P[1], P[2], P[3], '!', 'Y', 'K', 'O', 'O', 'P', 'S', P[0], P[1], P[2], P[3], '\0' }
+    .content_len = 0
   };
 
   assert(ITEM_MAGIC == 0x00706b6e616e6d65);
 
   bool ret = false;
   if(fp) {
-    fwrite(&spf.header, sizeof spf.header, 1, fp);
+    fwrite(&spf.header, sizeof(unsigned char), sizeof spf.header, fp);
     spooky_write_version(spf.version, fp);
-    fwrite(&spf.footer, sizeof spf.footer, 1, fp);
-
+    spooky_write_uint64(spf.content_len, fp);
+    fwrite(F, sizeof(unsigned char), sizeof FOOTER, fp);
     ret = true;
   }
  
-  (void)FOOTER;
-  (void)PUMPKIN;
-
   return ret;
 }
 
@@ -697,12 +694,15 @@ void spooky_pack_verify(FILE * fp) {
     .subrevision = 0
   };
 
+  uint64_t content_len = 0;
+
   if(fp) {
     if(!spooky_read_header(fp)) goto err0;
     if(!spooky_read_version(fp, &version)) goto err1;
-    if(!spooky_read_footer(fp)) goto err2;
+    if(!spooky_read_uint64(fp, &content_len)) goto err2;
+    if(!spooky_read_footer(fp)) goto err3;
   }
-
+  assert(content_len == 0);
   fprintf(stdout, "\nValid SPOOKY! database v%hu.%hu.%hu.%hu\n", version.major, version.minor, version.revision, version.subrevision);
   goto done;
 
@@ -712,8 +712,10 @@ err0:
 err1:
   fprintf(stderr, "Invalid version\n");
   goto done;
-
 err2:
+  fprintf(stderr, "Invalid content length\n");
+  goto done;
+err3:
   fprintf(stderr, "Invalid footer\n");
   goto done;
 
@@ -729,6 +731,9 @@ static void spooky_write_char_tests() {
   FILE * fp = fmemopen(buf, sizeof(unsigned char) * 2, "r+");
   assert(fp);
   
+  // TODO: 
+  spooky_write_file("", fp);
+
   spooky_write_uint8(0xff, fp);
   spooky_write_char(0x01, fp);
 

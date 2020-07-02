@@ -25,7 +25,12 @@ int main(int argc, char **argv) {
   (void)argv;
 
   spooky_pack_tests();
-  
+
+  FILE * fp = fopen("./test.spdb", "wb+x");
+  spooky_pack_create(fp);
+  fseek(fp, 0, SEEK_SET);
+  spooky_pack_verify(fp);
+
   spooky_context context = { 0 };
 
   if(spooky_init_context(&context) != SP_SUCCESS) { goto err0; }
