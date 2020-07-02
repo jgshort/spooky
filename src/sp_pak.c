@@ -168,7 +168,7 @@ typedef struct spooky_pack_file {
 
 /* Writers */
 static bool spooky_write_raw(void * value, size_t len, FILE * fp);
-static bool spooky_write_file(const char * file_path, FILE * fp);
+static bool spooky_write_file(const char * file_path, FILE * fp, uint64_t * content_len);
 
 static bool spooky_write_char(char value, FILE * fp);
 static bool spooky_write_uint8(uint8_t value, FILE * fp);
@@ -187,7 +187,7 @@ static bool spooky_write_bool(bool value, FILE * fp);
 
 static bool spooky_write_float(float value, FILE * fp);
 
-static bool spooky_write_string(const char * value, FILE * fp);
+static bool spooky_write_string(const char * value, FILE * fp, uint64_t * content_len);
 static bool spooky_write_fixed_width_string(const char * value, size_t fixed_width, FILE * fp);
 static bool spooky_write_spooky_pack_string(const spooky_pack_string * string, FILE * fp);
 
@@ -249,9 +249,39 @@ static bool spooky_read_raw(FILE * fp, size_t len, void * buf) {
   return hir > 0 && ferror(fp) == 0;
 }
 
-static bool spooky_write_file(const char * file_path, FILE * fp) {
+static bool spooky_write_file(const char * file_path, FILE * fp, uint64_t * content_len) {
   assert(file_path != NULL);
   assert(fp != NULL);
+
+  char * buf = NULL;
+  FILE * src_file = fopen(file_path, "rb");
+  if(src_file != NULL) {
+    if(fseek(src_file, 0L, SEEK_END) == 0) {
+      long buf_len = ftell(src_file);
+      if(buf_len == -1) { abort(); }
+
+      buf = calloc(1, (size_t)(buf_len + 1));
+
+      if(fseek(src_file, 0L, SEEK_SET) != 0) { /* Error */ }
+
+      size_t new_len = fread(buf, sizeof(char), (size_t)buf_len, src_file);
+      if(ferror(src_file) != 0) {
+        abort();
+      } else {
+        buf[new_len++] = '\0';
+        spooky_write_string(file_path, fp, content_len);
+        spooky_write_uint64(new_len, fp);
+        spooky_write_raw(buf, new_len, fp);
+        if(content_len != NULL) {
+          *content_len += new_len + sizeof(uint64_t);
+       }
+      }
+    }
+    fclose(src_file);
+  }
+
+  free(buf), buf = NULL;
+
   // TODO: finish it
   return true;
 }
@@ -343,7 +373,7 @@ static bool spooky_read_bool(FILE * fp, bool * value) {
   return res;
 }
 
-static bool spooky_write_string(const char * value, FILE * fp) {
+static bool spooky_write_string(const char * value, FILE * fp, uint64_t * content_len) {
   static const char * empty = "";
   static const char nullstr = '\0';
  
@@ -353,7 +383,7 @@ static bool spooky_write_string(const char * value, FILE * fp) {
     len = strnlen(value, MAX_PACK_STRING_LEN);
     res += fwrite(&len, sizeof(char), sizeof len, fp);
     if(ferror(fp) != 0) return false;
-
+    
     expected += (int)((sizeof len) * 1);
     if(len > 0) {
       res += fwrite(value, sizeof(char), len, fp);
@@ -377,6 +407,8 @@ static bool spooky_write_string(const char * value, FILE * fp) {
 
   expected += (int)((sizeof nullstr) * 1);
   assert(res == (size_t)expected);
+
+  if(content_len != NULL) { *content_len = (uint64_t)expected; }
 
   return res == (size_t)expected && ferror(fp) == 0;
 }
@@ -442,8 +474,9 @@ static bool spooky_write_spooky_pack_string(const spooky_pack_string * string, F
 		.type = spit_string
 	};
 
-	if(!spooky_write_spooky_pack_item(&item, fp)) return false;
-	if(!spooky_write_string(string->value, fp)) return false;
+	if(!spooky_write_spooky_pack_item(&item, fp)) { return false; }
+  uint64_t content_len = 0;
+	if(!spooky_write_string(string->value, fp, &content_len)) { return false; }
 
   return true;
 }
@@ -494,7 +527,8 @@ static bool spooky_write_float(float value, FILE * fp) {
 #undef BUF_MAX
   buf[len] = '\0';
 
-  return spooky_write_string(buf, fp);
+  uint64_t content_len = 0;
+  return spooky_write_string(buf, fp, &content_len);
 }
 
 static bool spooky_read_uint8(FILE * fp, uint8_t * value) {
@@ -649,7 +683,10 @@ static bool spooky_read_footer(FILE * fp) {
 
   size_t r = fread(&footer, sizeof(unsigned char), FOOTER_LEN, fp);
   assert(r == (sizeof footer) * 1);
-
+  fprintf(stdout, "\nR: %i\n", (int)r);
+  fflush(stdout);
+  fprintf(stdout, "\nf: '%s', F: '%s'\n", footer, FOOTER);
+  fflush(stdout);
   bool eq = strncmp((const char *)footer, (const char *)FOOTER, sizeof FOOTER) == 0;
   assert(eq);
 
@@ -679,6 +716,16 @@ bool spooky_pack_create(FILE * fp) {
     fwrite(&spf.header, sizeof(unsigned char), sizeof spf.header, fp);
     spooky_write_version(spf.version, fp);
     spooky_write_uint64(spf.content_len, fp);
+
+    spooky_write_file("res/fonts/PrintChar21.ttf", fp, &spf.content_len);
+
+    fseek(fp, 0, SEEK_SET);
+    fseek(fp, sizeof spf.header + sizeof spf.version, SEEK_SET);
+    fprintf(stdout, "LEN: %i\n", (int)spf.content_len);
+    fflush(stdout);
+    spooky_write_uint64(spf.content_len, fp);
+
+    fseek(fp, 0, SEEK_END);
     fwrite(F, sizeof(unsigned char), sizeof FOOTER, fp);
     ret = true;
   }
@@ -700,9 +747,11 @@ void spooky_pack_verify(FILE * fp) {
     if(!spooky_read_header(fp)) goto err0;
     if(!spooky_read_version(fp, &version)) goto err1;
     if(!spooky_read_uint64(fp, &content_len)) goto err2;
+    assert(content_len > 0);
+    fseek(fp, (long)((sizeof HEADER + sizeof version + sizeof(uint64_t) + content_len)), SEEK_SET);
     if(!spooky_read_footer(fp)) goto err3;
   }
-  assert(content_len == 0);
+  assert(content_len > 0);
   fprintf(stdout, "\nValid SPOOKY! database v%hu.%hu.%hu.%hu\n", version.major, version.minor, version.revision, version.subrevision);
   goto done;
 
@@ -731,9 +780,6 @@ static void spooky_write_char_tests() {
   FILE * fp = fmemopen(buf, sizeof(unsigned char) * 2, "r+");
   assert(fp);
   
-  // TODO: 
-  spooky_write_file("", fp);
-
   spooky_write_uint8(0xff, fp);
   spooky_write_char(0x01, fp);
 
@@ -892,8 +938,9 @@ static void spooky_write_string_tests() {
   char buf[MAX_TEST_STACK_BUFFER_SZ] = { 0 };
   FILE * fp = fmemopen(buf, MAX_TEST_STACK_BUFFER_SZ, "r+");
   assert(fp);
-  
-  spooky_write_string(hello_world, fp);
+ 
+  uint64_t content_len = 0;
+  spooky_write_string(hello_world, fp, &content_len);
   assert(fflush(fp) == 0);
   assert(fclose(fp) == 0);
 
@@ -922,7 +969,8 @@ static void spooky_write_string_empty_tests() {
   FILE * fp = fmemopen(buf, MAX_TEST_STACK_BUFFER_SZ, "r+");
   assert(fp);
   
-  spooky_write_string(empty, fp);
+  uint64_t content_len = 0;
+  spooky_write_string(empty, fp, &content_len);
   assert(fflush(fp) == 0);
   assert(fclose(fp) == 0);
 
