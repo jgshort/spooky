@@ -84,6 +84,7 @@ typedef enum spooky_pack_item_type {
   spit_dictionary = 73,
   spit_code = 74,
 /**/spit_index = 75,
+  spit_bin_file = 76,
 
   spit_signature = 80,
   spit_pubkey = 81,
@@ -168,6 +169,7 @@ typedef struct spooky_pack_file {
 
 /* Writers */
 static bool spooky_write_raw(void * value, size_t len, FILE * fp);
+static bool spooky_write_item_type(spooky_pack_item_type type, FILE * fp, uint64_t * content_len);
 static bool spooky_write_file(const char * file_path, FILE * fp, uint64_t * content_len);
 static bool spooky_write_char(char value, FILE * fp, uint64_t * content_len);
 static bool spooky_write_uint8(uint8_t value, FILE * fp, uint64_t * content_len);
@@ -220,7 +222,7 @@ static bool spooky_write_raw(void * value, size_t len, FILE * fp) {
 }
 
 static bool spooky_read_raw(FILE * fp, size_t len, void * buf) {
-	assert(fp && buf);
+	assert(fp != NULL && buf != NULL);
   assert(len > 0);
 
   if(feof(fp) != 0) return false;
@@ -230,6 +232,23 @@ static bool spooky_read_raw(FILE * fp, size_t len, void * buf) {
   return hir > 0 && ferror(fp) == 0;
 }
 
+static bool spooky_write_item_type(spooky_pack_item_type type, FILE * fp, uint64_t * content_len) {
+	assert(fp != NULL);
+  assert(type > spit_unspecified && type < spit_eof);
+  assert(type > 0 && type < UINT16_MAX);
+  return spooky_write_uint16((uint16_t)type, fp, content_len);
+}
+/*
+static bool spooky_read_item_type(FILE * fp, spooky_pack_item_type * type) {
+  uint16_t value = 0;
+  bool res = spooky_read_uint16(fp, &value);
+  assert(res);
+  assert(value > 0 && value < UINT16_MAX);
+  assert(value > spit_unspecified && value < spit_eof);
+  *type = (spooky_pack_item_type)value;
+  return res;
+}
+*/
 static bool spooky_write_file(const char * file_path, FILE * fp, uint64_t * content_len) {
   assert(file_path != NULL);
   assert(fp != NULL);
@@ -250,6 +269,8 @@ static bool spooky_write_file(const char * file_path, FILE * fp, uint64_t * cont
         abort();
       } else {
         buf[new_len] = '\0';
+        spooky_pack_item_type type = spit_bin_file;
+        spooky_write_item_type(type, fp, content_len);
         spooky_write_string(file_path, fp, content_len);
         spooky_write_uint64(new_len, fp, content_len);
         spooky_write_raw(buf, new_len, fp);

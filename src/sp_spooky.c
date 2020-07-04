@@ -4,6 +4,8 @@
 #include <stdbool.h>
 #include <inttypes.h>
 #include <math.h>
+#include <fcntl.h>
+#include <errno.h>
 
 #include "config.h"
 #include "sp_error.h"
@@ -26,7 +28,15 @@ int main(int argc, char **argv) {
 
   spooky_pack_tests();
 
-  FILE * fp = fopen("./test.spdb", "wb+x");
+  int fd = 0;
+  fd = open("./test.spdb", O_CREAT | O_RDWR | O_EXCL, S_IRUSR | S_IWUSR);
+  if(fd < 0) {
+    if(errno == EEXIST) {
+      fd = open("./test.spdb", O_RDWR | O_EXCL, S_IRUSR | S_IWUSR);
+    }
+  }
+  FILE * fp = fdopen(fd, "wb+x");
+  
   spooky_pack_create(fp);
   fseek(fp, 0, SEEK_SET);
   spooky_pack_verify(fp);
@@ -109,7 +119,7 @@ errno_t spooky_loop(spooky_context * context) {
   const spooky_base ** last = objects + ((sizeof objects / sizeof * objects) - 1);
 
   const spooky_console * console = spooky_console_acquire();
-  console = console->ctor(console, renderer);
+  console = console->ctor(console, context, renderer);
 
   const spooky_debug * debug = spooky_debug_acquire();
   debug = debug->ctor(debug, context);
@@ -266,7 +276,7 @@ errno_t spooky_loop(spooky_context * context) {
     const spooky_base ** delta_iter = first;
     do {
       const spooky_base * obj = *delta_iter;
-      if(obj->handle_delta != NULL) { obj->handle_delta(obj, interpolation); }
+      if(obj->handle_delta != NULL) { obj->handle_delta(obj, last_update_time, interpolation); }
     } while(++delta_iter < last);
 
     uint64_t this_second = (uint64_t)(last_update_time / BILLION);

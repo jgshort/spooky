@@ -323,12 +323,10 @@ void spooky_font_write_to_renderer(const spooky_font * self, SDL_Renderer * rend
           dest.x = x + destX;
           dest.y = y + destY;
 
-          (void)color;
-          /* Render font in a specific color:
-           * SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
-           * SDL_SetTextureAlphaMod(texture, color->a);
-           * SDL_SetTextureColorMod(texture, color->r, color->g, color->b);
-           */
+          /* Render font in a specific color: */
+          SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
+          SDL_SetTextureAlphaMod(texture, color->a);
+          SDL_SetTextureColorMod(texture, color->r, color->g, color->b);
           
           if (SDL_RenderCopy(renderer, texture, NULL, &dest) != 0) {
             fprintf(stderr, "Unable to render glyph during Write: %s\n", SDL_GetError()); 

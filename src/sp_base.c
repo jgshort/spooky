@@ -50,9 +50,10 @@ void spooky_base_handle_event(const spooky_base * self, SDL_Event * event) {
   (void)event;
 }
 
-void spooky_base_handle_delta(const spooky_base * self, double interpolation) {
+void spooky_base_handle_delta(const spooky_base * self, int64_t last_update_time, double interpolation) {
   (void)self;
   (void)interpolation;
+  (void)last_update_time;
 }
 
 void spooky_base_render(const spooky_base * self, SDL_Renderer * renderer) {
