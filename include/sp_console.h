@@ -14,6 +14,8 @@ typedef struct spooky_console {
   void (*free)(const spooky_console * self);
   void (*release)(const spooky_console * self);
 
+  void (*push_str)(const spooky_console * self, const char * str);
+
   struct spooky_console_data * data;
 } spooky_console;
 
@@ -24,12 +26,6 @@ const spooky_console * spooky_console_ctor(const spooky_console * self, const sp
 const spooky_console * spooky_console_dtor(const spooky_console * self);
 void spooky_console_free(const spooky_console * self);
 void spooky_console_release(const spooky_console * self);
-
-/*
-void spooky_console_handle_event(const spooky_console * console);
-void spooky_console_handle_delta(const spooky_console * console, double interpolation);
-void spooky_console_render(const spooky_console * console, SDL_Renderer * renderer);
-*/
 
 #endif /* SP_CONSOLE__H */
 

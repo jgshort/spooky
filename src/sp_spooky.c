@@ -121,6 +121,7 @@ errno_t spooky_loop(spooky_context * context) {
   const spooky_console * console = spooky_console_acquire();
   console = console->ctor(console, context, renderer);
 
+  console->push_str(console, "hello, world!\n");
   const spooky_debug * debug = spooky_debug_acquire();
   debug = debug->ctor(debug, context);
 
@@ -131,7 +132,8 @@ errno_t spooky_loop(spooky_context * context) {
   objects[1] = (const spooky_base *)debug;
   objects[2] = (const spooky_base *)help;
 
-  objects[2]->set_z_order(objects[2], 99999);
+  objects[0]->set_z_order(objects[0], 99998);
+  objects[1]->set_z_order(objects[1], 99999);
 
   spooky_base_z_sort(objects, (sizeof objects / sizeof * objects) - 1);
   
@@ -331,6 +333,7 @@ end_of_running_loop: ;
   if(background != NULL) { SDL_DestroyTexture(background), background = NULL; }
   if(letterbox_background != NULL) { SDL_DestroyTexture(letterbox_background), letterbox_background = NULL; }
 
+  spooky_help_release(help);
   spooky_console_release(console);
   
   return SP_SUCCESS;
