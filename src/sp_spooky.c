@@ -1,9 +1,11 @@
+#define _POSIX_C_SOURCE 200112L
 #include <assert.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include <inttypes.h>
 #include <math.h>
+#include <sys/stat.h>
 #include <fcntl.h>
 #include <errno.h>
 
