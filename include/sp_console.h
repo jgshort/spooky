@@ -4,6 +4,7 @@
 #include "sp_base.h"
 #include "sp_context.h"
 
+struct spooky_console_data;
 typedef struct spooky_console spooky_console;
 
 typedef struct spooky_console {

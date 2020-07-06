@@ -72,7 +72,8 @@ void spooky_help_release(const spooky_help * self) {
   self->free(self->dtor(self));
 }
 
-void spooky_help_handle_event(const spooky_base * self, SDL_Event * event) {
+bool spooky_help_handle_event(const spooky_base * self, SDL_Event * event) {
+  spooky_help_data * data = ((const spooky_help *)self)->data;
   switch(event->type) {
     case SDL_KEYUP:
       {
@@ -83,13 +84,11 @@ void spooky_help_handle_event(const spooky_base * self, SDL_Event * event) {
           case SDLK_SLASH:
           case SDLK_QUESTION:
             {
-              spooky_help_data * data = ((const spooky_help *)self)->data;
               data->show_help = true;
             }
             break;
           case SDLK_ESCAPE:
             {
-              spooky_help_data * data = ((const spooky_help *)self)->data;
               data->show_help = false;
             }
             break;
@@ -101,6 +100,7 @@ void spooky_help_handle_event(const spooky_base * self, SDL_Event * event) {
     default:
       break;
   }
+  return data->show_help;
 }
 
 void spooky_help_render(const spooky_base * self, SDL_Renderer * renderer) {

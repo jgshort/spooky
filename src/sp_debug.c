@@ -86,7 +86,7 @@ void spooky_debug_update(const spooky_debug * self, int64_t fps, int64_t seconds
   data->interpolation = interpolation;
 }
 
-void spooky_debug_handle_event(const spooky_base * self, SDL_Event * event) {
+bool spooky_debug_handle_event(const spooky_base * self, SDL_Event * event) {
   switch(event->type) {
     case SDL_KEYUP:
       {
@@ -106,7 +106,7 @@ void spooky_debug_handle_event(const spooky_base * self, SDL_Event * event) {
     default:
       break;
   }
-
+  return false;
 }
 
 void spooky_debug_handle_delta(const spooky_base * self, double interpolation) {

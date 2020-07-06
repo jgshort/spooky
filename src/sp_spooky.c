@@ -142,6 +142,7 @@ errno_t spooky_loop(spooky_context * context) {
   double interpolation = 0.0;
   bool is_done = false, is_up = false, is_down = false;
 
+  SDL_StartTextInput();
   while(running) {
     int update_loops = 0;
     now = sp_get_time_in_us();
@@ -254,7 +255,11 @@ errno_t spooky_loop(spooky_context * context) {
       const spooky_base ** event_iter = first;
       do {
         const spooky_base * obj = *event_iter;
-        if(obj->handle_event != NULL) { obj->handle_event(obj, &evt); }
+        if(obj->handle_event != NULL) { 
+          if(obj->handle_event(obj, &evt)) {
+            break;
+          }
+        }
       } while(++event_iter < last);
 
       last_update_time += TIME_BETWEEN_UPDATES;
@@ -316,6 +321,11 @@ errno_t spooky_loop(spooky_context * context) {
 
     if(this_second > last_second_time) {
       /* Every second, update FPS: */
+      
+      char buf[80] = { 0 };
+      snprintf(buf, 80, "Delta: %f, FPS: %i", interpolation, (int)fps);
+      console->push_str(console, buf);
+
       fps = frame_count;
       frame_count = 0;
       last_second_time = this_second;
@@ -331,6 +341,8 @@ errno_t spooky_loop(spooky_context * context) {
     }
 end_of_running_loop: ;
   } /* >> while(running) */
+
+  SDL_StopTextInput();
 
   if(background != NULL) { SDL_DestroyTexture(background), background = NULL; }
   if(letterbox_background != NULL) { SDL_DestroyTexture(letterbox_background), letterbox_background = NULL; }
