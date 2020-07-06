@@ -11,14 +11,14 @@ typedef struct spooky_base {
   void (*free)(const spooky_base * self);
   void (*release)(const spooky_base * self);
 
-  void (*set_z_order)(const spooky_base * base, int z_order);
-  int (*get_z_order)(const spooky_base * base);
+  void (*set_z_order)(const spooky_base * base, float z_order);
+  float (*get_z_order)(const spooky_base * base);
 
   void (*handle_event)(const spooky_base * base, SDL_Event * event);
   void (*handle_delta)(const spooky_base * base, int64_t last_update_time, double interpolation);
   void (*render)(const spooky_base * base, SDL_Renderer * renderer);
 
-  int z_order;
+  float z_order;
   char padding[4]; /* not portable */
 } spooky_base;
 

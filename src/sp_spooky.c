@@ -134,8 +134,8 @@ errno_t spooky_loop(spooky_context * context) {
   objects[1] = (const spooky_base *)debug;
   objects[2] = (const spooky_base *)help;
 
-  objects[0]->set_z_order(objects[0], 99998);
-  objects[1]->set_z_order(objects[1], 99999);
+  objects[0]->set_z_order(objects[0], 9999998.f);
+  objects[1]->set_z_order(objects[1], 9999999.f);
 
   spooky_base_z_sort(objects, (sizeof objects / sizeof * objects) - 1);
   
