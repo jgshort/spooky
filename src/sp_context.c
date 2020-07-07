@@ -59,8 +59,8 @@ typedef struct spooky_context_data {
 
   bool is_fullscreen;
   bool is_paused;
-
-  char padding[6]; /* not portable */
+  bool is_running;
+  char padding[5]; /* not portable */
 } spooky_context_data;
 
 static spooky_context_data global_data = { 0 };
@@ -130,7 +130,13 @@ errno_t spooky_init_context(spooky_context * context) {
   context->set_is_fullscreen = &spooky_context_set_is_fullscreen;
   context->get_is_paused = &spooky_context_get_is_paused;
   context->set_is_paused = &spooky_context_set_is_paused;
+  context->get_is_running = &spooky_context_get_is_running;
+  context->set_is_running = &spooky_context_set_is_running;
+
+
   context->data = &global_data;
+
+  context->data->is_running = true;
 
   fprintf(stdout, "Initializing...");
   fflush(stdout);
@@ -426,7 +432,6 @@ void spooky_context_scale_font_up(spooky_context * context, bool * is_done) {
 
   *is_done = spooky_font_sizes[(size_t)size];
 
-  fprintf(stdout, "Resized to %i\n", (int)(size_t)(ptrdiff_t)(data->fonts_index - data->fonts));
   data->font_current = *data->fonts_index;
 }
 
@@ -446,7 +451,15 @@ void spooky_context_scale_font_down(spooky_context * context, bool * is_done) {
  
   *is_done = spooky_font_sizes[(size_t)size];
 
-  fprintf(stdout, "Resized to %i\n", (int)(size_t)(ptrdiff_t)(data->fonts_index - data->fonts));
   data->font_current = *data->fonts_index;
 }
+
+bool spooky_context_get_is_running(const spooky_context * context) {
+  return context->data->is_running;
+}
+
+void spooky_context_set_is_running(const spooky_context * context, bool value) {
+  context->data->is_running = value;
+}
+
 

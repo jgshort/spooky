@@ -8,6 +8,8 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <sys/time.h>
+#include <sys/resource.h>
 
 #include "config.h"
 #include "sp_error.h"
@@ -20,10 +22,11 @@
 #include "sp_debug.h"
 #include "sp_help.h"
 #include "sp_context.h"
+#include "sp_log.h"
 #include "sp_time.h"
 
 static errno_t spooky_loop(spooky_context * context);
-static errno_t spooky_command_parser(spooky_context * context, const spooky_console * console, const char * command) ;
+static errno_t spooky_command_parser(spooky_context * context, const spooky_console * console, const spooky_log * log, const char * command) ;
 
 int main(int argc, char **argv) {
   (void)argc;
@@ -115,16 +118,17 @@ errno_t spooky_loop(spooky_context * context) {
 
   assert(background != NULL && letterbox_background != NULL);
 
-  bool running = true;
-
   const spooky_base * objects[3] = { 0 };
   const spooky_base ** first = objects;
   const spooky_base ** last = objects + ((sizeof objects / sizeof * objects));
 
+  const spooky_log * log = spooky_log_acquire();
+  log = log->ctor(log);
+
   const spooky_console * console = spooky_console_acquire();
   console = console->ctor(console, context, renderer);
 
-  console->push_str(console, "hello, world!\n");
+  console->push_str(console, "> " PACKAGE_NAME " " PACKAGE_VERSION " <\n");
   const spooky_debug * debug = spooky_debug_acquire();
   debug = debug->ctor(debug, context);
 
@@ -143,16 +147,17 @@ errno_t spooky_loop(spooky_context * context) {
   double interpolation = 0.0;
   bool is_done = false, is_up = false, is_down = false;
 
-  while(running) {
+  log->prepend(log, "Logging enabled\n", SLS_INFO);
+  while(spooky_context_get_is_running(context)) {
     int update_loops = 0;
     now = sp_get_time_in_us();
     while((now - last_update_time > TIME_BETWEEN_UPDATES && update_loops < MAX_UPDATES_BEFORE_RENDER)) {
-      if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "%s\n", SDL_GetError()); }
+      if(spooky_is_sdl_error(SDL_GetError())) { log->prepend(log, SDL_GetError(), SLS_INFO); }
 
       SDL_Event evt = { 0 };
       SDL_ClearError();
       while(SDL_PollEvent(&evt)) {
-        if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
+        if(spooky_is_sdl_error(SDL_GetError())) { log->prepend(log, SDL_GetError(), SLS_INFO); }
         
         /* NOTE: SDL_PollEvent can set the Error message returned by SDL_GetError; so clear it, here: */
         SDL_ClearError();
@@ -180,7 +185,7 @@ errno_t spooky_loop(spooky_context * context) {
 
         switch(evt.type) {
           case SDL_QUIT:
-            running = false;
+            spooky_context_set_is_running(context, false);
             goto end_of_running_loop;
           case SDL_KEYUP:
             {
@@ -229,7 +234,7 @@ errno_t spooky_loop(spooky_context * context) {
                   {
                     /* ctrl-q to quit */
                     if((SDL_GetModState() & KMOD_CTRL) != 0) {
-                      running = false;
+                      spooky_context_set_is_running(context, false);
                       goto end_of_running_loop;
                     }
                   }
@@ -258,7 +263,7 @@ errno_t spooky_loop(spooky_context * context) {
         /* check the console command; execute it if it exists */
         const char * command;
         if((command = console->get_current_command(console)) != NULL) {
-          spooky_command_parser(context, console, command);
+          spooky_command_parser(context, console, log, command);
           console->clear_current_command(console);
         }
       }
@@ -321,10 +326,8 @@ errno_t spooky_loop(spooky_context * context) {
 
     if(this_second > last_second_time) {
       /* Every second, update FPS: */
-      
       char buf[80] = { 0 };
       snprintf(buf, 80, "Delta: %f, FPS: %i", interpolation, (int)fps);
-      console->push_str(console, buf);
 
       fps = frame_count;
       frame_count = 0;
@@ -340,13 +343,14 @@ errno_t spooky_loop(spooky_context * context) {
       now = sp_get_time_in_us();
     }
 end_of_running_loop: ;
-  } /* >> while(running) */
+  } /* >> while(spooky_context_get_is_running(context)) */
 
   if(background != NULL) { SDL_DestroyTexture(background), background = NULL; }
   if(letterbox_background != NULL) { SDL_DestroyTexture(letterbox_background), letterbox_background = NULL; }
 
   spooky_help_release(help);
   spooky_console_release(console);
+  spooky_log_release(log);
   
   return SP_SUCCESS;
 
@@ -359,10 +363,67 @@ err0:
   return SP_FAILURE;
 }
 
-errno_t spooky_command_parser(spooky_context * context, const spooky_console * console, const char * command) {
-  if(strncmp(command, "\\clear", sizeof("\\clear")) == 0) {
+errno_t spooky_command_parser(spooky_context * context, const spooky_console * console, const spooky_log * log, const char * command) {
+  if(strncmp(command, "clear", sizeof("clear")) == 0) {
     console->clear_console(console);
+  } else if(strncmp(command, "help", sizeof("help")) == 0) {
+    const char help[] = 
+      "DIAGNOSTIC CONSOLE\n"
+      "Comands:\n"
+      "  help  -- show this help screen\n"
+      "  clear -- clear the console window\n"
+      "  info  -- diagnostic information\n"
+      "  log   -- show log\n"
+      "  quit  -- exit the game\n";
+    console->push_str(console, help);
+  } else if(strncmp(command, "quit", sizeof("quit")) == 0) {
+    console->push_str(console, "Quitting...\n");
+    context->set_is_running(context, false);
+  } else if(strncmp(command, "info", sizeof("info")) == 0) {
+    char info[1024] = { 0 };
+    struct rusage usage;
+    
+    long int tv_usec = 0, tv_sec = 0;
+#ifdef __UNIX__
+    long ru_maxrss = 0;
+    long ru_minflt = 0, ru_majflt = 0;
+#endif
+    if(getrusage(RUSAGE_SELF, &usage) == 0) {
+      tv_usec = usage.ru_utime.tv_usec;
+      tv_sec = usage.ru_utime.tv_sec;
+#ifdef __UNIX__
+      ru_maxrss = usage.ru_maxrss;
+      ru_minflt = usage.ru_minflt;
+      ru_majflt = usage.ru_majflt;
+#endif
+    }
+
+#ifdef __APPLE__
+    snprintf(info, sizeof info, 
+        PACKAGE_STRING " :: "
+        "Time: %ld.%06ld\n"
+        "Logging entries: %zu\n"
+        , tv_sec, tv_usec
+        , log->get_entries_count(log)
+    );
+#elif __UNIX__
+    snprintf(info, sizeof info, 
+        PACKAGE_STRING " :: "
+        "Time: %ld.%06ld\n"
+        "Resident set: %ld\n"
+        "Faults: (%ld) %ld\n"
+        "Logging entries: %zu\n"
+        , tv_sec, tv_usec
+        , ru_maxrss
+        , ru_minflt, ru_majflt
+        , log->get_entries_count(log)
+    );   
+#endif
+    console->push_str(console, info);
+  } else if(strncmp(command, "log", sizeof("log")) == 0) {
+    log->dump(log, console);
   }
-  (void)context;  
+
   return SP_SUCCESS;
 }
+

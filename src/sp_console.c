@@ -215,7 +215,7 @@ bool spooky_console_handle_event(const spooky_base * self, SDL_Event * event) {
     int w, h;
     if(SDL_GetRendererOutputSize(data->context->get_renderer(data->context), &w, &h) == 0) {
       const spooky_font * font = data->context->get_font(data->context);
-      int margin = (font->get_m_dash(font) - 1) * 10;
+      int margin = (font->get_m_dash(font) - 1) * 5;
       data->rect.w = w - margin;
       data->rect.h = h - (margin / 2);
     }
@@ -260,17 +260,15 @@ void spooky_console_render(const spooky_base * self, SDL_Renderer * renderer) {
 
     static const SDL_Color color = { .r = 0, .g = 255, .b = 0, .a = 255};
     
-    spooky_console_line * t = NULL;
-    if(data->lines->head != NULL) {
-      t = data->lines->head; 
-    }
-
     int line_next = 2;
+    
+    spooky_console_line * t = data->lines->head;
     while(t != NULL) {
+      t = t->prev;
       if(t->line_len > 0 && t->line != NULL) {
         SDL_Point text_dest = { .x = data->rect.x + 10, .y =  data->rect.y + data->rect.h - (line_skip * (line_next)) - 10};
         if(t->is_command) {
-          static const SDL_Color command_color = { .r = 255, .g = 0, .b = 0x55, .a = 255 };
+          static const SDL_Color command_color = { .r = 255, .g = 0x55, .b = 255, .a = 255 };
           int command_width;
           font->write_to_renderer(font, renderer, &text_dest, &command_color, "> ", &command_width, NULL);
           text_dest.x += command_width;
@@ -280,7 +278,6 @@ void spooky_console_render(const spooky_base * self, SDL_Renderer * renderer) {
         }
         line_next++;
       }
-      t = t->prev;
       if(t == data->lines->head) { break; }
     }
 
@@ -343,27 +340,57 @@ void spooky_console_push_str(const spooky_console * self, const char * str) {
 }
 
 void spooky_console_push_str_impl(const spooky_console * self, const char * str, bool is_command) {
-  spooky_console_line * line = calloc(1, sizeof * line);
-  line->line = strndup(str, spooky_console_max_input_len);
-  line->line_len = strnlen(str, spooky_console_max_input_len);
-  line->is_command = is_command;
-  if(self->data->lines->count > spooky_console_max_display_lines && self->data->lines->head->next != NULL) {
-    spooky_console_line * deleted = self->data->lines->head->next;
-    assert(deleted != NULL && deleted->next != NULL);
-    if(deleted->next != NULL) {
-      deleted->next->prev = self->data->lines->head;
-      self->data->lines->head->next = deleted->next;
+  size_t strings_capacity = 128;
+  char ** strings = calloc(strings_capacity, sizeof * strings);
+  if(strings == NULL) { abort(); }
+  size_t split_count = 0;
+  
+  char * working_str = strndup(str, spooky_console_max_line_capacity);
+  char * save_ptr = NULL, * token = NULL;
+  char * ws = working_str;
+  while((token = strtok_r(ws, "\n", &save_ptr)) != NULL) {
+    assert(token != NULL);
+    if(split_count >= strings_capacity) {
+      strings_capacity *= 2;
+      char ** temp = realloc(strings, strings_capacity * sizeof * strings);
+      if(temp != NULL) {
+        strings = temp;
+      } else { abort(); }
     }
-    free(deleted), deleted = NULL;
+    assert(split_count < strings_capacity);
+    /* duped string[sc] freed in dtor; copied below on line->line = string: */
+    strings[split_count] = strndup(token, spooky_console_max_line_capacity); 
+    split_count++;
+    ws = NULL;
   }
-  if(self->data->lines->head == NULL) {
-    line->next = line;
-    line->prev = line;
-    self->data->lines->head = line;
-  } else {
-    spooky_console_list_prepend(self->data->lines->head, line);
+
+  free(working_str), working_str = NULL;
+  for(size_t split = 0; split < split_count; ++split) {
+    spooky_console_line * line = calloc(1, sizeof * line);
+    char * string = strings[split];
+    if(string == NULL) { continue; }
+    line->line = string;
+    line->line_len = strnlen(string, spooky_console_max_line_capacity);
+    line->is_command = is_command;
+    if(self->data->lines->count > spooky_console_max_display_lines && self->data->lines->head->next != NULL) {
+      spooky_console_line * deleted = self->data->lines->head->next;
+      assert(deleted != NULL && deleted->next != NULL);
+      if(deleted->next != NULL) {
+        deleted->next->prev = self->data->lines->head;
+        self->data->lines->head->next = deleted->next;
+      }
+      free(deleted), deleted = NULL;
+    }
+    if(self->data->lines->head == NULL) {
+      line->next = line;
+      line->prev = line;
+      self->data->lines->head = line;
+    } else {
+      spooky_console_list_prepend(self->data->lines->head, line);
+    }
+    self->data->lines->count++;
   }
-  self->data->lines->count++;
+  free(strings), strings = NULL;
 }
 
 const char * spooky_console_get_current_command(const spooky_console * self) {
@@ -377,7 +404,7 @@ void spooky_console_clear_current_command(const spooky_console * self) {
 void spooky_console_clear_console(const spooky_console * self) {
   spooky_console_data * data = self->data;
 
-  spooky_console_line * t = data->lines->head;
+  spooky_console_line * t = data->lines->head->next;
   while(t != data->lines->head) {
     if(t->line != NULL) {
       free(t->line), t->line = NULL;
