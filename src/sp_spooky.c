@@ -116,9 +116,9 @@ errno_t spooky_loop(spooky_context * context) {
 
   bool running = true;
 
-  const spooky_base * objects[4] = { 0 };
+  const spooky_base * objects[3] = { 0 };
   const spooky_base ** first = objects;
-  const spooky_base ** last = objects + ((sizeof objects / sizeof * objects) - 1);
+  const spooky_base ** last = objects + ((sizeof objects / sizeof * objects));
 
   const spooky_console * console = spooky_console_acquire();
   console = console->ctor(console, context, renderer);
@@ -212,16 +212,20 @@ errno_t spooky_loop(spooky_context * context) {
                   break;
                 case SDLK_EQUALS: 
                   {
-                    spooky_context_scale_font_up(context, &is_done);
-                    is_up = true;
-                    is_down = false;
+                    if((SDL_GetModState() & KMOD_CTRL) != 0) {
+                      spooky_context_scale_font_up(context, &is_done);
+                      is_up = true;
+                      is_down = false;
+                    }
                   }
                   break;
                 case SDLK_MINUS:
                   {
-                    spooky_context_scale_font_down(context, &is_done);
-                    is_down = true;
-                    is_up = false;
+                    if((SDL_GetModState() & KMOD_CTRL) != 0) {
+                      spooky_context_scale_font_down(context, &is_done);
+                      is_down = true;
+                      is_up = false;
+                    }
                   }
                   break;
                 default:
@@ -255,7 +259,7 @@ errno_t spooky_loop(spooky_context * context) {
       const spooky_base ** event_iter = first;
       do {
         const spooky_base * obj = *event_iter;
-        if(obj->handle_event != NULL) { 
+        if(obj != NULL && obj->handle_event != NULL) { 
           if(obj->handle_event(obj, &evt)) {
             break;
           }

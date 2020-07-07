@@ -10,7 +10,6 @@ extern "C" {
 #ifdef __APPLE__
   /* For some reason, this won't build on OS X/clang without externing memset_pattern4 */
   #include <stdlib.h>
-  #include <stdint.h>
   extern void memset_pattern4(void * /* dst */, const void * /* val */, size_t /* dwords */);
 #endif
 

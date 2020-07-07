@@ -87,7 +87,7 @@ bool spooky_help_handle_event(const spooky_base * self, SDL_Event * event) {
               data->show_help = true;
             }
             break;
-          case SDLK_ESCAPE:
+          case SDLK_ESCAPE: /* hide help */
             {
               data->show_help = false;
             }
@@ -122,7 +122,8 @@ void spooky_help_render(const spooky_base * self, SDL_Renderer * renderer) {
     " h or ? or F1 : Help                    \n"
     "                                        \n"
     " ` : Debug Console                      \n"
-    " + : Text size up    - : Text size down \n"
+    " Ctrl + : Text size up                  \n"
+    " Ctrl - : Text size down                \n"
     "                                        \n"
     " F3: HUD            F12: Full screen    \n"
     "                                        \n"
