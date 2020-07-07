@@ -23,6 +23,7 @@
 #include "sp_time.h"
 
 static errno_t spooky_loop(spooky_context * context);
+static errno_t spooky_command_parser(spooky_context * context, const spooky_console * console, const char * command) ;
 
 int main(int argc, char **argv) {
   (void)argc;
@@ -253,6 +254,14 @@ errno_t spooky_loop(spooky_context * context) {
         } while(++event_iter < last);
       } /* >> while(SDL_PollEvent(&evt)) */
 
+      {
+        /* check the console command; execute it if it exists */
+        const char * command;
+        if((command = console->get_current_command(console)) != NULL) {
+          spooky_command_parser(context, console, command);
+          console->clear_current_command(console);
+        }
+      }
       last_update_time += TIME_BETWEEN_UPDATES;
       update_loops++;
     } /* >> while ((now - last_update_time ... */
@@ -350,4 +359,10 @@ err0:
   return SP_FAILURE;
 }
 
-
+errno_t spooky_command_parser(spooky_context * context, const spooky_console * console, const char * command) {
+  if(strncmp(command, "\\clear", sizeof("\\clear")) == 0) {
+    console->clear_console(console);
+  }
+  (void)context;  
+  return SP_SUCCESS;
+}

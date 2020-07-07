@@ -259,7 +259,6 @@ bool spooky_glyph_binary_search(const spooky_glyph * glyphs, size_t low, size_t 
 
 const spooky_glyph * spooky_font_search_glyph_index(const spooky_font * self, uint32_t c) {
   spooky_font_data * data = self->data;
-
   size_t n = data->glyphs_count, index = 0; 
   assert(n > index);
   bool found = spooky_glyph_binary_search(data->glyphs, 0, n, c, &index);
@@ -273,6 +272,8 @@ void spooky_font_write(const spooky_font * self, const SDL_Point * destination, 
 void spooky_font_write_to_renderer(const spooky_font * self, SDL_Renderer * renderer, const SDL_Point * destination, const SDL_Color * color, const char * s, int * w, int * h) {
   spooky_font_data * data = self->data;
   
+  const spooky_glyph * M = spooky_font_search_glyph_index(self, 'M');
+
   int destX = destination->x;
   int destY = destination->y;
 
@@ -313,12 +314,9 @@ void spooky_font_write_to_renderer(const spooky_font * self, SDL_Renderer * rend
         qsort(data->glyphs, data->glyphs_count, sizeof * data->glyphs, &spooky_glyph_compare);
         g = spooky_font_search_glyph_index(self, c); 
       }
-      int advance = -1;
-      const spooky_glyph * M = spooky_font_search_glyph_index(self, 'M');
-      advance = M->advance;
+      int advance = M->advance; /* use M-dash for consistent spacing; weird due to font outline */
       if(g) {
         SDL_Texture * texture = g->texture;
-        //advance = g->advance;
         if(texture != NULL) {
           SDL_Rect dest = { .x = 0, .y = 0, .w = advance, .h = spooky_font_get_height(self) };
           
@@ -330,13 +328,14 @@ void spooky_font_write_to_renderer(const spooky_font * self, SDL_Renderer * rend
           SDL_SetTextureAlphaMod(texture, color->a);
           SDL_SetTextureColorMod(texture, color->r, color->g, color->b);
           
-          if (SDL_RenderCopy(renderer, texture, NULL, &dest) != 0) {
+          if(SDL_RenderCopy(renderer, texture, NULL, &dest) != 0) {
             fprintf(stderr, "Unable to render glyph during Write: %s\n", SDL_GetError()); 
             abort();
           }
         }
       }
-      assert(advance > -1); 
+      assert(advance > -1);
+      
       x += advance;
       width += advance;
     }

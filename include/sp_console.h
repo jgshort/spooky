@@ -17,6 +17,9 @@ typedef struct spooky_console {
 
   void (*push_str)(const spooky_console * self, const char * str);
 
+  const char * (*get_current_command)(const spooky_console * self);
+  void (*clear_current_command)(const spooky_console * self);
+  void (*clear_console)(const spooky_console * self);
   struct spooky_console_data * data;
 } spooky_console;
 

@@ -44,6 +44,7 @@ typedef struct spooky_context_data {
   SDL_Renderer * renderer;
   SDL_GLContext glContext;
   SDL_Texture * canvas;
+  const spooky_console * console;
 
   size_t fonts_len;
   const spooky_font * font_current;

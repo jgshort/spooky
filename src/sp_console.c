@@ -21,14 +21,9 @@ typedef struct spooky_console_line {
   spooky_console_line * prev;
   size_t line_len;
   char * line;
+  bool is_command;
+  char padding[7]; /* not portable */
 } spooky_console_line;
-
-static spooky_console_line SPOOKY_CONSOLE_LINE_HEAD = {
-  .next = &SPOOKY_CONSOLE_LINE_HEAD,
-  .prev = &SPOOKY_CONSOLE_LINE_HEAD,
-  .line_len = 0,
-  .line = NULL
-};
 
 typedef struct spooky_console_lines {
   size_t count;
@@ -48,6 +43,8 @@ typedef struct spooky_console_data {
   char * text;
   size_t text_len;
   size_t text_capacity;
+
+  char * current_command;
 } spooky_console_data;
 
 static bool spooky_console_handle_event(const spooky_base * self, SDL_Event * event);
@@ -55,6 +52,10 @@ static void spooky_console_handle_delta(const spooky_base * self, int64_t last_u
 static void spooky_console_render(const spooky_base * self, SDL_Renderer * renderer);
 static void spooky_console_push_str(const spooky_console * self, const char * str);
 static void spooky_console_list_prepend(spooky_console_line * X, spooky_console_line * P);
+static void spooky_console_push_str_impl(const spooky_console * self, const char * str, bool is_command);
+static const char * spooky_console_get_current_command(const spooky_console * self);
+static void spooky_console_clear_current_command(const spooky_console * self);
+static void spooky_console_clear_console(const spooky_console * self);
 
 const spooky_console * spooky_console_alloc() {
   spooky_console * self = calloc(1, sizeof * self);
@@ -79,7 +80,11 @@ const spooky_console * spooky_console_init(spooky_console * self) {
   self->super.handle_event = &spooky_console_handle_event;
   self->super.handle_delta = &spooky_console_handle_delta;
   self->super.render = &spooky_console_render;
+
   self->push_str = &spooky_console_push_str;
+  self->get_current_command = &spooky_console_get_current_command;
+  self->clear_current_command = &spooky_console_clear_current_command;
+  self->clear_console = &spooky_console_clear_console;
   return self;
 }
 
@@ -102,9 +107,10 @@ const spooky_console * spooky_console_ctor(const spooky_console * self, const sp
   data->hide_cursor = true;
   
   data->lines = calloc(1, sizeof * data->lines);
-  data->lines->head = &SPOOKY_CONSOLE_LINE_HEAD;
+  data->lines->head = NULL;
   data->lines->count = 0;
 
+  data->current_command = NULL;
   data->text_len = 0;
   data->text_capacity = spooky_console_max_line_capacity;
   data->text = calloc(data->text_capacity, sizeof * data->text);;
@@ -128,21 +134,8 @@ const spooky_console * spooky_console_ctor(const spooky_console * self, const sp
 const spooky_console * spooky_console_dtor(const spooky_console * self) {
   if(self) {
     spooky_console_data * data = self->data;
-
-    spooky_console_line * H = &SPOOKY_CONSOLE_LINE_HEAD;
-    spooky_console_line * t = H->next;
-    if(t != H) {
-      do {
-        if(t->line_len > 0 && t->line != NULL) {
-          free(t->line), t->line = NULL;
-        }
-        t = t->next;
-        if(t != H) {
-          free(t->prev), t->prev = NULL;
-        }
-      } while(t != H);
-    }
-
+    spooky_console_clear_console(self);
+    free(data->current_command), data->current_command = NULL;
     free(data), data = NULL;
   }
 
@@ -169,6 +162,14 @@ bool spooky_console_handle_event(const spooky_base * self, SDL_Event * event) {
         data->text_len--;
         data->text[data->text_len] = '\0';
       }
+    }
+    else if(event->type == SDL_KEYDOWN && event->key.keysym.sym == SDLK_RETURN) {
+      data->current_command = strndup(data->text, spooky_console_max_input_len);
+      spooky_console_push_str_impl((const spooky_console *)self, data->text, true);
+      free(data->text), data->text = NULL;
+      data->text_len = 0;
+      data->text_capacity = spooky_console_max_line_capacity;
+      data->text = calloc(data->text_capacity, sizeof * data->text);
     }
     else if(event->type == SDL_TEXTINPUT) {
       /* accumulate command text*/
@@ -217,8 +218,6 @@ bool spooky_console_handle_event(const spooky_base * self, SDL_Event * event) {
       int margin = (font->get_m_dash(font) - 1) * 10;
       data->rect.w = w - margin;
       data->rect.h = h - (margin / 2);
-      //data->rect.w = w - 200;
-      //data->rect.h = h - 200;
     }
   }
   return data->show_console;
@@ -261,19 +260,28 @@ void spooky_console_render(const spooky_base * self, SDL_Renderer * renderer) {
 
     static const SDL_Color color = { .r = 0, .g = 255, .b = 0, .a = 255};
     
-    spooky_console_line * H = &SPOOKY_CONSOLE_LINE_HEAD;
-    spooky_console_line * t = H->prev;
+    spooky_console_line * t = NULL;
+    if(data->lines->head != NULL) {
+      t = data->lines->head; 
+    }
 
     int line_next = 2;
-    if(t != H) {
-      do {
-        if(t->line_len > 0 && t->line != NULL) {
-          SDL_Point text_dest = { .x = data->rect.x + 10, .y =  data->rect.y + data->rect.h - (line_skip * (line_next)) - 10};
+    while(t != NULL) {
+      if(t->line_len > 0 && t->line != NULL) {
+        SDL_Point text_dest = { .x = data->rect.x + 10, .y =  data->rect.y + data->rect.h - (line_skip * (line_next)) - 10};
+        if(t->is_command) {
+          static const SDL_Color command_color = { .r = 255, .g = 0, .b = 0x55, .a = 255 };
+          int command_width;
+          font->write_to_renderer(font, renderer, &text_dest, &command_color, "> ", &command_width, NULL);
+          text_dest.x += command_width;
+          font->write_to_renderer(font, renderer, &text_dest, &command_color, t->line, NULL, NULL);
+        } else {
           font->write_to_renderer(font, renderer, &text_dest, &color, t->line, NULL, NULL);
-          line_next++;
         }
-        t = t->prev;
-      } while(t != H);
+        line_next++;
+      }
+      t = t->prev;
+      if(t == data->lines->head) { break; }
     }
 
     // Draw prompt
@@ -290,26 +298,27 @@ void spooky_console_render(const spooky_base * self, SDL_Renderer * renderer) {
       int max_rect_width = data->rect.w - ((font->get_m_dash(font)) * 3);
       if(max_rect_width < text_w) {
         /* only draw text that will fit within the console window */
-        int max_chars = (int)((float)max_rect_width / ((float)text_w / (float)data->text_len)) - 3; /* -3 for '>>>' */
+        int max_chars = (int)((float)max_rect_width / ((float)text_w / (float)data->text_len)) - 3; /* -3 for '<<<' */
         int total_len = (int)data->text_len;
         int offset = total_len - max_chars;
         static const SDL_Color chevron_color = { .r = 255, .g = 0, .b = 255, .a = 255 };
-        int chevron_w, chevron_h;
-        font->measure_text(font, ">>>", &chevron_w, &chevron_h);
-        font->write_to_renderer(font, renderer, &dest, &chevron_color, ">>>", NULL, NULL);
+        int chevron_w;
+        font->write_to_renderer(font, renderer, &dest, &chevron_color, "<<<", &chevron_w, NULL);
         dest.x += chevron_w;
-        
-        char * text = calloc(spooky_console_max_line_capacity, sizeof * text);
-        if(!text) { abort(); }
-        snprintf(text, spooky_console_max_input_len, "%s", data->text + offset);
-        int W;
-        font->write_to_renderer(font, renderer, &dest, &command_color, text, &W, NULL);
-        free(text), text = NULL;
-        dest.x += W;
+       
+        {
+          char * text = calloc(spooky_console_max_line_capacity, sizeof * text);
+          if(!text) { abort(); }
+          snprintf(text, spooky_console_max_input_len, "%s", data->text + offset);
+          int text_width;
+          font->write_to_renderer(font, renderer, &dest, &command_color, text, &text_width, NULL);
+          free(text), text = NULL;
+          dest.x += text_width;
+        }
       } else {
-        int W;
-        font->write_to_renderer(font, renderer, &dest, &command_color, data->text, &W, NULL);
-        dest.x += W;
+        int text_width;
+        font->write_to_renderer(font, renderer, &dest, &command_color, data->text, &text_width, NULL);
+        dest.x += text_width;
       }
     }
 
@@ -321,7 +330,7 @@ void spooky_console_render(const spooky_base * self, SDL_Renderer * renderer) {
   }
 }
 
-static void spooky_console_list_prepend(spooky_console_line * head, spooky_console_line * line) {
+void spooky_console_list_prepend(spooky_console_line * head, spooky_console_line * line) {
   assert(line != NULL && head != NULL);
   line->next = head;
   line->prev = head->prev;
@@ -330,9 +339,14 @@ static void spooky_console_list_prepend(spooky_console_line * head, spooky_conso
 }
 
 void spooky_console_push_str(const spooky_console * self, const char * str) {
+  spooky_console_push_str_impl(self, str, false);
+}
+
+void spooky_console_push_str_impl(const spooky_console * self, const char * str, bool is_command) {
   spooky_console_line * line = calloc(1, sizeof * line);
   line->line = strndup(str, spooky_console_max_input_len);
   line->line_len = strnlen(str, spooky_console_max_input_len);
+  line->is_command = is_command;
   if(self->data->lines->count > spooky_console_max_display_lines && self->data->lines->head->next != NULL) {
     spooky_console_line * deleted = self->data->lines->head->next;
     assert(deleted != NULL && deleted->next != NULL);
@@ -342,7 +356,40 @@ void spooky_console_push_str(const spooky_console * self, const char * str) {
     }
     free(deleted), deleted = NULL;
   }
-  spooky_console_list_prepend(self->data->lines->head, line);
+  if(self->data->lines->head == NULL) {
+    line->next = line;
+    line->prev = line;
+    self->data->lines->head = line;
+  } else {
+    spooky_console_list_prepend(self->data->lines->head, line);
+  }
   self->data->lines->count++;
 }
 
+const char * spooky_console_get_current_command(const spooky_console * self) {
+  return self->data->current_command;
+}
+
+void spooky_console_clear_current_command(const spooky_console * self) {
+  free(self->data->current_command), self->data->current_command = NULL;
+}
+
+void spooky_console_clear_console(const spooky_console * self) {
+  spooky_console_data * data = self->data;
+
+  spooky_console_line * t = data->lines->head;
+  while(t != data->lines->head) {
+    if(t->line != NULL) {
+      free(t->line), t->line = NULL;
+    }
+    spooky_console_line * old = t;
+    t = t->next;
+    free(old), old = NULL;
+  }
+  free(data->lines->head), data->lines->head = NULL;
+
+  free(data->text), data->text = NULL;
+  data->text_capacity =spooky_console_max_line_capacity;
+  data->text = calloc(data->text_capacity, sizeof * data->text);
+  data->text_len = 0;
+}
