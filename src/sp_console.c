@@ -10,9 +10,10 @@
 #include "sp_context.h"
 #include "sp_console.h"
 
-static const int max_display_lines = 1024;
-static const int console_direction = 150;
-static const int max_input_len = 80;
+static const size_t spooky_console_max_line_capacity = 1024;
+static const int spooky_console_max_display_lines = 1024;
+static const int spooky_console_animation_speed = 128;
+static const int spooky_console_max_input_len = 80;
 
 typedef struct spooky_console_line spooky_console_line;
 typedef struct spooky_console_line {
@@ -47,9 +48,6 @@ typedef struct spooky_console_data {
   char * text;
   size_t text_len;
   size_t text_capacity;
-  char * composition;
-  int32_t cursor;
-  int32_t selection_len;
 } spooky_console_data;
 
 static bool spooky_console_handle_event(const spooky_base * self, SDL_Event * event);
@@ -97,8 +95,8 @@ const spooky_console * spooky_console_ctor(const spooky_console * self, const sp
   if(!data) { abort(); }
  
   data->context = context;
-  data->direction = -console_direction;
-  data->rect = (SDL_Rect){.x = 100, .y = 0, .w = 0, .h = 0 };
+  data->direction = -spooky_console_animation_speed;
+  data->rect = (SDL_Rect){ .x = 0, .y = 0, .w = 0, .h = 0 };
   data->show_console = false;
   data->is_animating = false;
   data->hide_cursor = true;
@@ -108,17 +106,18 @@ const spooky_console * spooky_console_ctor(const spooky_console * self, const sp
   data->lines->count = 0;
 
   data->text_len = 0;
-  data->text_capacity = 1024;
+  data->text_capacity = spooky_console_max_line_capacity;
   data->text = calloc(data->text_capacity, sizeof * data->text);;
-  data->composition = NULL;
-  data->cursor = 0;
-  data->selection_len = 0;
 
   int w, h;
   if(SDL_GetRendererOutputSize(data->context->get_renderer(data->context), &w, &h) == 0) {
-    data->rect.w = w - 200;
-    data->rect.h = h - 200;
+    /* max width = renderer_width - some_margin */
+    const spooky_font * font = context->get_font(context);
+    int margin = (font->get_m_dash(font) - 1) * 5;
+    data->rect.w = w - margin;
+    data->rect.h = h - (margin / 2);
     data->rect.y = -data->rect.h;
+    data->rect.x = margin;
   }
 
   ((spooky_console *)(uintptr_t)self)->data = data;
@@ -174,43 +173,35 @@ bool spooky_console_handle_event(const spooky_base * self, SDL_Event * event) {
     else if(event->type == SDL_TEXTINPUT) {
       /* accumulate command text*/
       if(event->text.text[0] != '`') {
-        size_t input_len = strnlen(event->text.text, max_input_len);
-        if(input_len + data->text_len <= max_input_len) {
+        size_t input_len = strnlen(event->text.text, spooky_console_max_input_len);
+        if(input_len + data->text_len <= spooky_console_max_input_len) {
           if(data->text_len + input_len > data->text_capacity) {
-            data->text_capacity += 1024;
+            data->text_capacity += spooky_console_max_line_capacity;
             char * temp = realloc(data->text, data->text_capacity * sizeof * data->text);
-            if(temp != NULL) {
-              data->text = temp;
+            if(temp == NULL) {
+              abort();
             } 
+            data->text = temp;
           }
           
-          strncat(data->text, event->text.text, max_input_len);
+          strncat(data->text, event->text.text, spooky_console_max_input_len);
           
-          size_t new_len = strnlen(data->text, max_input_len);
+          size_t new_len = input_len + data->text_len;
           data->text_len = new_len;
+          assert(data->text_len <= spooky_console_max_input_len);
           return true;
         }
       } else {
         close_console = true;
       }
     } 
-    /* TODO: Capture IME events
-    * else if(event->type == SDL_TEXTEDITING) {
-    *  // Update the composition text, cursor position and selection length (if any). 
-    *  data->composition = event->edit.text;
-    *  data->cursor = event->edit.start;
-    *  data->selection_len = event->edit.length;
-    *  fprintf(stdout, "Cursor: %i\n", data->cursor);
-    *  return true;
-    }
-    */
   }
   if(close_console || (!data->show_console && event->type == SDL_KEYUP && event->key.keysym.sym == SDLK_BACKQUOTE)) {
     if(!data->is_animating) { data->show_console = !data->show_console; }
-    data->direction = data->direction < 0 ? console_direction : -console_direction;
+    data->direction = data->direction < 0 ? spooky_console_animation_speed : -spooky_console_animation_speed;
     data->is_animating = data->rect.y + data->rect.h > 0 || data->rect.y + data->rect.h < data->rect.h;
   }
-  if(event->type == SDL_WINDOWEVENT && (
+  else if(event->type == SDL_WINDOWEVENT && (
                event->window.event == SDL_WINDOWEVENT_SIZE_CHANGED 
             || event->window.event == SDL_WINDOWEVENT_MOVED 
             || event->window.event == SDL_WINDOWEVENT_RESIZED
@@ -222,8 +213,12 @@ bool spooky_console_handle_event(const spooky_base * self, SDL_Event * event) {
   {
     int w, h;
     if(SDL_GetRendererOutputSize(data->context->get_renderer(data->context), &w, &h) == 0) {
-      data->rect.w = w - 200;
-      data->rect.h = h - 200;
+      const spooky_font * font = data->context->get_font(data->context);
+      int margin = (font->get_m_dash(font) - 1) * 10;
+      data->rect.w = w - margin;
+      data->rect.h = h - (margin / 2);
+      //data->rect.w = w - 200;
+      //data->rect.h = h - 200;
     }
   }
   return data->show_console;
@@ -264,7 +259,7 @@ void spooky_console_render(const spooky_base * self, SDL_Renderer * renderer) {
     SDL_Point dest = { .x = data->rect.x + 10, .y =  data->rect.y + data->rect.h - line_skip - 10};
     assert(data->lines->count < INT_MAX);
 
-    SDL_Color color = { .r = 0, .g = 255, .b = 0, .a = 255};
+    static const SDL_Color color = { .r = 0, .g = 255, .b = 0, .a = 255};
     
     spooky_console_line * H = &SPOOKY_CONSOLE_LINE_HEAD;
     spooky_console_line * t = H->prev;
@@ -281,42 +276,43 @@ void spooky_console_render(const spooky_base * self, SDL_Renderer * renderer) {
       } while(t != H);
     }
 
-    // Draw prompt */
+    // Draw prompt
     font->write_to_renderer(font, renderer, &dest, &color, "$", NULL, NULL);
 
     /* Draw command accumulator */
-    SDL_Color command_color = { .r = 255, .g = 255, .b = 0, .a = 255 };
+    static const SDL_Color command_color = { .r = 255, .g = 255, .b = 0, .a = 255 };
     
     int text_w, text_h;
     font->measure_text(font, data->text, &text_w, &text_h);
 
     dest.x += font->get_m_dash(font) * 2;
     if(data->text != NULL) {
-      int max_rect_width = data->rect.w - (font->get_m_dash(font) * 2);
+      int max_rect_width = data->rect.w - ((font->get_m_dash(font)) * 3);
       if(max_rect_width < text_w) {
         /* only draw text that will fit within the console window */
-        char text[1024] = { 0 };
-        int max_chars = (int)((float)max_rect_width / ((float)text_w / (float)data->text_len)) - 4; /* -3 for '<<<', -2 for cursor */
+        int max_chars = (int)((float)max_rect_width / ((float)text_w / (float)data->text_len)) - 3; /* -3 for '>>>' */
         int total_len = (int)data->text_len;
         int offset = total_len - max_chars;
-        snprintf(text, max_input_len, "<<<%s\n", data->text + offset);
-        font->write_to_renderer(font, renderer, &dest, &command_color, text, NULL, NULL);
-        font->measure_text(font, text, &text_w, &text_h);
-        dest.x += text_w;
+        static const SDL_Color chevron_color = { .r = 255, .g = 0, .b = 255, .a = 255 };
+        int chevron_w, chevron_h;
+        font->measure_text(font, ">>>", &chevron_w, &chevron_h);
+        font->write_to_renderer(font, renderer, &dest, &chevron_color, ">>>", NULL, NULL);
+        dest.x += chevron_w;
+        
+        char * text = calloc(spooky_console_max_line_capacity, sizeof * text);
+        if(!text) { abort(); }
+        snprintf(text, spooky_console_max_input_len, "%s", data->text + offset);
+        int W;
+        font->write_to_renderer(font, renderer, &dest, &command_color, text, &W, NULL);
+        free(text), text = NULL;
+        dest.x += W;
       } else {
-        font->write_to_renderer(font, renderer, &dest, &command_color, data->text, NULL, NULL);
-        dest.x += text_w;
+        int W;
+        font->write_to_renderer(font, renderer, &dest, &command_color, data->text, &W, NULL);
+        dest.x += W;
       }
     }
 
-    SDL_Rect input_rect = {
-      .x = dest.x,
-      .y = dest.y,
-      .w = font->get_m_dash(font) * max_input_len,
-      .h = font->get_line_skip(font)
-    };
-    SDL_SetTextInputRect(&input_rect);
-    
     /* Draw blinking cursor */
     if(data->hide_cursor) { 
     } else {
@@ -335,9 +331,9 @@ static void spooky_console_list_prepend(spooky_console_line * head, spooky_conso
 
 void spooky_console_push_str(const spooky_console * self, const char * str) {
   spooky_console_line * line = calloc(1, sizeof * line);
-  line->line = strndup(str, max_input_len);
-  line->line_len = strnlen(str, max_input_len);
-  if(self->data->lines->count > max_display_lines && self->data->lines->head->next != NULL) {
+  line->line = strndup(str, spooky_console_max_input_len);
+  line->line_len = strnlen(str, spooky_console_max_input_len);
+  if(self->data->lines->count > spooky_console_max_display_lines && self->data->lines->head->next != NULL) {
     spooky_console_line * deleted = self->data->lines->head->next;
     assert(deleted != NULL && deleted->next != NULL);
     if(deleted->next != NULL) {

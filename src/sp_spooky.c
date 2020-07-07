@@ -142,14 +142,11 @@ errno_t spooky_loop(spooky_context * context) {
   double interpolation = 0.0;
   bool is_done = false, is_up = false, is_down = false;
 
-  SDL_StartTextInput();
   while(running) {
     int update_loops = 0;
     now = sp_get_time_in_us();
     while((now - last_update_time > TIME_BETWEEN_UPDATES && update_loops < MAX_UPDATES_BEFORE_RENDER)) {
-      if(spooky_is_sdl_error(SDL_GetError())) {
-        fprintf(stderr, "%s\n", SDL_GetError());
-      }
+      if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "%s\n", SDL_GetError()); }
 
       SDL_Event evt = { 0 };
       SDL_ClearError();
@@ -161,15 +158,15 @@ errno_t spooky_loop(spooky_context * context) {
 #ifdef __APPLE__ 
         /* On OS X Mojave, resize of a non-maximized window does not correctly update the aspect ratio */
         if (evt.type == SDL_WINDOWEVENT && (
-               evt.window.event == SDL_WINDOWEVENT_SIZE_CHANGED 
-            || evt.window.event == SDL_WINDOWEVENT_MOVED 
-            || evt.window.event == SDL_WINDOWEVENT_RESIZED
-            /* Only happens when clicking About in OS X Mojave */
-            || evt.window.event == SDL_WINDOWEVENT_FOCUS_LOST
+             evt.window.event == SDL_WINDOWEVENT_SIZE_CHANGED 
+          || evt.window.event == SDL_WINDOWEVENT_MOVED 
+          || evt.window.event == SDL_WINDOWEVENT_RESIZED
+          /* Only happens when clicking About in OS X Mojave */
+          || evt.window.event == SDL_WINDOWEVENT_FOCUS_LOST
         ))
 #elif __unix__
         if (evt.type == SDL_WINDOWEVENT && (
-               evt.window.event == SDL_WINDOWEVENT_RESIZED
+          evt.window.event == SDL_WINDOWEVENT_RESIZED
         ))
 #endif
         {
@@ -178,16 +175,6 @@ errno_t spooky_loop(spooky_context * context) {
           assert(w > 0 && h > 0);
           context->set_window_width(context, w);
           context->set_window_height(context, h);
-          
-          /* TODO: Update console width on window resize */
-          // SDL_GetRendererOutputSize(context->renderer, &w, &h);
-          // console.rect.w = w - 200;
-        
-          /*
-          const spooky_font * font = context->get_font(context);
-          int new_point_size = font->get_point_size(font);
-          spooky_context_scale_font(context, new_point_size);
-          */
         }
 
         switch(evt.type) {
@@ -253,18 +240,18 @@ errno_t spooky_loop(spooky_context * context) {
           default:
             break;
         } /* >> switch(evt.type ... */
-      }
 
-      /* handle base events */
-      const spooky_base ** event_iter = first;
-      do {
-        const spooky_base * obj = *event_iter;
-        if(obj != NULL && obj->handle_event != NULL) { 
-          if(obj->handle_event(obj, &evt)) {
-            break;
+        /* handle base events */
+        const spooky_base ** event_iter = first;
+        do {
+          const spooky_base * obj = *event_iter;
+          if(obj != NULL && obj->handle_event != NULL) { 
+            if(obj->handle_event(obj, &evt)) {
+              break;
+            }
           }
-        }
-      } while(++event_iter < last);
+        } while(++event_iter < last);
+      } /* >> while(SDL_PollEvent(&evt)) */
 
       last_update_time += TIME_BETWEEN_UPDATES;
       update_loops++;
@@ -345,8 +332,6 @@ errno_t spooky_loop(spooky_context * context) {
     }
 end_of_running_loop: ;
   } /* >> while(running) */
-
-  SDL_StopTextInput();
 
   if(background != NULL) { SDL_DestroyTexture(background), background = NULL; }
   if(letterbox_background != NULL) { SDL_DestroyTexture(letterbox_background), letterbox_background = NULL; }
