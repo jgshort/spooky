@@ -12,7 +12,7 @@ typedef struct spooky_base_impl {
 static void spooky_base_set_z_order(const spooky_base * base, float z_order);
 static float spooky_base_get_z_order(const spooky_base * base);
 
-const static spooky_base spooky_base_funcs = {
+static const spooky_base spooky_base_funcs = {
   .ctor = &spooky_base_ctor,
   .dtor = &spooky_base_dtor,
   .free = &spooky_base_free,
