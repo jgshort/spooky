@@ -120,7 +120,7 @@ const spooky_console * spooky_console_ctor(const spooky_console * self, const sp
     /* max width = renderer_width - some_margin */
     const spooky_font * font = context->get_font(context);
     int margin = (font->get_m_dash(font) - 1) * 5;
-    data->rect.w = w - margin;
+    data->rect.w = w - (margin * 2);
     data->rect.h = h - (margin / 2);
     data->rect.y = -data->rect.h;
     data->rect.x = margin;
@@ -216,7 +216,8 @@ bool spooky_console_handle_event(const spooky_base * self, SDL_Event * event) {
     if(SDL_GetRendererOutputSize(data->context->get_renderer(data->context), &w, &h) == 0) {
       const spooky_font * font = data->context->get_font(data->context);
       int margin = (font->get_m_dash(font) - 1) * 5;
-      data->rect.w = w - margin;
+      data->rect.w = w - (margin * 2);
+      data->rect.x = margin;
       data->rect.h = h - (margin / 2);
     }
   }
