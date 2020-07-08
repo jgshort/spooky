@@ -21,15 +21,11 @@ typedef struct spooky_wm_data {
 static bool spooky_wm_handle_event(const spooky_base * self, SDL_Event * event);
 static void spooky_wm_handle_delta(const spooky_base * self, int64_t last_update_time, double interpolation);
 static void spooky_wm_render(const spooky_base * self, SDL_Renderer * renderer);
-
 static void spooky_wm_register_window(spooky_wm const * self, const spooky_base * object);
 static void spooky_wm_activate_window(spooky_wm const * self, const spooky_base * object);
-
 static int spooky_wm_get_max_z_order(const spooky_wm * self);
-
 static const spooky_base * spooky_wm_get_active_object(const spooky_wm * self);
 static void spooky_wm_set_active_object(const spooky_wm * self, const spooky_base * active_object);
-
 static const spooky_iter * spooky_wm_window_iter(spooky_wm const * self);
 
 static const spooky_wm spooky_wm_funcs = {
@@ -87,6 +83,8 @@ const spooky_wm * spooky_wm_ctor(const spooky_wm * self, const spooky_context * 
 const spooky_wm * spooky_wm_dtor(const spooky_wm * self) {
   if(self) {
     self->data->it->free(self->data->it);
+    /* objects are not owned by this class and must be freed separately */
+    /* ...but we need to free our array of pointers-to-objects */
     free(self->data->objects), ((spooky_wm *)(uintptr_t)self)->data->objects = NULL;
     free(self->data), ((spooky_wm *)(uintptr_t)self)->data = NULL;
   }
@@ -124,9 +122,16 @@ bool spooky_wm_handle_event(const spooky_base * self, SDL_Event * event) {
 }
 
 void spooky_wm_handle_delta(const spooky_base * self, int64_t last_update_time, double interpolation) {
-  (void)self;
-  (void)last_update_time;
-  (void)interpolation;
+  spooky_wm_data * data = ((const spooky_wm *)(uintptr_t)self)->data;
+  const spooky_iter * it = data->it;
+
+  it->reverse(it);
+  while(it->next(it)) {
+    const spooky_base * object = it->current(it);
+    if(object != NULL) {
+      object->handle_delta(object, last_update_time, interpolation);
+    }
+  }
 }
 
 void spooky_wm_render(const spooky_base * self, SDL_Renderer * renderer) {
@@ -147,7 +152,7 @@ static void spooky_wm_set_active_object(const spooky_wm * self, const spooky_bas
   self->data->active_object = active_object;
 }
 
-static void spooky_wm_register_window(spooky_wm const * self, const spooky_base * active_object) {
+static void spooky_wm_register_window(const spooky_wm * self, const spooky_base * active_object) {
   spooky_wm_data * data = self->data;
  
   if(data->objects_index + 1 > spooky_wm_objects_max - 1) {
@@ -162,7 +167,7 @@ static void spooky_wm_register_window(spooky_wm const * self, const spooky_base 
   object->set_z_order(object, data->objects_index);
 }
 
-static void spooky_wm_activate_window(spooky_wm const * self, const spooky_base * active_object) {
+static void spooky_wm_activate_window(const spooky_wm * self, const spooky_base * active_object) {
   spooky_wm_data * data = self->data;
 
   if(data->objects[data->objects_index] == active_object) { return; }
@@ -199,14 +204,14 @@ static int spooky_wm_get_max_z_order(const spooky_wm * self) {
 }
 
 typedef struct spooky_window_iter {
-  spooky_iter _it;
+  spooky_iter super;
   const spooky_wm * wm;
   size_t index;
   bool reverse;
   char padding[7];
 } spooky_window_iter;
 
-static bool spooky_iter_next(spooky_iter const * it) {
+static bool spooky_iter_next(const spooky_iter * it) {
   spooky_window_iter * wit = (spooky_window_iter *)(uintptr_t)it;
   spooky_wm_data * data = wit->wm->data;
   if(wit->reverse) {
@@ -218,43 +223,36 @@ static bool spooky_iter_next(spooky_iter const * it) {
   }
 }
 
-static const void * spooky_iter_current(spooky_iter const * it) {
+static const void * spooky_iter_current(const spooky_iter * it) {
   spooky_window_iter * wit = (spooky_window_iter *)(uintptr_t)it; 
   spooky_wm_data * data = wit->wm->data;
 
   return data->objects[wit->index];
 }
 
-static void spooky_iter_reset(spooky_iter const * it) {
+static void spooky_iter_reset(const spooky_iter * it) {
   spooky_window_iter * wit = (spooky_window_iter *)(uintptr_t)it; 
-  spooky_wm_data * data = wit->wm->data;
+  wit->index = 0;
   wit->reverse = false;
-  wit->index = data->objects_index + 1;
 }
 
-static void spooky_iter_free(spooky_iter const * it) {
+static void spooky_iter_free(const spooky_iter * it) {
   spooky_window_iter * wit = (spooky_window_iter *)(uintptr_t)it; 
-
-  if(wit != NULL) {
-    free(wit), wit = NULL;
-  }
+  if(wit != NULL) { free(wit), wit = NULL; }
 }
 
-static void spooky_iter_reverse(spooky_iter const * it) {
+static void spooky_iter_reverse(const spooky_iter * it) {
   spooky_window_iter * wit = (spooky_window_iter *)(uintptr_t)it;
-
   wit->index = 0;
   wit->reverse = true;
 }
 
-static const spooky_iter * spooky_wm_window_iter(spooky_wm const * self) {
-  spooky_wm_data * data = self->data;
+static const spooky_iter * spooky_wm_window_iter(const spooky_wm * self) {
   spooky_window_iter * wit = calloc(1, sizeof * wit);
-
   spooky_iter * it = (spooky_iter *)wit;
 
   wit->wm = self;
-  wit->index = data->objects_index + 1;
+  wit->index = 0;
   wit->reverse = false;
 
   it->next = &spooky_iter_next;
