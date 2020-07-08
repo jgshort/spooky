@@ -19,7 +19,7 @@ typedef struct spooky_wm_data {
 } spooky_wm_data;
 
 static bool spooky_wm_handle_event(const spooky_base * self, SDL_Event * event);
-//TODO: static void spooky_wm_handle_delta(const spooky_base * self, int64_t last_update_time, double interpolation);
+static void spooky_wm_handle_delta(const spooky_base * self, int64_t last_update_time, double interpolation);
 static void spooky_wm_render(const spooky_base * self, SDL_Renderer * renderer);
 
 static void spooky_wm_register_window(spooky_wm const * self, const spooky_base * object);
@@ -39,7 +39,7 @@ static const spooky_wm spooky_wm_funcs = {
   .release = &spooky_wm_release,
 
   .super.handle_event = &spooky_wm_handle_event,
-  //TODO: .super.handle_delta = &spooky_wm_handle_delta,
+  .super.handle_delta = &spooky_wm_handle_delta,
   .super.render = &spooky_wm_render,
 
   .get_active_object = &spooky_wm_get_active_object,
@@ -109,16 +109,13 @@ bool spooky_wm_handle_event(const spooky_base * self, SDL_Event * event) {
   spooky_wm_data * data = ((const spooky_wm *)(uintptr_t)self)->data;
   const spooky_iter * it = data->it;
 
-  // TODO:
-  (void)event;
-
   bool handled = false;
   it->reset(it);
   while(it->next(it)) {
     const spooky_base * object = it->current(it);
     if(object != NULL) {
       handled = self == NULL;
-      // TODO: handled = objec->handle_event(object, event);
+      handled = object->handle_event(object, event);
       if(handled) { break; }
     }
   }
@@ -126,14 +123,19 @@ bool spooky_wm_handle_event(const spooky_base * self, SDL_Event * event) {
   return handled;
 }
 
+void spooky_wm_handle_delta(const spooky_base * self, int64_t last_update_time, double interpolation) {
+  (void)self;
+  (void)last_update_time;
+  (void)interpolation;
+}
+
 void spooky_wm_render(const spooky_base * self, SDL_Renderer * renderer) {
   spooky_wm_data * data = ((const spooky_wm *)(uintptr_t)self)->data;
   const spooky_iter * it = data->it;
-  (void)renderer;
   it->reverse(it);
   while(it->next(it)) {
-    //TODO: const spooky_base * object = it->current(it);
-    //TODO: object->render(object, renderer);
+    const spooky_base * object = it->current(it);
+    object->render(object, renderer);
   }
 }
 
@@ -156,8 +158,8 @@ static void spooky_wm_register_window(spooky_wm const * self, const spooky_base 
   data->objects[data->objects_index] = active_object;
   data->objects_index++;
   /* Setup initial z-order based on registration */
-  //TODO: const spooky_base * object = active_object;
-  //TODO: object->set_z_order(object, data->objects_index);
+  const spooky_base * object = active_object;
+  object->set_z_order(object, data->objects_index);
 }
 
 static void spooky_wm_activate_window(spooky_wm const * self, const spooky_base * active_object) {
@@ -179,15 +181,15 @@ static void spooky_wm_activate_window(spooky_wm const * self, const spooky_base 
 
   for(size_t i = offset; i <= data->objects_index; i++) {
     data->objects[i] = data->objects[i + 1];
-    //TODO:const spooky_base * object = data->objects[i];
-    //TODO:if(object) {
-    //TODO:  object->set_z_order(object, i);
-    //TODO:}
+    const spooky_base * object = data->objects[i];
+    if(object != NULL) {
+      object->set_z_order(object, i);
+    }
   }
  
   /* Active window becomes first in series with highest z-order */
   data->objects[data->objects_index] = active_object;
-  //TODO:active_object->set_z_order(active_object, data->objects_index);
+  active_object->set_z_order(active_object, data->objects_index);
 }
 
 static int spooky_wm_get_max_z_order(const spooky_wm * self) {
