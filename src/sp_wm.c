@@ -11,7 +11,6 @@
 
 typedef struct spooky_wm_data {
   const spooky_context * context;
-  SDL_Renderer * renderer;
   
   int windows_index;
   char padding[4];
@@ -36,7 +35,7 @@ static void spooky_wm_set_active_box(const spooky_wm * self, const spooky_box * 
 
 const spooky_wm * spooky_wm_alloc() {
   const spooky_wm * self = calloc(1, sizeof * self);
-  if(!self) abort();
+  if(!self) { abort(); }
   return self;
 }
 
@@ -68,13 +67,12 @@ const spooky_wm * spooky_wm_acquire() {
   return spooky_wm_init((spooky_wm *)(uintptr_t)spooky_wm_alloc());
 }
 
-const spooky_wm * spooky_wm_ctor(const spooky_wm * self, SDL_Renderer * renderer, const spooky_context * context) {
+const spooky_wm * spooky_wm_ctor(const spooky_wm * self, const spooky_context * context) {
   spooky_wm_data * data = calloc(1, sizeof * data);
   if(!data) { abort(); }
  
   memset(data->windows, 0, sizeof data->windows[0] * WM_WINDOWS_MAX);
 
-  data->renderer = renderer;
   data->windows_index = -1;
   data->context = context;
 
@@ -116,11 +114,11 @@ bool spooky_wm_handle_event(const spooky_base * self, SDL_Event * event) {
   bool handled = false;
   it->reset(it);
   while(it->next(it)) {
-    const spooky_box * b = it->current(it);
-    if(b) {
+    const spooky_box * box = it->current(it);
+    if(box) {
       handled = self == NULL;
       // TODO: handled = b->handle_event(b, event);
-      if(handled) break;
+      if(handled) { break; }
     }
   }
 
@@ -164,8 +162,8 @@ static void spooky_wm_register_window(spooky_wm const * self, const spooky_box *
 static void spooky_wm_activate_window(spooky_wm const * self, const spooky_box * active_box) {
   spooky_wm_data * data = self->data;
 
-  if(data->windows_index < 0) return;
-  if(data->windows[data->windows_index] == active_box) return;
+  if(data->windows_index < 0) { return; }
+  if(data->windows[data->windows_index] == active_box) { return; }
 
   int offset = -1;
   for(int i = 0; i <= data->windows_index; i++) {
@@ -175,7 +173,7 @@ static void spooky_wm_activate_window(spooky_wm const * self, const spooky_box *
     }
   }
 
-  if(offset < 0) return;
+  if(offset < 0) { return; }
 
   for(int i = offset; i <= data->windows_index; i++) {
     data->windows[i] = data->windows[i + 1];
