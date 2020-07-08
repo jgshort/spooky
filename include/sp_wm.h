@@ -5,10 +5,6 @@
 #include "sp_context.h"
 #include "sp_iter.h"
 
-typedef struct spooky_box {
-  int x;
-} spooky_box;
-
 typedef struct spooky_wm spooky_wm;
 typedef struct spooky_wm {
   spooky_base super;
@@ -18,13 +14,13 @@ typedef struct spooky_wm {
   void (*free)(const spooky_wm * /* self */);
   void (*release)(const spooky_wm * /* self */);
 
-  void (*register_window)(spooky_wm const * /* self */, const spooky_box * /* active_box */);
-  void (*activate_window)(spooky_wm const * /* self */, const spooky_box * /* active_box */);
+  void (*register_window)(spooky_wm const * /* self */, const spooky_base * /* active_object */);
+  void (*activate_window)(spooky_wm const * /* self */, const spooky_base * /* active_object */);
   const spooky_iter * (*window_iter)(spooky_wm const * /* self */);
 
-  const spooky_box * (*get_active_box)(const spooky_wm * /* self */);
+  const spooky_base * (*get_active_object)(const spooky_wm * /* self */);
 
-  void (*set_active_box)(const spooky_wm * /* self */, const spooky_box * /* active_box */);
+  void (*set_active_object)(const spooky_wm * /* self */, const spooky_base * /* active_object */);
   int (*get_max_z_order)(const spooky_wm * /* self */);
 	struct spooky_wm_data * data;
 } spooky_wm;

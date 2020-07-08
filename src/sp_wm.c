@@ -2,36 +2,55 @@
 #include <assert.h>
 #include <memory.h>
 #include <stdbool.h>
+#include <limits.h>
 #include <stdint.h>
 
 #include "sp_font.h"
 #include "sp_wm.h"
 
-#define WM_WINDOWS_MAX 65536 
+static const size_t spooky_wm_objects_max = 65536;
 
 typedef struct spooky_wm_data {
+  size_t objects_index;
   const spooky_context * context;
-  
-  int windows_index;
-  char padding[4];
   const spooky_iter * it;
-  
-  const spooky_box * active_box;
-  const spooky_box * windows[WM_WINDOWS_MAX];
+  const spooky_base * active_object;
+  const spooky_base ** objects;
 } spooky_wm_data;
 
 static bool spooky_wm_handle_event(const spooky_base * self, SDL_Event * event);
 //TODO: static void spooky_wm_handle_delta(const spooky_base * self, int64_t last_update_time, double interpolation);
 static void spooky_wm_render(const spooky_base * self, SDL_Renderer * renderer);
 
-static void spooky_wm_register_window(spooky_wm const * self, const spooky_box * active_box);
-static void spooky_wm_activate_window(spooky_wm const * self, const spooky_box * active_box);
-static const spooky_iter * spooky_wm_window_iter(spooky_wm const * self);
+static void spooky_wm_register_window(spooky_wm const * self, const spooky_base * object);
+static void spooky_wm_activate_window(spooky_wm const * self, const spooky_base * object);
 
 static int spooky_wm_get_max_z_order(const spooky_wm * self);
 
-static const spooky_box * spooky_wm_get_active_box(const spooky_wm * self);
-static void spooky_wm_set_active_box(const spooky_wm * self, const spooky_box * active_box);
+static const spooky_base * spooky_wm_get_active_object(const spooky_wm * self);
+static void spooky_wm_set_active_object(const spooky_wm * self, const spooky_base * active_object);
+
+static const spooky_iter * spooky_wm_window_iter(spooky_wm const * self);
+
+static const spooky_wm spooky_wm_funcs = {
+  .ctor = &spooky_wm_ctor,
+  .dtor = &spooky_wm_dtor,
+  .free = &spooky_wm_free,
+  .release = &spooky_wm_release,
+
+  .super.handle_event = &spooky_wm_handle_event,
+  //TODO: .super.handle_delta = &spooky_wm_handle_delta,
+  .super.render = &spooky_wm_render,
+
+  .get_active_object = &spooky_wm_get_active_object,
+  .set_active_object = &spooky_wm_set_active_object,
+
+  .register_window = &spooky_wm_register_window,
+  .activate_window = &spooky_wm_activate_window,
+  .window_iter = &spooky_wm_window_iter,
+
+  .get_max_z_order = &spooky_wm_get_max_z_order
+};
 
 const spooky_wm * spooky_wm_alloc() {
   const spooky_wm * self = calloc(1, sizeof * self);
@@ -41,25 +60,7 @@ const spooky_wm * spooky_wm_alloc() {
 
 const spooky_wm * spooky_wm_init(spooky_wm * self) {
   if(!self) { abort(); }
-
-  self->ctor = &spooky_wm_ctor;
-  self->dtor = &spooky_wm_dtor;
-  self->free = &spooky_wm_free;
-  self->release = &spooky_wm_release;
-
-  self->super.handle_event = &spooky_wm_handle_event;
-  self->super.handle_delta = NULL;
-  self->super.render = &spooky_wm_render;
-
-  self->get_active_box = &spooky_wm_get_active_box;
-  self->set_active_box = &spooky_wm_set_active_box;
-
-  self->register_window = &spooky_wm_register_window;
-  self->activate_window = &spooky_wm_activate_window;
-  self->window_iter = &spooky_wm_window_iter;
-
-  self->get_max_z_order = &spooky_wm_get_max_z_order;
-
+  memmove(self, &spooky_wm_funcs, sizeof spooky_wm_funcs);
   return self;
 }
 
@@ -70,10 +71,9 @@ const spooky_wm * spooky_wm_acquire() {
 const spooky_wm * spooky_wm_ctor(const spooky_wm * self, const spooky_context * context) {
   spooky_wm_data * data = calloc(1, sizeof * data);
   if(!data) { abort(); }
- 
-  memset(data->windows, 0, sizeof data->windows[0] * WM_WINDOWS_MAX);
 
-  data->windows_index = -1;
+  data->objects = calloc(spooky_wm_objects_max, sizeof * data->objects);
+  data->objects_index = 0;
   data->context = context;
 
   ((spooky_wm *)(uintptr_t)self)->data = data;
@@ -87,6 +87,7 @@ const spooky_wm * spooky_wm_ctor(const spooky_wm * self, const spooky_context * 
 const spooky_wm * spooky_wm_dtor(const spooky_wm * self) {
   if(self) {
     self->data->it->free(self->data->it);
+    free(self->data->objects), ((spooky_wm *)(uintptr_t)self)->data->objects = NULL;
     free(self->data), ((spooky_wm *)(uintptr_t)self)->data = NULL;
   }
 
@@ -95,8 +96,8 @@ const spooky_wm * spooky_wm_dtor(const spooky_wm * self) {
 
 void spooky_wm_free(const spooky_wm * self) {
   if(self) {
-    spooky_wm * this = (spooky_wm *)(uintptr_t)self;
-    free(this), this = NULL;
+    spooky_wm * me = (spooky_wm *)(uintptr_t)self;
+    free(me), me = NULL;
   }
 }
 
@@ -114,10 +115,10 @@ bool spooky_wm_handle_event(const spooky_base * self, SDL_Event * event) {
   bool handled = false;
   it->reset(it);
   while(it->next(it)) {
-    const spooky_box * box = it->current(it);
-    if(box) {
+    const spooky_base * object = it->current(it);
+    if(object != NULL) {
       handled = self == NULL;
-      // TODO: handled = b->handle_event(b, event);
+      // TODO: handled = objec->handle_event(object, event);
       if(handled) { break; }
     }
   }
@@ -131,74 +132,76 @@ void spooky_wm_render(const spooky_base * self, SDL_Renderer * renderer) {
   (void)renderer;
   it->reverse(it);
   while(it->next(it)) {
-    //TODO: const spooky_box * box = it->current(it);
-    //TODO: box->_class->render(box, renderer);
+    //TODO: const spooky_base * object = it->current(it);
+    //TODO: object->render(object, renderer);
   }
 }
 
-static const spooky_box * spooky_wm_get_active_box(const spooky_wm * self) {
-  return self->data->active_box;
+static const spooky_base * spooky_wm_get_active_object(const spooky_wm * self) {
+  return self->data->active_object;
 }
 
-static void spooky_wm_set_active_box(const spooky_wm * self, const spooky_box * active_box) {
-  self->data->active_box = active_box;
+static void spooky_wm_set_active_object(const spooky_wm * self, const spooky_base * active_object) {
+  self->data->active_object = active_object;
 }
 
-static void spooky_wm_register_window(spooky_wm const * self, const spooky_box * active_box) {
+static void spooky_wm_register_window(spooky_wm const * self, const spooky_base * active_object) {
   spooky_wm_data * data = self->data;
  
-  if(data->windows_index + 1 > WM_WINDOWS_MAX - 1) {
+  if(data->objects_index + 1 > spooky_wm_objects_max - 1) {
     fprintf(stderr, "Attempt to register window over configured maximum.\n");
     abort();
   }
 
-  data->windows_index++;
-  data->windows[data->windows_index] = active_box;
+  data->objects[data->objects_index] = active_object;
+  data->objects_index++;
   /* Setup initial z-order based on registration */
-  //TODO: const spooky_box * box = active_box;
-  //TODO: box->_class->set_z_order(box, data->windows_index);
+  //TODO: const spooky_base * object = active_object;
+  //TODO: object->set_z_order(object, data->objects_index);
 }
 
-static void spooky_wm_activate_window(spooky_wm const * self, const spooky_box * active_box) {
+static void spooky_wm_activate_window(spooky_wm const * self, const spooky_base * active_object) {
   spooky_wm_data * data = self->data;
 
-  if(data->windows_index < 0) { return; }
-  if(data->windows[data->windows_index] == active_box) { return; }
+  if(data->objects[data->objects_index] == active_object) { return; }
 
-  int offset = -1;
-  for(int i = 0; i <= data->windows_index; i++) {
-    if(active_box == data->windows[i]) {
+  size_t offset = 0;
+  bool found = false;
+  for(size_t i = 0; i <= data->objects_index; i++) {
+    if(active_object == data->objects[i]) {
       offset = i;
+      found = true;
       break;
     }
   }
 
-  if(offset < 0) { return; }
+  if(!found) { return; }
 
-  for(int i = offset; i <= data->windows_index; i++) {
-    data->windows[i] = data->windows[i + 1];
-    //TODO:const spooky_box * box = data->windows[i];
-    //TODO:if(box) {
-    //TODO:  box->_class->set_z_order(box, i);
+  for(size_t i = offset; i <= data->objects_index; i++) {
+    data->objects[i] = data->objects[i + 1];
+    //TODO:const spooky_base * object = data->objects[i];
+    //TODO:if(object) {
+    //TODO:  object->set_z_order(object, i);
     //TODO:}
   }
  
   /* Active window becomes first in series with highest z-order */
-  data->windows[data->windows_index] = active_box;
-  //TODO:active_box->_class->set_z_order(active_box, data->windows_index);
+  data->objects[data->objects_index] = active_object;
+  //TODO:active_object->set_z_order(active_object, data->objects_index);
 }
 
 static int spooky_wm_get_max_z_order(const spooky_wm * self) {
   spooky_wm_data * data = self->data;
-  return data->windows_index; 
+  assert(data->objects_index < INT_MAX);
+  return (int)data->objects_index; 
 }
 
 typedef struct spooky_window_iter {
   spooky_iter _it;
   const spooky_wm * wm;
-  int index;
+  size_t index;
   bool reverse;
-  char padding[3];
+  char padding[7];
 } spooky_window_iter;
 
 static bool spooky_iter_next(spooky_iter const * it) {
@@ -206,7 +209,7 @@ static bool spooky_iter_next(spooky_iter const * it) {
   spooky_wm_data * data = wit->wm->data;
   if(wit->reverse) {
     ++wit->index;
-    return wit->index <= data->windows_index;
+    return wit->index <= data->objects_index;
   } else {
      --wit->index;
     return wit->index >= 0;
@@ -217,20 +220,20 @@ static const void * spooky_iter_current(spooky_iter const * it) {
   spooky_window_iter * wit = (spooky_window_iter *)(uintptr_t)it; 
   spooky_wm_data * data = wit->wm->data;
 
-  return data->windows[wit->index];
+  return data->objects[wit->index];
 }
 
 static void spooky_iter_reset(spooky_iter const * it) {
   spooky_window_iter * wit = (spooky_window_iter *)(uintptr_t)it; 
   spooky_wm_data * data = wit->wm->data;
   wit->reverse = false;
-  wit->index = data->windows_index + 1;
+  wit->index = data->objects_index + 1;
 }
 
 static void spooky_iter_free(spooky_iter const * it) {
   spooky_window_iter * wit = (spooky_window_iter *)(uintptr_t)it; 
 
-  if(wit) {
+  if(wit != NULL) {
     free(wit), wit = NULL;
   }
 }
@@ -238,7 +241,7 @@ static void spooky_iter_free(spooky_iter const * it) {
 static void spooky_iter_reverse(spooky_iter const * it) {
   spooky_window_iter * wit = (spooky_window_iter *)(uintptr_t)it;
 
-  wit->index = -1;
+  wit->index = 0;
   wit->reverse = true;
 }
 
@@ -249,7 +252,7 @@ static const spooky_iter * spooky_wm_window_iter(spooky_wm const * self) {
   spooky_iter * it = (spooky_iter *)wit;
 
   wit->wm = self;
-  wit->index = data->windows_index + 1;
+  wit->index = data->objects_index + 1;
   wit->reverse = false;
 
   it->next = &spooky_iter_next;
