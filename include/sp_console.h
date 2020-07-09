@@ -4,7 +4,7 @@
 #include "sp_base.h"
 #include "sp_context.h"
 
-struct spooky_console_data;
+struct spooky_console_impl;
 typedef struct spooky_console spooky_console;
 
 typedef struct spooky_console {
@@ -20,7 +20,8 @@ typedef struct spooky_console {
   const char * (*get_current_command)(const spooky_console * self);
   void (*clear_current_command)(const spooky_console * self);
   void (*clear_console)(const spooky_console * self);
-  struct spooky_console_data * data;
+
+  struct spooky_console_impl * impl;
 } spooky_console;
 
 const spooky_console * spooky_console_init(spooky_console * self);

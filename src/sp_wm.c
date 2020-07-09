@@ -8,7 +8,7 @@
 #include "sp_font.h"
 #include "sp_wm.h"
 
-static const size_t spooky_wm_objects_max = 65536;
+static const size_t spooky_wm_objects_max = 1048576;
 
 typedef struct spooky_wm_data {
   size_t objects_index;
@@ -156,15 +156,15 @@ static void spooky_wm_register_window(const spooky_wm * self, const spooky_base 
   spooky_wm_data * data = self->data;
  
   if(data->objects_index + 1 > spooky_wm_objects_max - 1) {
-    fprintf(stderr, "Attempt to register window over configured maximum.\n");
+    fprintf(stderr, "Attempt to register window object over maximum available allocation.\n");
     abort();
   }
 
   data->objects[data->objects_index] = active_object;
-  data->objects_index++;
-  /* Setup initial z-order based on registration */
+  /* Setup initial z-order based on object registration */
   const spooky_base * object = active_object;
   object->set_z_order(object, data->objects_index);
+  data->objects_index++;
 }
 
 static void spooky_wm_activate_window(const spooky_wm * self, const spooky_base * active_object) {

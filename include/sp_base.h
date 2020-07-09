@@ -4,9 +4,12 @@
 #include <stdbool.h>
 #include "sp_gui.h"
 
+struct spooky_base_impl;
 typedef struct spooky_base spooky_base;
-
 typedef struct spooky_base {
+/*
+public:
+*/
   const spooky_base * (*ctor)(const spooky_base * self);
   const spooky_base * (*dtor)(const spooky_base * self);
   void (*free)(const spooky_base * self);
@@ -16,8 +19,26 @@ typedef struct spooky_base {
   void (*handle_delta)(const spooky_base * base, int64_t last_update_time, double interpolation);
   void (*render)(const spooky_base * base, SDL_Renderer * renderer);
 
+  const SDL_Rect * (*get_rect)(const spooky_base * base);
+  void (*set_x)(const spooky_base * base, int x);
+  void (*set_y)(const spooky_base * base, int y);
+  void (*set_w)(const spooky_base * base, int w);
+  void (*set_h)(const spooky_base * base, int h);
+
   void (*set_z_order)(const spooky_base * base, float z_order);
   float (*get_z_order)(const spooky_base * base);
+
+  struct spooky_base_impl * impl;
+/*
+private:
+  const spooky_base ** children;
+  const spooky_base * parent;
+  const spooky_base * prev;
+  const spooky_base * next;
+  SDL_Rect rect;
+  float z_order;
+  char padding[4]; not portable 
+*/
 } spooky_base;
 
 const spooky_base * spooky_base_init(spooky_base * self);
