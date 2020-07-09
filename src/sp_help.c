@@ -43,6 +43,8 @@ const spooky_help * spooky_help_acquire() {
 
 const spooky_help * spooky_help_ctor(const spooky_help * self, const spooky_context * context) {
   assert(self != NULL);
+  self->super.ctor((const spooky_base *)self);
+  
   spooky_help_data * data = calloc(1, sizeof * data);
   if(!data) { abort(); }
  

@@ -62,13 +62,14 @@ const spooky_base * spooky_base_acquire() {
 }
 
 const spooky_base * spooky_base_ctor(const spooky_base * self) {
-  spooky_base_impl * my = self->impl;
+  spooky_base_impl * my = calloc(1, sizeof * my);
   my->z_order = 0; 
   my->children = NULL;
   my->parent = NULL;
   my->prev = NULL;
   my->next = NULL;
-
+ 
+  ((spooky_base *)(uintptr_t)self)->impl = my;
   return self;
 }
 

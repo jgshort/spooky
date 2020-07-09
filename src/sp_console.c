@@ -96,6 +96,8 @@ const spooky_console * spooky_console_ctor(const spooky_console * self, const sp
   assert(self != NULL);
   assert(context != NULL && renderer != NULL);
 
+  self->super.ctor((const spooky_base *)self);
+
   spooky_console_impl * impl = calloc(1, sizeof * impl);
   if(!impl) { abort(); }
  
