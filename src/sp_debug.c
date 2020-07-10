@@ -50,6 +50,9 @@ const spooky_debug * spooky_debug_acquire() {
 
 const spooky_debug * spooky_debug_ctor(const spooky_debug * self, const spooky_context * context) {
   assert(self != NULL);
+
+  self = (spooky_debug *)(uintptr_t)spooky_base_ctor((spooky_base *)(uintptr_t)self);
+
   spooky_debug_data * data = calloc(1, sizeof * data);
   if(!data) { abort(); }
  
