@@ -22,8 +22,8 @@ typedef struct spooky_base {
   void (*set_w)(const spooky_base * base, int w);
   void (*set_h)(const spooky_base * base, int h);
 
-  void (*set_z_order)(const spooky_base * base, float z_order);
-  float (*get_z_order)(const spooky_base * base);
+  void (*set_z_order)(const spooky_base * base, size_t z_order);
+  size_t (*get_z_order)(const spooky_base * base);
 
   struct spooky_base_impl * impl;
 } spooky_base;

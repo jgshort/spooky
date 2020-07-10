@@ -221,7 +221,7 @@ static bool spooky_iter_next(const spooky_iter * it) {
     return wit->index <= data->objects_index;
   } else {
      --wit->index;
-    return wit->index >= 0;
+    return wit->index == 0;
   }
 }
 

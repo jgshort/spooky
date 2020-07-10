@@ -1,7 +1,10 @@
+#define _POSIX_C_SOURCE 200809L 
+
 #include <assert.h>
 #include <memory.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include "sp_log.h"
 
 const size_t spooky_log_max_display_lines = 1024;

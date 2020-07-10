@@ -1,4 +1,4 @@
-#define _POSIX_C_SOURCE 200112L
+#define _POSIX_C_SOURCE 200809L 
 #include <assert.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -389,14 +389,14 @@ errno_t spooky_command_parser(spooky_context * context, const spooky_console * c
     struct rusage usage;
     
     long int tv_usec = 0, tv_sec = 0;
-#ifdef __UNIX__
+#ifdef __linux__
     long ru_maxrss = 0;
     long ru_minflt = 0, ru_majflt = 0;
 #endif
     if(getrusage(RUSAGE_SELF, &usage) == 0) {
       tv_usec = usage.ru_utime.tv_usec;
       tv_sec = usage.ru_utime.tv_sec;
-#ifdef __UNIX__
+#ifdef __linux__
       ru_maxrss = usage.ru_maxrss;
       ru_minflt = usage.ru_minflt;
       ru_majflt = usage.ru_majflt;
@@ -411,7 +411,8 @@ errno_t spooky_command_parser(spooky_context * context, const spooky_console * c
         , tv_sec, tv_usec
         , log->get_entries_count(log)
     );
-#elif __UNIX__
+#endif
+#ifdef __linux__
     snprintf(info, sizeof info, 
         PACKAGE_STRING " :: "
         "Time: %ld.%06ld\n"
