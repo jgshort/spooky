@@ -69,7 +69,6 @@ const spooky_help * spooky_help_ctor(const spooky_help * self, const spooky_cont
 
 const spooky_help * spooky_help_dtor(const spooky_help * self) {
   if(self != NULL) {
-    /* self->data->font is not owned; do not release/free data->font */
     free(self->data), ((spooky_help *)(uintptr_t)self)->data = NULL;
   }
   return self;
