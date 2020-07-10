@@ -10,19 +10,30 @@ typedef struct spooky_help_data {
   char padding[7]; /* not portable */
 } spooky_help_data;
 
+static const spooky_help spooky_help_funcs = {
+  .ctor = &spooky_help_ctor,
+  .dtor = &spooky_help_dtor,
+  .free = &spooky_help_free,
+  .release = &spooky_help_release,
+
+  .super.handle_event = &spooky_help_handle_event,
+  .super.render = &spooky_help_render,
+  .super.handle_delta = NULL
+};
+
 const spooky_help * spooky_help_init(spooky_help * self) {
   assert(self != NULL);
   if(!self) { abort(); }
 
   self = (spooky_help *)(uintptr_t)spooky_base_init((spooky_base *)(uintptr_t)self);
 
-  self->ctor = &spooky_help_ctor;
-  self->dtor = &spooky_help_dtor;
-  self->free = &spooky_help_free;
-  self->release = &spooky_help_release;
+  self->ctor = spooky_help_funcs.ctor;
+  self->dtor = spooky_help_funcs.dtor;
+  self->free = spooky_help_funcs.free;
+  self->release = spooky_help_funcs.release;
 
-  self->super.handle_event = &spooky_help_handle_event;
-  self->super.render = &spooky_help_render;
+  self->super.handle_event = spooky_help_funcs.super.handle_event;
+  self->super.render = spooky_help_funcs.super.render;
   self->super.handle_delta = NULL;
 
   return self;

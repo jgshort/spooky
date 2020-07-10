@@ -7,9 +7,6 @@
 struct spooky_base_impl;
 typedef struct spooky_base spooky_base;
 typedef struct spooky_base {
-/*
-public:
-*/
   const spooky_base * (*ctor)(const spooky_base * self);
   const spooky_base * (*dtor)(const spooky_base * self);
   void (*free)(const spooky_base * self);
@@ -29,16 +26,6 @@ public:
   float (*get_z_order)(const spooky_base * base);
 
   struct spooky_base_impl * impl;
-/*
-private:
-  const spooky_base ** children;
-  const spooky_base * parent;
-  const spooky_base * prev;
-  const spooky_base * next;
-  SDL_Rect rect;
-  float z_order;
-  char padding[4]; not portable 
-*/
 } spooky_base;
 
 const spooky_base * spooky_base_init(spooky_base * self);
@@ -48,10 +35,6 @@ const spooky_base * spooky_base_ctor(const spooky_base * self);
 const spooky_base * spooky_base_dtor(const spooky_base * self);
 void spooky_base_free(const spooky_base * self);
 void spooky_base_release(const spooky_base * self);
-
-bool spooky_base_handle_event(const spooky_base * base, SDL_Event * event);
-void spooky_base_handle_delta(const spooky_base * base, int64_t last_update_time, double interpolation);
-void spooky_base_render(const spooky_base * base, SDL_Renderer * renderer);
 
 void spooky_base_z_sort(const spooky_base ** items, size_t items_count);
 

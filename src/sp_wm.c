@@ -56,7 +56,9 @@ const spooky_wm * spooky_wm_alloc() {
 
 const spooky_wm * spooky_wm_init(spooky_wm * self) {
   if(!self) { abort(); }
-  memmove(self, &spooky_wm_funcs, sizeof spooky_wm_funcs);
+  self = (spooky_wm *)(uintptr_t)spooky_base_init((spooky_base *)self);
+
+  memcpy(self, &spooky_wm_funcs, sizeof spooky_wm_funcs);
   return self;
 }
 

@@ -57,6 +57,22 @@ static const char * spooky_console_get_current_command(const spooky_console * se
 static void spooky_console_clear_current_command(const spooky_console * self);
 static void spooky_console_clear_console(const spooky_console * self);
 
+static const spooky_console spooky_console_funcs = {
+  .ctor = &spooky_console_ctor,
+  .dtor = &spooky_console_dtor,
+  .free = &spooky_console_free,
+  .release = &spooky_console_release,
+
+  .super.handle_event = &spooky_console_handle_event,
+  .super.handle_delta = &spooky_console_handle_delta,
+  .super.render = &spooky_console_render,
+
+  .push_str = &spooky_console_push_str,
+  .get_current_command = &spooky_console_get_current_command,
+  .clear_current_command = &spooky_console_clear_current_command,
+  .clear_console = &spooky_console_clear_console
+};
+
 const spooky_console * spooky_console_alloc() {
   spooky_console * self = calloc(1, sizeof * self);
   if(self == NULL) { 
@@ -72,19 +88,17 @@ const spooky_console * spooky_console_init(spooky_console * self) {
 
   self = (spooky_console *)(uintptr_t)spooky_base_init((spooky_base *)(uintptr_t)self);
 
-  self->ctor = &spooky_console_ctor;
-  self->dtor = &spooky_console_dtor;
-  self->free = &spooky_console_free;
-  self->release = &spooky_console_release;
-
-  self->super.handle_event = &spooky_console_handle_event;
-  self->super.handle_delta = &spooky_console_handle_delta;
-  self->super.render = &spooky_console_render;
-
-  self->push_str = &spooky_console_push_str;
-  self->get_current_command = &spooky_console_get_current_command;
-  self->clear_current_command = &spooky_console_clear_current_command;
-  self->clear_console = &spooky_console_clear_console;
+  self->ctor = spooky_console_funcs.ctor;
+  self->dtor = spooky_console_funcs.dtor;
+  self->free = spooky_console_funcs.free;
+  self->release = spooky_console_funcs.release;
+  self->super.handle_event = spooky_console_funcs.super.handle_event;
+  self->super.handle_delta = spooky_console_funcs.super.handle_delta;
+  self->super.render = spooky_console_funcs.super.render;
+  self->push_str = spooky_console_funcs.push_str;
+  self->get_current_command = spooky_console_funcs.get_current_command;
+  self->clear_current_command = spooky_console_funcs.clear_current_command;
+  self->clear_console = spooky_console_funcs.clear_console;
   return self;
 }
 

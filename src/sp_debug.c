@@ -17,21 +17,27 @@ typedef struct spooky_debug_data {
   char padding[7]; /* not portable */
 } spooky_debug_data;
 
+static const spooky_debug spooky_debug_funcs = {
+  .ctor = &spooky_debug_ctor,
+  .dtor = &spooky_debug_dtor,
+  .free = &spooky_debug_free,
+  .release = &spooky_debug_release,
+  .super.handle_event = &spooky_debug_handle_event,
+  .super.handle_delta = NULL,
+  .super.render = &spooky_debug_render
+};
+
 const spooky_debug * spooky_debug_init(spooky_debug * self) {
   assert(self != NULL);
   if(!self) { abort(); }
 
   self = (spooky_debug *)(uintptr_t)spooky_base_init((spooky_base *)(uintptr_t)self);
-
-  self->ctor = &spooky_debug_ctor;
-  self->dtor = &spooky_debug_dtor;
-  self->free = &spooky_debug_free;
-  self->release = &spooky_debug_release;
-
-  self->super.handle_event = &spooky_debug_handle_event;
-  self->super.handle_delta = NULL;
-  self->super.render = &spooky_debug_render;
-
+  self->ctor = spooky_debug_funcs.ctor;
+  self->dtor = spooky_debug_funcs.dtor;
+  self->free = spooky_debug_funcs.free;
+  self->release = spooky_debug_funcs.release;
+  self->super.handle_event = spooky_debug_funcs.super.handle_event;
+  self->super.render = spooky_debug_funcs.super.render;
   return self;
 }
 

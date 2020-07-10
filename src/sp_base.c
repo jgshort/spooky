@@ -4,7 +4,7 @@
 #include "sp_base.h"
 
 typedef struct spooky_base_impl {
-  const spooky_base ** children;
+  const spooky_base ** siblings;
   const spooky_base * parent;
   const spooky_base * prev;
   const spooky_base * next;
@@ -28,9 +28,9 @@ static const spooky_base spooky_base_funcs = {
   .free = &spooky_base_free,
   .release = &spooky_base_release,
 
-  .handle_event = &spooky_base_handle_event,
-  .handle_delta = &spooky_base_handle_delta,
-  .render = &spooky_base_render,
+  .handle_event = NULL,
+  .handle_delta = NULL,
+  .render = NULL,
 
   .get_rect = &spooky_base_get_rect,
   .set_x = &spooky_base_set_x,
@@ -53,7 +53,7 @@ const spooky_base * spooky_base_alloc() {
 
 const spooky_base * spooky_base_init(spooky_base * self) {
   assert(self != NULL);
-  memmove(self, &spooky_base_funcs, sizeof spooky_base_funcs);
+  memcpy(self, &spooky_base_funcs, sizeof spooky_base_funcs);
   return self;
 }
 
@@ -64,7 +64,7 @@ const spooky_base * spooky_base_acquire() {
 const spooky_base * spooky_base_ctor(const spooky_base * self) {
   spooky_base_impl * my = calloc(1, sizeof * my);
   my->z_order = 0; 
-  my->children = NULL;
+  my->siblings = NULL;
   my->parent = NULL;
   my->prev = NULL;
   my->next = NULL;
@@ -75,8 +75,8 @@ const spooky_base * spooky_base_ctor(const spooky_base * self) {
 
 const spooky_base * spooky_base_dtor(const spooky_base * self) {
   spooky_base_impl * my = self->impl;
-  /* children pointers are owned elsewhere. Likewise for parent, prev, and next */
-  free(my->children), my->children = NULL; 
+  /* sibling pointers are owned elsewhere. Likewise for parent, prev, and next */
+  free(my->siblings), my->siblings = NULL; 
   free(self->impl), ((spooky_base *)(uintptr_t)self)->impl = NULL;
   return self;
 }
@@ -87,23 +87,6 @@ void spooky_base_free(const spooky_base * self) {
 
 void spooky_base_release(const spooky_base * self) {
   self->free(self->dtor(self));
-}
-
-bool spooky_base_handle_event(const spooky_base * self, SDL_Event * event) {
-  (void)self;
-  (void)event;
-  return false;
-}
-
-void spooky_base_handle_delta(const spooky_base * self, int64_t last_update_time, double interpolation) {
-  (void)self;
-  (void)interpolation;
-  (void)last_update_time;
-}
-
-void spooky_base_render(const spooky_base * self, SDL_Renderer * renderer) {
-  (void)self;
-  (void)renderer;
 }
 
 void spooky_base_set_z_order(const spooky_base * self, float z_order) {

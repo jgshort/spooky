@@ -22,6 +22,7 @@
 #include "sp_debug.h"
 #include "sp_help.h"
 #include "sp_context.h"
+#include "sp_wm.h"
 #include "sp_log.h"
 #include "sp_time.h"
 
@@ -33,7 +34,7 @@ int main(int argc, char **argv) {
   (void)argv;
 
   spooky_pack_tests();
-
+/*
   int fd = 0;
   fd = open("./test.spdb", O_CREAT | O_RDWR | O_EXCL, S_IRUSR | S_IWUSR);
   if(fd < 0) {
@@ -46,7 +47,7 @@ int main(int argc, char **argv) {
   spooky_pack_create(fp);
   fseek(fp, 0, SEEK_SET);
   spooky_pack_verify(fp);
-
+*/
   spooky_context context = { 0 };
 
   if(spooky_init_context(&context) != SP_SUCCESS) { goto err0; }
@@ -117,6 +118,9 @@ errno_t spooky_loop(spooky_context * context) {
   if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); } 
 
   assert(background != NULL && letterbox_background != NULL);
+
+  const spooky_wm * wm = spooky_wm_acquire();
+  wm = wm->ctor(wm, context);
 
   const spooky_base * objects[3] = { 0 };
   const spooky_base ** first = objects;
@@ -327,7 +331,7 @@ errno_t spooky_loop(spooky_context * context) {
     if(this_second > last_second_time) {
       /* Every second, update FPS: */
       char buf[80] = { 0 };
-      snprintf(buf, 80, "Delta: %f, FPS: %i", interpolation, (int)fps);
+      snprintf(buf, sizeof buf, "Delta: %f, FPS: %i", interpolation, (int)fps);
 
       fps = frame_count;
       frame_count = 0;
@@ -351,7 +355,8 @@ end_of_running_loop: ;
   spooky_help_release(help);
   spooky_console_release(console);
   spooky_log_release(log);
-  
+  spooky_wm_release(wm);
+
   return SP_SUCCESS;
 
 err1:
