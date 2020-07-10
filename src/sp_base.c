@@ -16,12 +16,11 @@ typedef struct spooky_base_impl {
   size_t children_capacity;
 
   SDL_Rect rect;
-  float z_order;
-  char padding[4]; /* not portable */
+  size_t z_order;
 } spooky_base_impl;
 
-static void spooky_base_set_z_order(const spooky_base * self, float z_order);
-static float spooky_base_get_z_order(const spooky_base * self);
+static void spooky_base_set_z_order(const spooky_base * self, size_t z_order);
+static size_t spooky_base_get_z_order(const spooky_base * self);
 
 static const SDL_Rect * spooky_base_get_rect(const spooky_base * self);
 static void spooky_base_set_rect(const spooky_base * self, const SDL_Rect * rect);
@@ -132,11 +131,11 @@ void spooky_base_update_rect_relative(const spooky_base * self, const SDL_Rect *
   self->impl->rect.y += rel_y;
 }
 
-void spooky_base_set_z_order(const spooky_base * self, float z_order) {
+void spooky_base_set_z_order(const spooky_base * self, size_t z_order) {
   self->impl->z_order = z_order;
 }
 
-float spooky_base_get_z_order(const spooky_base * self) {
+size_t spooky_base_get_z_order(const spooky_base * self) {
   return self->impl->z_order;
 }
 

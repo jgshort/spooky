@@ -25,12 +25,12 @@ typedef struct spooky_base {
   void (*set_w)(const spooky_base * /* self */, int /* w */);
   void (*set_h)(const spooky_base * /* self */, int /* h */);
 
-  void (*set_z_order)(const spooky_base * /* self */, float /* z_order */);
-  float (*get_z_order)(const spooky_base * /* self */);
   void (*update_rect_relative)(const spooky_base * /* self */, const SDL_Rect * /* rect */);
 
   void (*add_child)(const spooky_base * /* self */, const spooky_base * /* child */);
   const spooky_iter * (*children_iter)(const spooky_base * /* self */);
+  void (*set_z_order)(const spooky_base * base, size_t z_order);
+  size_t (*get_z_order)(const spooky_base * base);
 
   struct spooky_base_impl * impl;
 } spooky_base;
