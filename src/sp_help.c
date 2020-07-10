@@ -4,11 +4,11 @@
 #include "sp_font.h"
 #include "sp_help.h"
 
-typedef struct spooky_help_data {
+typedef struct spooky_help_impl {
   const spooky_context * context;
   bool show_help;
   char padding[7]; /* not portable */
-} spooky_help_data;
+} spooky_help_impl;
 
 static const spooky_help spooky_help_funcs = {
   .ctor = &spooky_help_ctor,
@@ -55,21 +55,34 @@ const spooky_help * spooky_help_acquire() {
 const spooky_help * spooky_help_ctor(const spooky_help * self, const spooky_context * context) {
   assert(self != NULL);
   self->super.ctor((const spooky_base *)self);
-  
-  spooky_help_data * data = calloc(1, sizeof * data);
-  if(!data) { abort(); }
+
+  spooky_help_impl * impl = calloc(1, sizeof * impl);
+  if(!impl) { abort(); }
  
-  data->context = context;
-  data->show_help = false;
+  impl->context = context;
+  impl->show_help = false;
 
-  ((spooky_help *)(uintptr_t)self)->data = data;
+  ((spooky_help *)(uintptr_t)self)->impl = impl;
 
+  /* initial rectangle: */
+  int help_text_w, help_text_h;
+  const spooky_font * font = context->get_font(context);
+  font->measure_text(font, "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm", &help_text_w, &help_text_h);
+  int help_rect_w, help_rect_h;
+  SDL_GetRendererOutputSize(context->get_renderer(context), &help_rect_w, &help_rect_h);
+  SDL_Rect rect = {
+    .x = (help_rect_w / 2) - (help_text_w / 2),
+    .y = (help_rect_h / 2) - ((help_text_h * 24) / 2),
+    .w = help_text_w,
+    .h = help_text_h * 24
+  };
+  self->super.set_rect((const spooky_base *)self, &rect);
   return self;
 }
 
 const spooky_help * spooky_help_dtor(const spooky_help * self) {
   if(self != NULL) {
-    free(self->data), ((spooky_help *)(uintptr_t)self)->data = NULL;
+    free(self->impl), ((spooky_help *)(uintptr_t)self)->impl = NULL;
   }
   return self;
 }
@@ -85,7 +98,7 @@ void spooky_help_release(const spooky_help * self) {
 }
 
 bool spooky_help_handle_event(const spooky_base * self, SDL_Event * event) {
-  spooky_help_data * data = ((const spooky_help *)self)->data;
+  spooky_help_impl * impl = ((const spooky_help *)self)->impl;
   switch(event->type) {
     case SDL_KEYUP:
       {
@@ -96,12 +109,12 @@ bool spooky_help_handle_event(const spooky_base * self, SDL_Event * event) {
           case SDLK_SLASH:
           case SDLK_QUESTION:
             {
-              data->show_help = true;
+              impl->show_help = true;
             }
             break;
           case SDLK_ESCAPE: /* hide help */
             {
-              data->show_help = false;
+              impl->show_help = false;
             }
             break;
           default:
@@ -112,22 +125,22 @@ bool spooky_help_handle_event(const spooky_base * self, SDL_Event * event) {
     default:
       break;
   }
-  return data->show_help;
+  return impl->show_help;
 }
 
 void spooky_help_render(const spooky_base * self, SDL_Renderer * renderer) {
   static char help[1920] = { 0 };
 
-  spooky_help_data * data = ((const spooky_help *)self)->data;
+  spooky_help_impl * impl = ((const spooky_help *)self)->impl;
   
-  if(!data->show_help) { return; }
+  if(!impl->show_help) { return; }
 
   static_assert(sizeof(help) == 1920, "Help buffer must be 1920 bytes.");
   
   int mouse_x = 0, mouse_y = 0;
   SDL_GetMouseState(&mouse_x, &mouse_y);
 
-  const spooky_font * font = data->context->get_font(data->context);
+  const spooky_font * font = impl->context->get_font(impl->context);
 
   int help_out = snprintf(help, sizeof(help),
   //"mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm\n"
@@ -157,7 +170,7 @@ void spooky_help_render(const spooky_base * self, SDL_Renderer * renderer) {
 
   SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
   SDL_SetRenderDrawColor(renderer, 199, 78, 157, 150);
-  
+ /* 
   int r_w, r_h;
   SDL_GetRendererOutputSize(renderer, &r_w, &r_h);
   SDL_Rect rect = {
@@ -166,17 +179,19 @@ void spooky_help_render(const spooky_base * self, SDL_Renderer * renderer) {
     .w = w,
     .h = h * 24
   };
-  SDL_RenderFillRect(renderer, &rect);
+  */const SDL_Rect * rect = self->get_rect(self);
+  
+  SDL_RenderFillRect(renderer, rect);
   SDL_SetRenderDrawColor(renderer, a, b, g, a);
   SDL_SetRenderDrawBlendMode(renderer, blend_mode);
 
   int help_w, help_h;
   font->measure_text(font, "> HELP <", &help_w, &help_h);
-  const SDL_Point title_point = { .x = rect.x + (rect.w / 2) - (help_w / 2), .y = rect.y + help_h };
+  const SDL_Point title_point = { .x = rect->x + (rect->w / 2) - (help_w / 2), .y = rect->y + help_h };
   font->write_to_renderer(font, renderer, &title_point, &help_fore_color, "> HELP <", NULL, NULL);
 
   int line_skip = font->get_line_skip(font);
-  const SDL_Point help_point = { .x = rect.x + (rect.w / 2) - (w / 2), .y = rect.y + (line_skip * 3) };
+  const SDL_Point help_point = { .x = rect->x + (rect->w / 2) - (w / 2), .y = rect->y + (line_skip * 3) };
   font->write_to_renderer(font, renderer, &help_point, &help_fore_color, help, NULL, NULL);
 }
 

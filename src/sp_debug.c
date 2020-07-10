@@ -61,12 +61,17 @@ const spooky_debug * spooky_debug_ctor(const spooky_debug * self, const spooky_c
 
   spooky_debug_data * data = calloc(1, sizeof * data);
   if(!data) { abort(); }
+
  
   data->context = context;
   data->show_debug = false;
 
   ((spooky_debug *)(uintptr_t)self)->data = data;
 
+  /* initial position */
+  SDL_Rect rect = { .x = 5, .y = 5, .w = 0, .h = 0 };
+  self->super.set_rect((const spooky_base *)self, &rect);
+ 
   return self;
 }
 
@@ -164,7 +169,7 @@ void spooky_debug_render(const spooky_base * self, SDL_Renderer * renderer) {
 
   assert(debug_out > 0 && (size_t)debug_out < sizeof(debug));
   
-  const SDL_Point debug_point = { .x = 5, .y = 5 };
+  const SDL_Point debug_point = { .x = self->get_rect(self)->x, .y = self->get_rect(self)->y };
   const SDL_Color debug_fore_color = { .r = 255, .g = 255, .b = 255, .a = 255};
 
   font->write_to_renderer(font, renderer, &debug_point, &debug_fore_color, debug, NULL, NULL);

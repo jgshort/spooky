@@ -4,7 +4,7 @@
 #include "sp_base.h"
 #include "sp_context.h"
 
-struct spooky_help_data;
+struct spooky_help_impl;
 typedef struct spooky_help spooky_help;
 typedef struct spooky_help {
   spooky_base super;
@@ -14,7 +14,7 @@ typedef struct spooky_help {
   void (*free)(const spooky_help * self);
   void (*release)(const spooky_help * self);
 
-  struct spooky_help_data * data;
+  struct spooky_help_impl * impl;
 } spooky_help;
 
 const spooky_help * spooky_help_init(spooky_help * self);
