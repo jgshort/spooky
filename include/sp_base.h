@@ -8,7 +8,7 @@
 struct spooky_base_impl;
 typedef struct spooky_base spooky_base;
 typedef struct spooky_base {
-  const spooky_base * (*ctor)(const spooky_base * /* self */);
+  const spooky_base * (*ctor)(const spooky_base * /* self */, SDL_Rect /* origin */);
   const spooky_base * (*dtor)(const spooky_base * /* self */);
   void (*free)(const spooky_base * /* self */);
   void (*release)(const spooky_base * /* self */);
@@ -38,7 +38,7 @@ typedef struct spooky_base {
 const spooky_base * spooky_base_init(spooky_base * /* self */);
 const spooky_base * spooky_base_alloc();
 const spooky_base * spooky_base_acquire();
-const spooky_base * spooky_base_ctor(const spooky_base * /* self */);
+const spooky_base * spooky_base_ctor(const spooky_base * /* self */, SDL_Rect /* origin */);
 const spooky_base * spooky_base_dtor(const spooky_base * /* self */);
 void spooky_base_free(const spooky_base * /* self */);
 void spooky_base_release(const spooky_base * /* self */);

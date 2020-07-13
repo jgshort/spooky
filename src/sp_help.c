@@ -54,7 +54,20 @@ const spooky_help * spooky_help_acquire() {
 
 const spooky_help * spooky_help_ctor(const spooky_help * self, const spooky_context * context) {
   assert(self != NULL);
-  self->super.ctor((const spooky_base *)self);
+
+  int help_text_w, help_text_h;
+  const spooky_font * font = context->get_font(context);
+  font->measure_text(font, "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm", &help_text_w, &help_text_h);
+  int help_rect_w, help_rect_h;
+  SDL_GetRendererOutputSize(context->get_renderer(context), &help_rect_w, &help_rect_h);
+  SDL_Rect origin = {
+    .x = (help_rect_w / 2) - (help_text_w / 2),
+    .y = (help_rect_h / 2) - ((help_text_h * 24) / 2),
+    .w = help_text_w,
+    .h = help_text_h * 24
+  };
+
+  self->super.ctor((const spooky_base *)self, origin);
 
   spooky_help_impl * impl = calloc(1, sizeof * impl);
   if(!impl) { abort(); }
@@ -64,19 +77,7 @@ const spooky_help * spooky_help_ctor(const spooky_help * self, const spooky_cont
 
   ((spooky_help *)(uintptr_t)self)->impl = impl;
 
-  /* initial rectangle: */
-  int help_text_w, help_text_h;
-  const spooky_font * font = context->get_font(context);
-  font->measure_text(font, "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm", &help_text_w, &help_text_h);
-  int help_rect_w, help_rect_h;
-  SDL_GetRendererOutputSize(context->get_renderer(context), &help_rect_w, &help_rect_h);
-  SDL_Rect rect = {
-    .x = (help_rect_w / 2) - (help_text_w / 2),
-    .y = (help_rect_h / 2) - ((help_text_h * 24) / 2),
-    .w = help_text_w,
-    .h = help_text_h * 24
-  };
-  self->super.set_rect((const spooky_base *)self, &rect);
+  self->super.set_rect((const spooky_base *)self, &origin);
   return self;
 }
 

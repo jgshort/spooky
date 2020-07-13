@@ -109,14 +109,25 @@ const spooky_console * spooky_console_ctor(const spooky_console * self, const sp
   assert(self != NULL);
   assert(context != NULL && renderer != NULL);
 
-  self = (spooky_console *)(uintptr_t)spooky_base_ctor((spooky_base *)(uintptr_t)self);
+  SDL_Rect origin = { .x = 0, .y = 0, .w = 0, .h = 0 };
+  int w, h;
+  if(SDL_GetRendererOutputSize(context->get_renderer(context), &w, &h) == 0) {
+    /* max width = renderer_width - some_margin */
+    const spooky_font * font = context->get_font(context);
+    int margin = (font->get_m_dash(font) - 1) * 5;
+    origin.w = w - (margin * 2);
+    origin.h = h - (margin / 2);
+    origin.y = -origin.h;
+    origin.x = margin;
+  }
+
+  self = (spooky_console *)(uintptr_t)spooky_base_ctor((spooky_base *)(uintptr_t)self, origin);
 
   spooky_console_impl * impl = calloc(1, sizeof * impl);
   if(!impl) { abort(); }
  
   impl->context = context;
   impl->direction = -spooky_console_animation_speed;
-  SDL_Rect rect = { .x = 0, .y = 0, .w = 0, .h = 0 };
   impl->show_console = false;
   impl->is_animating = false;
   impl->hide_cursor = true;
@@ -130,18 +141,7 @@ const spooky_console * spooky_console_ctor(const spooky_console * self, const sp
   impl->text_capacity = spooky_console_max_line_capacity;
   impl->text = calloc(impl->text_capacity, sizeof * impl->text);;
 
-  int w, h;
-  if(SDL_GetRendererOutputSize(impl->context->get_renderer(impl->context), &w, &h) == 0) {
-    /* max width = renderer_width - some_margin */
-    const spooky_font * font = context->get_font(context);
-    int margin = (font->get_m_dash(font) - 1) * 5;
-    rect.w = w - (margin * 2);
-    rect.h = h - (margin / 2);
-    rect.y = -rect.h;
-    rect.x = margin;
-  }
-
-  ((const spooky_base *)self)->set_rect((const spooky_base *)self, &rect);
+  ((const spooky_base *)self)->set_rect((const spooky_base *)self, &origin);
   ((spooky_console *)(uintptr_t)self)->impl = impl;
 
   return self;

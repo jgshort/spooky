@@ -57,7 +57,8 @@ const spooky_debug * spooky_debug_acquire() {
 const spooky_debug * spooky_debug_ctor(const spooky_debug * self, const spooky_context * context) {
   assert(self != NULL);
 
-  self = (spooky_debug *)(uintptr_t)spooky_base_ctor((spooky_base *)(uintptr_t)self);
+  SDL_Rect rect = { .x = 5, .y = 5, .w = 0, .h = 0 };
+  self = (spooky_debug *)(uintptr_t)spooky_base_ctor((spooky_base *)(uintptr_t)self, rect);
 
   spooky_debug_data * data = calloc(1, sizeof * data);
   if(!data) { abort(); }
@@ -69,7 +70,6 @@ const spooky_debug * spooky_debug_ctor(const spooky_debug * self, const spooky_c
   ((spooky_debug *)(uintptr_t)self)->data = data;
 
   /* initial position */
-  SDL_Rect rect = { .x = 5, .y = 5, .w = 0, .h = 0 };
   self->super.set_rect((const spooky_base *)self, &rect);
  
   return self;

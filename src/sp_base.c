@@ -15,7 +15,11 @@ typedef struct spooky_base_impl {
   size_t children_count;
   size_t children_capacity;
 
+  /* the original start location */
+  SDL_Rect origin;
+  /* the current (displayed) location, which may be based on a parent */
   SDL_Rect rect;
+
   size_t z_order;
 } spooky_base_impl;
 
@@ -75,7 +79,7 @@ const spooky_base * spooky_base_acquire() {
   return spooky_base_init((spooky_base *)(uintptr_t)spooky_base_alloc());
 }
 
-const spooky_base * spooky_base_ctor(const spooky_base * self) {
+const spooky_base * spooky_base_ctor(const spooky_base * self, SDL_Rect origin) {
   spooky_base_impl * impl = calloc(1, sizeof * impl);
   impl->z_order = 0; 
   impl->children = NULL;
@@ -83,6 +87,8 @@ const spooky_base * spooky_base_ctor(const spooky_base * self) {
   impl->prev = NULL;
   impl->next = NULL;
   impl->rect = (SDL_Rect){ 0 }; 
+  impl->origin = origin;
+
   ((spooky_base *)(uintptr_t)self)->impl = impl;
 
   impl->it = self->children_iter(self);
@@ -124,11 +130,12 @@ void spooky_base_release(const spooky_base * self) {
 
 void spooky_base_update_rect_relative(const spooky_base * self, const SDL_Rect * from_rect) {
   assert(self != NULL && from_rect != NULL);
-  int rel_x = from_rect->x - self->impl->rect.x;
-  int rel_y = from_rect->y - self->impl->rect.y;
   
-  self->impl->rect.x += rel_x;
-  self->impl->rect.y += rel_y;
+  int from_x = self->impl->origin.x + from_rect->x;
+  int from_y = self->impl->origin.y + from_rect->y;
+ 
+  self->impl->rect.x = from_x;
+  self->impl->rect.y = from_y;
 }
 
 void spooky_base_set_z_order(const spooky_base * self, size_t z_order) {

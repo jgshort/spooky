@@ -151,7 +151,7 @@ errno_t spooky_loop(spooky_context * context) {
   double interpolation = 0.0;
   bool is_done = false, is_up = false, is_down = false;
   
-  // ((const spooky_base *)debug)->add_child((const spooky_base *)debug, (const spooky_base *)help);
+  ((const spooky_base *)debug)->add_child((const spooky_base *)debug, (const spooky_base *)help);
 
   log->prepend(log, "Logging enabled\n", SLS_INFO);
   while(spooky_context_get_is_running(context)) {
@@ -299,6 +299,13 @@ errno_t spooky_loop(spooky_context * context) {
       if(obj->handle_delta != NULL) { obj->handle_delta(obj, last_update_time, interpolation); }
     } while(++delta_iter < last);
 
+    
+    const SDL_Rect * r = ((const spooky_base *)debug)->get_rect((const spooky_base *)debug);
+    SDL_Rect rr = { .x = r->x, .y =r->y, .w = r->w, .h = r->h };
+    rr.x += interpolation * 5;
+    rr.y += interpolation * 5;
+    ((const spooky_base *)debug)->set_rect((const spooky_base *)debug, &rr);
+
     uint64_t this_second = (uint64_t)(last_update_time / BILLION);
 
     {
@@ -342,13 +349,9 @@ errno_t spooky_loop(spooky_context * context) {
       
       spooky_debug_update(debug, fps, seconds_since_start, interpolation);
 
-      /*
-      const SDL_Rect * r = ((const spooky_base *)debug)->get_rect((const spooky_base *)debug);
-      SDL_Rect rr = { .x = r->x, .y =r->y, .w = r->w, .h = r->h };
-      rr.x += 5;
-      rr.y += 5;
-      ((const spooky_base *)debug)->set_rect((const spooky_base *)debug, &rr);
-      */
+      
+      
+      
     }
 
     /* Try to be friendly to the OS: */
