@@ -28,13 +28,21 @@ static size_t spooky_base_get_z_order(const spooky_base * self);
 
 static const SDL_Rect * spooky_base_get_rect(const spooky_base * self);
 static void spooky_base_set_rect(const spooky_base * self, const SDL_Rect * rect);
+
+static int spooky_base_get_x(const spooky_base * self);
 static void spooky_base_set_x(const spooky_base * self, int x);
+static int spooky_base_get_y(const spooky_base * self);
 static void spooky_base_set_y(const spooky_base * self, int y);
+static int spooky_base_get_w(const spooky_base * self);
 static void spooky_base_set_w(const spooky_base * self, int w);
+static int spooky_base_get_h(const spooky_base * self);
 static void spooky_base_set_h(const spooky_base * self, int h);
+
 static const spooky_iter * spooky_base_children_iter(const spooky_base * self);
 static void spooky_base_add_child(const spooky_base * self, const spooky_base * child);
-static void spooky_base_update_rect_relative(const spooky_base * self, const SDL_Rect * rect);
+static void spooky_base_set_rect_relative(const spooky_base * self, const SDL_Rect * rect);
+static SDL_Rect spooky_base_get_rect_relative(const spooky_base * self, const SDL_Rect * rect);
+static  SDL_Rect spooky_base_get_bounds(const spooky_base * self);
 
 static const spooky_base spooky_base_funcs = {
   .ctor = &spooky_base_ctor,
@@ -48,16 +56,24 @@ static const spooky_base spooky_base_funcs = {
 
   .get_rect = &spooky_base_get_rect,
   .set_rect = &spooky_base_set_rect,
+
+  .get_x = &spooky_base_get_x,
   .set_x = &spooky_base_set_x,
+  .get_y = &spooky_base_get_y,
   .set_y = &spooky_base_set_y,
+  .get_w = &spooky_base_get_w,
   .set_w = &spooky_base_set_w,
+  .get_h = &spooky_base_get_h,
   .set_h = &spooky_base_set_h,
 
   .set_z_order = &spooky_base_set_z_order,
   .get_z_order = &spooky_base_get_z_order,
   .children_iter = &spooky_base_children_iter,
   .add_child = &spooky_base_add_child,
-  .update_rect_relative = &spooky_base_update_rect_relative 
+  .set_rect_relative = &spooky_base_set_rect_relative ,
+  .get_rect_relative = &spooky_base_get_rect_relative,
+
+  .get_bounds = &spooky_base_get_bounds,
 };
 
 const spooky_base * spooky_base_alloc() {
@@ -117,7 +133,7 @@ void spooky_base_add_child(const spooky_base * self, const spooky_base * child) 
   self->impl->children_count++;
   
   child->impl->parent = self;
-  child->update_rect_relative(child, &(self->impl->rect));
+  child->set_rect_relative(child, &(self->impl->rect));
 }
 
 void spooky_base_free(const spooky_base * self) {
@@ -128,7 +144,14 @@ void spooky_base_release(const spooky_base * self) {
   self->free(self->dtor(self));
 }
 
-void spooky_base_update_rect_relative(const spooky_base * self, const SDL_Rect * from_rect) {
+SDL_Rect spooky_base_get_rect_relative(const spooky_base * self, const SDL_Rect * from_rect) {
+  int from_x = self->impl->origin.x + from_rect->x;
+  int from_y = self->impl->origin.y + from_rect->y;
+
+  return (SDL_Rect){ .x = from_x, .y = from_y, .w = self->impl->origin.w, .h = self->impl->origin.h };
+}
+
+void spooky_base_set_rect_relative(const spooky_base * self, const SDL_Rect * from_rect) {
   assert(self != NULL && from_rect != NULL);
   
   int from_x = self->impl->origin.x + from_rect->x;
@@ -136,6 +159,24 @@ void spooky_base_update_rect_relative(const spooky_base * self, const SDL_Rect *
  
   self->impl->rect.x = from_x;
   self->impl->rect.y = from_y;
+}
+
+SDL_Rect spooky_base_get_bounds(const spooky_base * self) {
+  SDL_Rect bounds = { .x = self->impl->origin.x, .y = self->impl->origin.x, .w = self->impl->origin.w, .h = self->impl->origin.h };
+
+  if(self->impl->children_count > 0) {
+    const spooky_iter * it = self->impl->it;
+    it->reset(it);
+    while(it->next(it)) {
+      const spooky_base * object = it->current(it);
+      if(object != NULL) {
+        bounds.w += object->get_w(object);
+        bounds.h += object->get_h(object);
+      }
+    }
+  }
+
+  return bounds;
 }
 
 void spooky_base_set_z_order(const spooky_base * self, size_t z_order) {
@@ -174,27 +215,42 @@ void spooky_base_set_rect(const spooky_base * self, const SDL_Rect * rect) {
     while(it->next(it)) {
       const spooky_base * object = it->current(it);
       if(object != NULL) {
-        object->update_rect_relative(object, &(self->impl->rect));
+        object->set_rect_relative(object, &(self->impl->rect));
       }
     }
   }
+}
+
+int spooky_base_get_x(const spooky_base * self) {
+  return self->impl->rect.x;
 }
 
 void spooky_base_set_x(const spooky_base * self, int x) {
   self->impl->rect.x = x;
 }
 
+int spooky_base_get_y(const spooky_base * self) {
+  return self->impl->rect.y;
+}
+
 void spooky_base_set_y(const spooky_base * self, int y) {
   self->impl->rect.y = y;
+}
+
+int spooky_base_get_w(const spooky_base * self) {
+  return self->impl->rect.w;
 }
 
 void spooky_base_set_w(const spooky_base * self, int w) {
   self->impl->rect.w = w;
 }
 
+int spooky_base_get_h(const spooky_base * self) {
+  return self->impl->rect.h;
+}
+
 void spooky_base_set_h(const spooky_base * self, int h) {
   self->impl->rect.h = h;
-
 }
 
 typedef struct spooky_children_iter {

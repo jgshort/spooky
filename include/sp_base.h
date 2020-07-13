@@ -20,17 +20,24 @@ typedef struct spooky_base {
   const SDL_Rect * (*get_rect)(const spooky_base * /* self */);
   void (*set_rect)(const spooky_base * /* self */, const SDL_Rect * /* rect */);
 
+  int (*get_x)(const spooky_base * /* self */);
   void (*set_x)(const spooky_base * /* self */, int /* x */);
+  int (*get_y)(const spooky_base * /* self */);
   void (*set_y)(const spooky_base * /* self */, int /* y */);
+  int (*get_w)(const spooky_base * /* self */);
   void (*set_w)(const spooky_base * /* self */, int /* w */);
+  int (*get_h)(const spooky_base * /* self */);
   void (*set_h)(const spooky_base * /* self */, int /* h */);
 
-  void (*update_rect_relative)(const spooky_base * /* self */, const SDL_Rect * /* rect */);
+  void (*set_rect_relative)(const spooky_base * /* self */, const SDL_Rect * /* from_rect */);
+  SDL_Rect (*get_rect_relative)(const spooky_base * /* self */, const SDL_Rect * /* from_rect */);
 
   void (*add_child)(const spooky_base * /* self */, const spooky_base * /* child */);
   const spooky_iter * (*children_iter)(const spooky_base * /* self */);
-  void (*set_z_order)(const spooky_base * base, size_t z_order);
-  size_t (*get_z_order)(const spooky_base * base);
+  void (*set_z_order)(const spooky_base * /* self */, size_t /* z_order */);
+  size_t (*get_z_order)(const spooky_base * /*self */);
+
+  SDL_Rect (*get_bounds)(const spooky_base * self);
 
   struct spooky_base_impl * impl;
 } spooky_base;
