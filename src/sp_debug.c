@@ -70,7 +70,8 @@ const spooky_debug * spooky_debug_ctor(const spooky_debug * self, const spooky_c
   ((spooky_debug *)(uintptr_t)self)->data = data;
 
   /* initial position */
-  self->super.set_rect((const spooky_base *)self, &rect);
+  const spooky_ex * ex = NULL;
+  self->super.set_rect((const spooky_base *)self, &rect, &ex);
  
   return self;
 }

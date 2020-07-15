@@ -141,7 +141,8 @@ const spooky_console * spooky_console_ctor(const spooky_console * self, const sp
   impl->text_capacity = spooky_console_max_line_capacity;
   impl->text = calloc(impl->text_capacity, sizeof * impl->text);;
 
-  ((const spooky_base *)self)->set_rect((const spooky_base *)self, &origin);
+  const spooky_ex * ex = NULL;
+  ((const spooky_base *)self)->set_rect((const spooky_base *)self, &origin, &ex);
   ((spooky_console *)(uintptr_t)self)->impl = impl;
 
   return self;
@@ -251,7 +252,8 @@ void spooky_console_handle_delta(const spooky_base * self, int64_t last_update_t
     if(r.y < 0 - r.h) { r.y = 0 - r.h; }
     if(r.y > 0) { r.y = 0; }
 
-    self->set_rect(self, &r);
+    const spooky_ex * ex = NULL;
+    self->set_rect(self, &r, &ex);
     impl->hide_cursor = (last_update_time / 650000000) % 2 == 0;
   }
 }

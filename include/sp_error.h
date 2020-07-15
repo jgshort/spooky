@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+#include <stdlib.h>
+
 /*! @file sp_error.h
  * @brief spooky error handling types and variables.
  *
@@ -30,6 +32,22 @@ extern const errno_t SP_SUCCESS;
 extern const errno_t SP_FAILURE;
 
 int spooky_is_sdl_error(const char * /* msg */);
+
+typedef struct spooky_ex spooky_ex;
+typedef struct spooky_ex {
+  const char * msg;
+  const spooky_ex * inner;
+} spooky_ex;
+
+static const spooky_ex spooky_null_ref_ex = {
+  .msg = "NULL reference exception.",
+  .inner = NULL
+};
+
+static const spooky_ex spooky_alloc_ex = {
+  .msg = "Memory allocation exception.",
+  .inner = NULL
+};
 
 #ifdef __cplusplus
 }

@@ -61,8 +61,8 @@ const spooky_help * spooky_help_ctor(const spooky_help * self, const spooky_cont
   int help_rect_w, help_rect_h;
   SDL_GetRendererOutputSize(context->get_renderer(context), &help_rect_w, &help_rect_h);
   SDL_Rect origin = {
-    .x = (help_rect_w / 2) - (help_text_w / 2),
-    .y = (help_rect_h / 2) - ((help_text_h * 24) / 2),
+    .x = (help_rect_w / 2) - (help_text_w / 2) - 500,
+    .y = (help_rect_h / 2) - ((help_text_h * 24) / 2) - 350,
     .w = help_text_w,
     .h = help_text_h * 24
   };
@@ -77,7 +77,8 @@ const spooky_help * spooky_help_ctor(const spooky_help * self, const spooky_cont
 
   ((spooky_help *)(uintptr_t)self)->impl = impl;
 
-  self->super.set_rect((const spooky_base *)self, &origin);
+  const spooky_ex * ex = NULL;
+  self->super.set_rect((const spooky_base *)self, &origin, &ex);
   return self;
 }
 
@@ -171,16 +172,8 @@ void spooky_help_render(const spooky_base * self, SDL_Renderer * renderer) {
 
   SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
   SDL_SetRenderDrawColor(renderer, 199, 78, 157, 150);
- /* 
-  int r_w, r_h;
-  SDL_GetRendererOutputSize(renderer, &r_w, &r_h);
-  SDL_Rect rect = {
-    .x = (r_w / 2) - (w / 2),
-    .y = (r_h / 2) - ((h * 24) / 2),
-    .w = w,
-    .h = h * 24
-  };
-  */const SDL_Rect * rect = self->get_rect(self);
+ 
+  const SDL_Rect * rect = self->get_rect(self);
   
   SDL_RenderFillRect(renderer, rect);
   SDL_SetRenderDrawColor(renderer, a, b, g, a);

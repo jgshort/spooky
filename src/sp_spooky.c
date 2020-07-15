@@ -26,7 +26,7 @@
 #include "sp_log.h"
 #include "sp_time.h"
 
-static errno_t spooky_loop(spooky_context * context);
+static errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex);
 static errno_t spooky_command_parser(spooky_context * context, const spooky_console * console, const spooky_log * log, const char * command) ;
 
 int main(int argc, char **argv) {
@@ -50,9 +50,10 @@ int main(int argc, char **argv) {
 */
   spooky_context context = { 0 };
 
+  const spooky_ex * ex = NULL;
   if(spooky_init_context(&context) != SP_SUCCESS) { goto err0; }
   if(spooky_test_resources(&context) != SP_SUCCESS) { goto err0; }
-  if(spooky_loop(&context) != SP_SUCCESS) { goto err1; }
+  if(spooky_loop(&context, &ex) != SP_SUCCESS) { goto err1; }
   if(spooky_quit_context(&context) != SP_SUCCESS) { goto err2; }
 
   fprintf(stdout, "\nThank you for playing! Happy gaming!\n");
@@ -65,6 +66,9 @@ err2:
 
 err1:
   fprintf(stderr, "A fatal error occurred in the main loop.\n");
+  if(ex != NULL) {
+    fprintf(stderr, "%s\n", ex->msg);
+  }
   spooky_release_context(&context);
   goto err;
 
@@ -76,7 +80,7 @@ err:
   return SP_FAILURE;
 }
 
-errno_t spooky_loop(spooky_context * context) {
+errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
   const double HERTZ = 30.0;
   const int TARGET_FPS = 60;
   const int BILLION = 1000000000;
@@ -150,11 +154,13 @@ errno_t spooky_loop(spooky_context * context) {
   
   double interpolation = 0.0;
   bool is_done = false, is_up = false, is_down = false;
-  
-  ((const spooky_base *)debug)->add_child((const spooky_base *)debug, (const spooky_base *)help);
+ 
+  if(((const spooky_base *)debug)->add_child((const spooky_base *)debug, (const spooky_base *)help, ex) != SP_SUCCESS) { goto err1; }
 
   log->prepend(log, "Logging enabled\n", SLS_INFO);
+  int x_dir = 30, y_dir = 30;
   while(spooky_context_get_is_running(context)) {
+    SDL_Rect debug_rect = { 0 };
     int update_loops = 0;
     now = sp_get_time_in_us();
     while((now - last_update_time > TIME_BETWEEN_UPDATES && update_loops < MAX_UPDATES_BEFORE_RENDER)) {
@@ -273,6 +279,23 @@ errno_t spooky_loop(spooky_context * context) {
           console->clear_current_command(console);
         }
       }
+     
+      {
+        ((const spooky_base *)debug)->get_bounds((const spooky_base *)debug, &debug_rect, NULL);
+
+        int w = 0, h = 0;
+        SDL_GetRendererOutputSize(renderer, &w, &h);
+        if(debug_rect.x <= 0) {
+          x_dir = abs(x_dir);
+        } else if(debug_rect.x + debug_rect.w >= w) {
+          x_dir = -x_dir;
+        }
+        if(debug_rect.y <= 0) {
+          y_dir = abs(y_dir);
+        } else if(debug_rect.y + debug_rect.h >= h) {
+          y_dir = -y_dir;
+        }
+      }
       last_update_time += TIME_BETWEEN_UPDATES;
       update_loops++;
     } /* >> while ((now - last_update_time ... */
@@ -302,9 +325,9 @@ errno_t spooky_loop(spooky_context * context) {
     
     const SDL_Rect * r = ((const spooky_base *)debug)->get_rect((const spooky_base *)debug);
     SDL_Rect rr = { .x = r->x, .y =r->y, .w = r->w, .h = r->h };
-    rr.x += interpolation * 5;
-    rr.y += interpolation * 5;
-    ((const spooky_base *)debug)->set_rect((const spooky_base *)debug, &rr);
+    rr.x += interpolation * x_dir;
+    rr.y += interpolation * y_dir;
+    if(((const spooky_base *)debug)->set_rect((const spooky_base *)debug, &rr, ex) != SP_SUCCESS) { goto err1; }
 
     uint64_t this_second = (uint64_t)(last_update_time / BILLION);
 
@@ -320,8 +343,8 @@ errno_t spooky_loop(spooky_context * context) {
       SDL_SetRenderDrawColor(renderer, c.r, c.g, c.b, c.a);
       SDL_RenderFillRect(renderer, NULL); /* screen color */
       SDL_SetRenderDrawColor(renderer, saved_color.r, saved_color.g, saved_color.b, saved_color.a);
-     }
-  
+    }
+ 
     SDL_RenderCopy(renderer, background, NULL, NULL);
     
     /* render bases */
@@ -331,7 +354,12 @@ errno_t spooky_loop(spooky_context * context) {
       if(obj->render != NULL) { obj->render(obj, renderer); }
     } while(++render_iter < last);
 
-    //SDL_SetRenderDrawColor(renderer, c0.r, c0.g, c0.b, c0.a);
+
+    {
+      SDL_SetRenderDrawColor(renderer, 255, 255, 0, 255);
+      SDL_RenderDrawRect(renderer, &debug_rect);
+    }
+
     SDL_RenderPresent(renderer);
 
     last_render_time = now;
