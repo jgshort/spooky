@@ -30,6 +30,8 @@ typedef struct spooky_context {
   bool (*get_is_running)(const spooky_context * context);
   void (*set_is_running)(const spooky_context * context, bool value);
 
+  void (*next_font_type)(spooky_context * context);
+
   struct spooky_context_data * data;
 } spooky_context;
 

@@ -3,8 +3,10 @@
 
 #include "sp_gui.h"
 
+#define SPOOKY_FONT_MAX_TYPES 3
+
 extern const int spooky_default_font_size;
-extern const char * spooky_default_font_name;
+extern const char * spooky_default_font_names[SPOOKY_FONT_MAX_TYPES];
 
 struct spooky_font_data;
 typedef struct spooky_font spooky_font;

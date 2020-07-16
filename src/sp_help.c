@@ -144,6 +144,17 @@ void spooky_help_render(const spooky_base * self, SDL_Renderer * renderer) {
 
   const spooky_font * font = impl->context->get_font(impl->context);
 
+  int help_text_w, help_text_h;
+  font->measure_text(font, "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm", &help_text_w, &help_text_h);
+  int help_rect_w, help_rect_h;
+  SDL_GetRendererOutputSize(renderer, &help_rect_w, &help_rect_h);
+  SDL_Rect origin = {
+    .x = (help_rect_w / 2) - (help_text_w / 2) - 500,
+    .y = (help_rect_h / 2) - ((help_text_h * 24) / 2) - 350,
+    .w = help_text_w,
+    .h = help_text_h * 24
+  };
+
   int help_out = snprintf(help, sizeof(help),
   //"mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm\n"
     " h or ? or F1 : Help                    \n"
@@ -174,8 +185,14 @@ void spooky_help_render(const spooky_base * self, SDL_Renderer * renderer) {
   SDL_SetRenderDrawColor(renderer, 199, 78, 157, 150);
  
   const SDL_Rect * rect = self->get_rect(self);
-  
-  SDL_RenderFillRect(renderer, rect);
+
+  SDL_Rect rr = {
+    .x = (help_rect_w / 2) - (help_text_w / 2) - 500,
+    .y = (help_rect_h / 2) - ((help_text_h * 24) / 2) - 350,
+    .w = origin.w,
+    .h = origin.h
+  };
+  SDL_RenderFillRect(renderer, &rr);
   SDL_SetRenderDrawColor(renderer, a, b, g, a);
   SDL_SetRenderDrawBlendMode(renderer, blend_mode);
 

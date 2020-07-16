@@ -233,6 +233,13 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
                     }
                   }
                   break;
+                case SDLK_1:
+                  {
+                    if((SDL_GetModState() & KMOD_CTRL) != 0) {
+                      context->next_font_type(context);
+                    }
+                  }
+                  break;
                 default:
                   break;
               } /* >> switch(sym ... */
@@ -304,12 +311,13 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
       } while(++delta_iter < last);
 
       //bouncing console... for reasons:
+      /*
       const SDL_Rect * r = ((const spooky_base *)debug)->get_rect((const spooky_base *)debug);
       SDL_Rect rr = { .x = r->x, .y =r->y, .w = r->w, .h = r->h };
       rr.x += x_dir * (int)floor((double)5 * interpolation);
       rr.y += y_dir * (int)floor((double)5 * interpolation);
       if(((const spooky_base *)debug)->set_rect((const spooky_base *)debug, &rr, ex) != SP_SUCCESS) { goto err1; }
-      
+      */ 
       last_update_time += TIME_BETWEEN_UPDATES;
       update_loops++;
       
@@ -358,8 +366,9 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
 
 
     {
+      (void)debug_rect;
       SDL_SetRenderDrawColor(renderer, 255, 255, 0, 255);
-      SDL_RenderDrawRect(renderer, &debug_rect);
+      //SDL_RenderDrawRect(renderer, &debug_rect);
     }
 
     SDL_RenderPresent(renderer);

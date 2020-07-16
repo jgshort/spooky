@@ -33,11 +33,11 @@ typedef struct spooky_base {
   errno_t (*get_rect_relative)(const spooky_base * /* self */, const SDL_Rect * /* from_rect */, SDL_Rect * /* out_rect */, const spooky_ex ** /* ex */);
 
   errno_t (*add_child)(const spooky_base * /* self */, const spooky_base * /* child */, const spooky_ex ** /* ex */);
-  const spooky_iter * (*children_iter)(const spooky_base * /* self */);
+  errno_t (*children_iter)(const spooky_base * /* self */, const spooky_iter ** /* out_it */, const spooky_ex ** /* ex */);
   void (*set_z_order)(const spooky_base * /* self */, size_t /* z_order */);
   size_t (*get_z_order)(const spooky_base * /*self */);
  
-  errno_t (*get_bounds)(const spooky_base * self, SDL_Rect * out_bounds, const spooky_ex ** ex);
+  errno_t (*get_bounds)(const spooky_base * /* self */, SDL_Rect * /* out_bounds */, const spooky_ex ** /* ex */);
 
   struct spooky_base_impl * impl;
 } spooky_base;
