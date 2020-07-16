@@ -42,7 +42,7 @@ static void spooky_base_set_h(const spooky_base * self, int h);
 static const spooky_iter * spooky_base_children_iter(const spooky_base * self);
 static errno_t spooky_base_add_child(const spooky_base * self, const spooky_base * child, const spooky_ex ** ex);
 static errno_t spooky_base_set_rect_relative(const spooky_base * self, const SDL_Rect * from_rect, const spooky_ex ** ex);
-static SDL_Rect spooky_base_get_rect_relative(const spooky_base * self, const SDL_Rect * rect);
+static errno_t spooky_base_get_rect_relative(const spooky_base * self, const SDL_Rect * rect, SDL_Rect * out_rect, const spooky_ex ** ex);
 static errno_t spooky_base_get_bounds(const spooky_base * self, SDL_Rect * out_bounds, const spooky_ex ** ex);
 
 static const spooky_base spooky_base_funcs = {
@@ -165,11 +165,26 @@ void spooky_base_release(const spooky_base * self) {
   self->free(self->dtor(self));
 }
 
-SDL_Rect spooky_base_get_rect_relative(const spooky_base * self, const SDL_Rect * from_rect) {
-  int from_x = self->impl->origin.x + from_rect->x;
-  int from_y = self->impl->origin.y + from_rect->y;
+errno_t spooky_base_get_rect_relative(const spooky_base * self, const SDL_Rect * from_rect, SDL_Rect * out_rect, const spooky_ex ** ex) {
 
-  return (SDL_Rect){ .x = from_x, .y = from_y, .w = self->impl->origin.w, .h = self->impl->origin.h };
+  assert(self && from_rect && out_rect);
+
+  if(!self || !from_rect || !out_rect) { goto err0; }
+  
+  spooky_base_impl * impl = self->impl;
+  int from_x = impl->origin.x + from_rect->x;
+  int from_y = impl->origin.y + from_rect->y;
+
+  out_rect->x = from_x;
+  out_rect->y = from_y;
+  out_rect->w = impl->origin.w;
+  out_rect->h = impl->origin.h;
+
+  return SP_SUCCESS;
+
+err0:
+  if(ex) { *ex = &spooky_null_ref_ex; }
+  return SP_FAILURE;
 }
 
 errno_t spooky_base_set_rect_relative(const spooky_base * self, const SDL_Rect * from_rect, const spooky_ex ** ex) {

@@ -30,7 +30,7 @@ typedef struct spooky_base {
   void (*set_h)(const spooky_base * /* self */, int /* h */);
 
   errno_t (*set_rect_relative)(const spooky_base * /* self */, const SDL_Rect * /* from_rect */, const spooky_ex ** /* ex */);
-  SDL_Rect (*get_rect_relative)(const spooky_base * /* self */, const SDL_Rect * /* from_rect */);
+  errno_t (*get_rect_relative)(const spooky_base * /* self */, const SDL_Rect * /* from_rect */, SDL_Rect * /* out_rect */, const spooky_ex ** /* ex */);
 
   errno_t (*add_child)(const spooky_base * /* self */, const spooky_base * /* child */, const spooky_ex ** /* ex */);
   const spooky_iter * (*children_iter)(const spooky_base * /* self */);

@@ -152,13 +152,13 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
 
   spooky_base_z_sort(objects, (sizeof objects / sizeof * objects) - 1);
   
-  double interpolation = 0.0;
   bool is_done = false, is_up = false, is_down = false;
  
   if(((const spooky_base *)debug)->add_child((const spooky_base *)debug, (const spooky_base *)help, ex) != SP_SUCCESS) { goto err1; }
 
   log->prepend(log, "Logging enabled\n", SLS_INFO);
   int x_dir = 30, y_dir = 30;
+  double interpolation = 0.0;
   while(spooky_context_get_is_running(context)) {
     SDL_Rect debug_rect = { 0 };
     int update_loops = 0;
@@ -296,10 +296,28 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
           y_dir = -y_dir;
         }
       }
+
+      const spooky_base ** delta_iter = first;
+      do {
+        const spooky_base * obj = *delta_iter;
+        if(obj->handle_delta != NULL) { obj->handle_delta(obj, last_update_time, interpolation); }
+      } while(++delta_iter < last);
+
+      //bouncing console... for reasons:
+      const SDL_Rect * r = ((const spooky_base *)debug)->get_rect((const spooky_base *)debug);
+      SDL_Rect rr = { .x = r->x, .y =r->y, .w = r->w, .h = r->h };
+      rr.x += x_dir * (int)floor((double)5 * interpolation);
+      rr.y += y_dir * (int)floor((double)5 * interpolation);
+      if(((const spooky_base *)debug)->set_rect((const spooky_base *)debug, &rr, ex) != SP_SUCCESS) { goto err1; }
+      
       last_update_time += TIME_BETWEEN_UPDATES;
       update_loops++;
+      
+      /* handle base deltas */
     } /* >> while ((now - last_update_time ... */
 
+
+    interpolation = fmin(1.0f, (double)(now - last_update_time) / (double)(TIME_BETWEEN_UPDATES));
     if (now - last_update_time > TIME_BETWEEN_UPDATES) {
       last_update_time = now - TIME_BETWEEN_UPDATES;
     }
@@ -312,22 +330,6 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
         spooky_context_scale_font_down(context, &is_done);
       }
     }
-
-    interpolation = fmin(1.0f, (double)(now - last_update_time) / (double)(TIME_BETWEEN_UPDATES));
-
-    /* handle base deltas */
-    const spooky_base ** delta_iter = first;
-    do {
-      const spooky_base * obj = *delta_iter;
-      if(obj->handle_delta != NULL) { obj->handle_delta(obj, last_update_time, interpolation); }
-    } while(++delta_iter < last);
-
-    
-    const SDL_Rect * r = ((const spooky_base *)debug)->get_rect((const spooky_base *)debug);
-    SDL_Rect rr = { .x = r->x, .y =r->y, .w = r->w, .h = r->h };
-    rr.x += interpolation * x_dir;
-    rr.y += interpolation * y_dir;
-    if(((const spooky_base *)debug)->set_rect((const spooky_base *)debug, &rr, ex) != SP_SUCCESS) { goto err1; }
 
     uint64_t this_second = (uint64_t)(last_update_time / BILLION);
 

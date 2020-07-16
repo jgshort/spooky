@@ -315,8 +315,8 @@ void spooky_console_render(const spooky_base * self, SDL_Renderer * renderer) {
             font->write_to_renderer(font, renderer, &text_dest, &color, t->line, NULL, NULL);
           } else {
             static char temp[1024] = { 0 };
-            snprintf(temp, max_chars, "%s", t->line);
-            snprintf(temp, max_chars + 3, "%s...", temp);
+            snprintf(temp, max_chars, "%s...", t->line);
+            //snprintf(temp, max_chars + 3, "%s...", temp);
             font->write_to_renderer(font, renderer, &text_dest, &color, temp, NULL, NULL);
           }
         }
