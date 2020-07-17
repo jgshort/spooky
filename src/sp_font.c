@@ -1,15 +1,16 @@
+#define _POSIX_C_SOURCE 200809L
+
 #include <stdlib.h>
 #include <limits.h>
 #include <assert.h>
 #include <memory.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <string.h>
 
 #include "sp_error.h"
 #include "sp_font.h"
 
-
-//const char * spooky_default_font_name = "./res/fonts/PrintChar21.ttf";
 const char * spooky_default_font_names[SPOOKY_FONT_MAX_TYPES] = {
   "./res/fonts/DejaVuSansMono.ttf",
   "./res/fonts/PrintChar21.ttf",
