@@ -8,7 +8,9 @@
 #include <sodium.h>
 #include <assert.h>
 #include <memory.h>
+#include <zlib.h>
 
+#include "sp_error.h"
 #include "sp_pak.h"
 #include "sp_math.h"
 
@@ -249,6 +251,82 @@ static bool spooky_read_item_type(FILE * fp, spooky_pack_item_type * type) {
   return res;
 }
 */
+
+
+static errno_t spooky_deflate_file(FILE * source, FILE * dest) {
+/* From: http://www.zlib.net/zlib_how.html */
+/* This is an ugly hack required to avoid corruption of the input and output
+ * data on Windows/MS-DOS systems. Without this, those systems would assume
+ * that the input and output files are text, and try to convert the end-of-line
+ * characters from one standard to another. That would corrupt binary data, and
+ * in particular would render the compressed data unusable. This sets the input
+ * and output to binary which suppresses the end-of-line conversions.
+ * SET_BINARY_MODE() will be used later on stdin and stdout, at the beginning
+ * of main():
+*/
+#if defined(MSDOS) || defined(OS2) || defined(WIN32) || defined(__CYGWIN__)
+
+#include <fcntl.h>
+#include <io.h>
+#define SET_BINARY_MODE(file) { setmode(fileno((file)), O_BINARY) }
+
+#else
+
+#define SET_BINARY_MODE(file)
+
+#endif /* >> if defined(MSDOS) || ... */
+
+#define CHUNK 16384
+
+  const int level = Z_DEFAULT_COMPRESSION;
+  unsigned char in[CHUNK] = { 0 };
+  unsigned char out[CHUNK] = { 0 };
+
+  /* allocate deflate state */
+  z_stream strm = {
+    .zalloc = Z_NULL,
+    .zfree = Z_NULL,
+    .opaque = Z_NULL
+  };
+  
+  int ret = deflateInit(&strm, level);
+  if (ret != Z_OK) { return ret; }
+
+  int flush = -1;
+  unsigned int have = 0;
+  /* compress until end of file */
+  do {
+    unsigned long len = fread(in, 1, CHUNK, source);
+    assert(len <= UINT_MAX);
+    if(len > UINT_MAX) { goto err0; }
+    strm.avail_in = (unsigned int)len;
+    if(ferror(source)) { goto err0; }
+      
+    flush = feof(source) ? Z_FINISH : Z_NO_FLUSH;
+    strm.next_in = in;
+    do {
+      strm.avail_out = CHUNK;
+      strm.next_out = out;
+      ret = deflate(&strm, flush);
+      assert(ret != Z_STREAM_ERROR);
+      have = CHUNK - strm.avail_out;
+      if(fwrite(out, 1, have, dest) != have || ferror(dest)) { goto err0; }
+    } while(strm.avail_out == 0);
+    assert(strm.avail_in == 0);
+  } while(flush != Z_FINISH);
+  assert(ret == Z_STREAM_END);
+
+  /* clean up and return */
+  deflateEnd(&strm);
+  return Z_OK;
+
+err0:
+  deflateEnd(&strm);
+  return Z_ERRNO;
+#undef CHUNK
+#undef SET_BINARY_MODE 
+}
+
 static bool spooky_write_file(const char * file_path, FILE * fp, uint64_t * content_len) {
   assert(file_path != NULL);
   assert(fp != NULL);
@@ -273,10 +351,13 @@ static bool spooky_write_file(const char * file_path, FILE * fp, uint64_t * cont
         spooky_write_item_type(type, fp, content_len);
         spooky_write_string(file_path, fp, content_len);
         spooky_write_uint64(new_len, fp, content_len);
+        FILE * inflated_buf = NULL;
+        FILE * deflated_buf = NULL;
+        spooky_deflate_file(inflated_buf, deflated_buf);
         spooky_write_raw(buf, new_len, fp);
         if(content_len != NULL) {
           *content_len += new_len;
-       }
+        }
       }
     }
     fclose(src_file);
