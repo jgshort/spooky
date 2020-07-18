@@ -34,7 +34,7 @@ int main(int argc, char **argv) {
   (void)argv;
 
   spooky_pack_tests();
-/*
+
   int fd = 0;
   fd = open("./test.spdb", O_CREAT | O_RDWR | O_EXCL, S_IRUSR | S_IWUSR);
   if(fd < 0) {
@@ -47,7 +47,7 @@ int main(int argc, char **argv) {
   spooky_pack_create(fp);
   fseek(fp, 0, SEEK_SET);
   spooky_pack_verify(fp);
-*/
+
   spooky_context context = { 0 };
 
   const spooky_ex * ex = NULL;

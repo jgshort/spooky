@@ -253,7 +253,7 @@ static bool spooky_read_item_type(FILE * fp, spooky_pack_item_type * type) {
 */
 
 
-static errno_t spooky_deflate_file(FILE * source, FILE * dest) {
+static errno_t spooky_deflate_file(FILE * source, FILE * dest, size_t * dest_len) {
 /* From: http://www.zlib.net/zlib_how.html */
 /* This is an ugly hack required to avoid corruption of the input and output
  * data on Windows/MS-DOS systems. Without this, those systems would assume
@@ -294,7 +294,8 @@ static errno_t spooky_deflate_file(FILE * source, FILE * dest) {
 
   int flush = -1;
   unsigned int have = 0;
-  /* compress until end of file */
+  
+  size_t written = 0;
   do {
     unsigned long len = fread(in, 1, CHUNK, source);
     assert(len <= UINT_MAX);
@@ -311,6 +312,7 @@ static errno_t spooky_deflate_file(FILE * source, FILE * dest) {
       assert(ret != Z_STREAM_ERROR);
       have = CHUNK - strm.avail_out;
       if(fwrite(out, 1, have, dest) != have || ferror(dest)) { goto err0; }
+      written += have;
     } while(strm.avail_out == 0);
     assert(strm.avail_in == 0);
   } while(flush != Z_FINISH);
@@ -318,6 +320,8 @@ static errno_t spooky_deflate_file(FILE * source, FILE * dest) {
 
   /* clean up and return */
   deflateEnd(&strm);
+  if(dest_len) { *dest_len = written; }
+  fprintf(stdout, "Deflated len: %i\n", (int)written);
   return Z_OK;
 
 err0:
@@ -331,39 +335,46 @@ static bool spooky_write_file(const char * file_path, FILE * fp, uint64_t * cont
   assert(file_path != NULL);
   assert(fp != NULL);
 
-  char * buf = NULL;
+  char * inflated_buf = NULL, * deflated_buf = NULL;
   FILE * src_file = fopen(file_path, "rb");
   if(src_file != NULL) {
     if(fseek(src_file, 0L, SEEK_END) == 0) {
-      long buf_len = ftell(src_file);
-      if(buf_len == -1) { abort(); }
+      long inflated_buf_len = ftell(src_file);
+      if(inflated_buf_len == -1) { abort(); }
 
-      buf = calloc(1, (size_t)(buf_len + 1));
-
+      inflated_buf = calloc(1, (size_t)(inflated_buf_len));
+      deflated_buf =  calloc(1, (size_t)(inflated_buf_len));
       if(fseek(src_file, 0L, SEEK_SET) != 0) { /* Error */ }
 
-      size_t new_len = fread(buf, sizeof(char), (size_t)buf_len, src_file);
+      size_t new_len = fread(inflated_buf, sizeof(char), (size_t)inflated_buf_len, src_file);
       if(ferror(src_file) != 0) {
         abort();
       } else {
-        buf[new_len] = '\0';
+        //inflated_buf[new_len] = '\0';
         spooky_pack_item_type type = spit_bin_file;
         spooky_write_item_type(type, fp, content_len);
         spooky_write_string(file_path, fp, content_len);
-        spooky_write_uint64(new_len, fp, content_len);
-        FILE * inflated_buf = NULL;
-        FILE * deflated_buf = NULL;
-        spooky_deflate_file(inflated_buf, deflated_buf);
-        spooky_write_raw(buf, new_len, fp);
+
+        FILE * inflated_fp = fmemopen(inflated_buf, new_len, "r+");
+        FILE * deflated_fp = fmemopen(deflated_buf, new_len, "r+");
+        size_t deflated_buf_len = 0;
+        spooky_deflate_file(inflated_fp, deflated_fp, &deflated_buf_len);
+
+        spooky_write_uint64(deflated_buf_len, fp, content_len);
+        
+        spooky_write_raw(deflated_buf, deflated_buf_len, fp);
         if(content_len != NULL) {
-          *content_len += new_len;
+          *content_len += deflated_buf_len;
         }
+        fclose(inflated_fp);
+        fclose(deflated_fp);
       }
     }
     fclose(src_file);
   }
 
-  free(buf), buf = NULL;
+  free(inflated_buf), inflated_buf = NULL;
+  free(deflated_buf), deflated_buf = NULL;
 
   return true;
 }
