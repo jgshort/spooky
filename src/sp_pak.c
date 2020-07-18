@@ -350,7 +350,7 @@ static bool spooky_write_file(const char * file_path, FILE * fp, uint64_t * cont
 
       if(fseek(src_file, 0L, SEEK_SET) != 0) { abort(); }
 
-      //size_t new_len = fread(inflated_buf, sizeof(char), (size_t)inflated_buf_len, src_file);
+      size_t new_len = fread(inflated_buf, sizeof(char), (size_t)inflated_buf_len, src_file);
       if(ferror(src_file) != 0) {
         abort();
       } else {
@@ -361,9 +361,9 @@ static bool spooky_write_file(const char * file_path, FILE * fp, uint64_t * cont
         spooky_write_string(file_path, fp, content_len);
 
         {
-          FILE * inflated_fp = fmemopen(inflated_buf, (size_t)inflated_buf_len, "r");
+          FILE * inflated_fp = fmemopen(inflated_buf, new_len, "r");
           {
-            FILE * deflated_fp = fmemopen(deflated_buf, (size_t)inflated_buf_len, "r+");
+            FILE * deflated_fp = fmemopen(deflated_buf, new_len, "r+");
             size_t deflated_buf_len = 0;
            
             /* compress the file: */
