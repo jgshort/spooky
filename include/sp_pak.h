@@ -1,6 +1,7 @@
 #ifndef SPOOKY_PACK__H
 #define SPOOKY_PACK__H
 
+#include <stdio.h>
 #include <stdbool.h>
 
 bool spooky_pack_create(FILE * /* fp */);

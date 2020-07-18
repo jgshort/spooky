@@ -2,6 +2,7 @@ spooky_SOURCES = \
 								 sp_math.c \
 								 sp_error.c \
 								 sp_pak.c \
+								 sp_db.c \
 								 sp_time.c \
 								 sp_gui.c \
 								 sp_font.c \
