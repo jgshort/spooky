@@ -49,6 +49,8 @@ static const unsigned char FOOTER[FOOTER_LEN] = { 0xf0, 0x9f, 0x8e, 0x83, '!', '
 
 static const uint64_t ITEM_MAGIC = 0x00706b6e616e6d65;
 
+static errno_t spooky_deflate_file(FILE * source, FILE * dest, size_t * dest_len);
+
 typedef enum spooky_pack_item_type {
   spit_unspecified = 0,
   spit_null = 1,
@@ -253,7 +255,7 @@ static bool spooky_read_item_type(FILE * fp, spooky_pack_item_type * type) {
 */
 
 
-static errno_t spooky_deflate_file(FILE * source, FILE * dest, size_t * dest_len) {
+errno_t spooky_deflate_file(FILE * source, FILE * dest, size_t * dest_len) {
 /* From: http://www.zlib.net/zlib_how.html */
 /* This is an ugly hack required to avoid corruption of the input and output
  * data on Windows/MS-DOS systems. Without this, those systems would assume
@@ -341,33 +343,41 @@ static bool spooky_write_file(const char * file_path, FILE * fp, uint64_t * cont
     if(fseek(src_file, 0L, SEEK_END) == 0) {
       long inflated_buf_len = ftell(src_file);
       if(inflated_buf_len == -1) { abort(); }
+      assert(inflated_buf_len < LONG_MAX);
 
-      inflated_buf = calloc(1, (size_t)(inflated_buf_len));
-      deflated_buf =  calloc(1, (size_t)(inflated_buf_len));
-      if(fseek(src_file, 0L, SEEK_SET) != 0) { /* Error */ }
+      inflated_buf = calloc(1, (size_t)inflated_buf_len);
+      deflated_buf = calloc(1, (size_t)inflated_buf_len);
 
-      size_t new_len = fread(inflated_buf, sizeof(char), (size_t)inflated_buf_len, src_file);
+      if(fseek(src_file, 0L, SEEK_SET) != 0) { abort(); }
+
+      //size_t new_len = fread(inflated_buf, sizeof(char), (size_t)inflated_buf_len, src_file);
       if(ferror(src_file) != 0) {
         abort();
       } else {
-        //inflated_buf[new_len] = '\0';
         spooky_pack_item_type type = spit_bin_file;
+        /* write the type (bin-file) to the stream: */
         spooky_write_item_type(type, fp, content_len);
+        /* write the file path to the stream: */
         spooky_write_string(file_path, fp, content_len);
 
-        FILE * inflated_fp = fmemopen(inflated_buf, new_len, "r+");
-        FILE * deflated_fp = fmemopen(deflated_buf, new_len, "r+");
-        size_t deflated_buf_len = 0;
-        spooky_deflate_file(inflated_fp, deflated_fp, &deflated_buf_len);
+        {
+          FILE * inflated_fp = fmemopen(inflated_buf, (size_t)inflated_buf_len, "r");
+          {
+            FILE * deflated_fp = fmemopen(deflated_buf, (size_t)inflated_buf_len, "r+");
+            size_t deflated_buf_len = 0;
+           
+            /* compress the file: */
+            spooky_deflate_file(inflated_fp, deflated_fp, &deflated_buf_len);
+            /* write the compressed file length to the stream: */
+            spooky_write_uint64(deflated_buf_len, fp, content_len);
+            /* write the compressed file to the stream: */
+            spooky_write_raw(deflated_buf, deflated_buf_len, fp);
 
-        spooky_write_uint64(deflated_buf_len, fp, content_len);
-        
-        spooky_write_raw(deflated_buf, deflated_buf_len, fp);
-        if(content_len != NULL) {
-          *content_len += deflated_buf_len;
+            if(content_len != NULL) { *content_len += deflated_buf_len; }
+            fclose(deflated_fp);
+          }
+          fclose(inflated_fp);
         }
-        fclose(inflated_fp);
-        fclose(deflated_fp);
       }
     }
     fclose(src_file);
