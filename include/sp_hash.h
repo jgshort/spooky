@@ -6,15 +6,16 @@ extern "C" {
 #endif
 
 #include <stdlib.h>
+#include "sp_atom.h"
 #include "sp_str.h"
 
 typedef struct spooky_hash_table_impl spooky_hash_table_impl;
-typedef struct spooky_atom spooky_atom;
-struct spooky_atom_impl;
+//typedef struct spooky_atom spooky_atom;
+//struct spooky_atom_impl;
 
-typedef struct spooky_atom {
-	struct spooky_atom_impl * impl;
-} spooky_atom;
+//typedef struct spooky_atom {
+//	struct spooky_atom_impl * impl;
+//} spooky_atom;
 
 typedef struct spooky_hash_table spooky_hash_table;
 typedef struct spooky_hash_table {

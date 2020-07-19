@@ -9,12 +9,6 @@
 
 static size_t SPOOKY_HASH_MAX_STR_LEN = 2048;
 
-typedef struct spooky_atom_impl {
-  unsigned long id;
-  unsigned long hash;
-  const spooky_str * str;
-} spooky_atom_impl;
-
 typedef struct spooky_array_limits {
   size_t len;
   size_t capacity;
@@ -25,8 +19,6 @@ static const unsigned long primes[] = {
   #include "primes.dat"
 };
 
-static unsigned long spooky_hash_next_id = 0;
-
 static errno_t spooky_hash_ensure(const spooky_hash_table * self, const char * str, const spooky_atom ** atom, unsigned long * hash, unsigned long * bucket_index);
 static errno_t spooky_hash_get_atom(const spooky_hash_table * self, const char * str, spooky_atom ** atom);
 static errno_t spooky_hash_find_by_id(const spooky_hash_table * self, int id, const char ** str);
@@ -36,7 +28,7 @@ static void spooky_hash_clear_strings(const spooky_hash_table * self);
 typedef struct spooky_hash_bucket_item spooky_hash_bucket_item;
 
 typedef struct spooky_hash_bucket_item {
-  spooky_atom * atom; 
+  const spooky_atom * atom; 
   spooky_hash_bucket_item * next;
   spooky_hash_bucket_item * prev;
 } spooky_hash_bucket_item;
@@ -188,20 +180,11 @@ errno_t spooky_hash_ensure(const spooky_hash_table * self, const char * str, con
     bucket->items_limits.capacity = 1 << 10;
     bucket->items = calloc(sizeof * bucket->items, bucket->items_limits.capacity);
 
-    spooky_atom * temp_atom = calloc(1, sizeof * temp_atom);
     char * temp = spooky_hash_move_string_to_strings(self, str);
-		spooky_atom_impl * temp_atom_impl = calloc(1, sizeof * temp_atom_impl);
 
-    spooky_str * p;
-    if(spooky_str_alloc(temp, strnlen(str, SPOOKY_HASH_MAX_STR_LEN), &p, NULL)) {
-      temp_atom_impl->id = ++spooky_hash_next_id;
-      temp_atom_impl->hash = p->hash;
-      temp_atom_impl->str = p;
-    } else {
-			abort();
-		}
-		temp_atom->impl = temp_atom_impl;
-
+    const spooky_atom * temp_atom = spooky_atom_acquire();
+    temp_atom = temp_atom->ctor(temp_atom, temp);
+    
     spooky_hash_bucket_item * item = &bucket->items[0];
     item->next = item;
     item->prev = item;
@@ -225,11 +208,10 @@ errno_t spooky_hash_ensure(const spooky_hash_table * self, const char * str, con
     return SP_SUCCESS;
   }
 
-  spooky_atom * temp_atom = calloc(1, sizeof * temp_atom);
-	spooky_atom_impl * temp_atom_impl = calloc(1, sizeof * temp_atom_impl);
-  temp_atom_impl->id = ++spooky_hash_next_id;
-  temp_atom_impl->hash = h;
-	temp_atom->impl = temp_atom_impl;
+  const spooky_atom * temp_atom = spooky_atom_acquire();
+  temp_atom = temp_atom->ctor(temp_atom, temp);
+ 
+  *atom = temp_atom;
 
   *hash = h;
   *bucket_index = index;
