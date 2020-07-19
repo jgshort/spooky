@@ -1,9 +1,13 @@
+#define _POSIX_C_SOURCE 200809L
+
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdint.h>
 #include "sp_error.h"
 #include "sp_hash.h"
+
+static size_t SPOOKY_HASH_MAX_STR_LEN = 2048;
 
 typedef struct spooky_atom_impl {
   unsigned long id;
@@ -64,9 +68,8 @@ static spooky_hash_table_impl * SP_DCAST(const spooky_hash_table * self) {
   return (spooky_hash_table_impl *)(uintptr_t)((spooky_hash_table *)(uintptr_t)(self))->impl;
 }
 
-/* Allocate (malloc) interface */
 const spooky_hash_table * spooky_hash_table_alloc() {
-  spooky_hash_table * table = malloc(sizeof * table);
+  spooky_hash_table * table = calloc(1, sizeof * table);
   if(!table) goto err0;
 
   return table;
@@ -75,7 +78,6 @@ err0:
   abort();
 }
 
-/* Initialize interface methods */
 const spooky_hash_table * spooky_hash_table_init(spooky_hash_table * self) {
 	self->ctor = &spooky_hash_table_ctor;
   self->dtor = &spooky_hash_table_dtor;
@@ -87,14 +89,12 @@ const spooky_hash_table * spooky_hash_table_init(spooky_hash_table * self) {
   return self;
 }
 
-/* Allocate and initialize interface methods */
 const spooky_hash_table * spooky_hash_table_acquire() {
   return spooky_hash_table_init(SP_UNCONST(spooky_hash_table_alloc()));
 }
 
-/* Construct impl */
 const spooky_hash_table * spooky_hash_table_ctor(const spooky_hash_table * self) {
-  spooky_hash_table_impl * impl = malloc(sizeof * self->impl); 
+  spooky_hash_table_impl * impl = calloc(1, sizeof * self->impl); 
   if(!impl) goto err0;
 
   memset(impl, 0, sizeof * impl);
@@ -182,7 +182,7 @@ errno_t spooky_hash_ensure(const spooky_hash_table * self, const char * str, con
   spooky_hash_bucket_index * bucket = impl->indices[index];
 
   if(!bucket) {
-    bucket = malloc(sizeof * bucket);
+    bucket = calloc(1, sizeof * bucket);
     bucket->prime = primes[index];
     bucket->items_limits.len = 0;
     bucket->items_limits.capacity = 1 << 10;
@@ -190,17 +190,17 @@ errno_t spooky_hash_ensure(const spooky_hash_table * self, const char * str, con
 
     spooky_atom * temp_atom = calloc(1, sizeof * temp_atom);
     char * temp = spooky_hash_move_string_to_strings(self, str);
-		spooky_atom_impl * atom_impl = calloc(1, sizeof * atom_impl);
+		spooky_atom_impl * temp_atom_impl = calloc(1, sizeof * temp_atom_impl);
 
     spooky_str * p;
-    if(spooky_str_alloc(temp, strlen(str), &p, NULL)) {
-      atom_impl->id = ++spooky_hash_next_id;
-      atom_impl->hash = p->hash;
-      atom_impl->str = p;
+    if(spooky_str_alloc(temp, strnlen(str, SPOOKY_HASH_MAX_STR_LEN), &p, NULL)) {
+      temp_atom_impl->id = ++spooky_hash_next_id;
+      temp_atom_impl->hash = p->hash;
+      temp_atom_impl->str = p;
     } else {
 			abort();
 		}
-		temp_atom->impl = atom_impl;
+		temp_atom->impl = temp_atom_impl;
 
     spooky_hash_bucket_item * item = &bucket->items[0];
     item->next = item;
@@ -226,10 +226,10 @@ errno_t spooky_hash_ensure(const spooky_hash_table * self, const char * str, con
   }
 
   spooky_atom * temp_atom = calloc(1, sizeof * temp_atom);
-	spooky_atom_impl * atom_impl = calloc(1, sizeof * atom_impl);
-  atom_impl->id = ++spooky_hash_next_id;
-  atom_impl->hash = h;
-	temp_atom->impl = atom_impl;
+	spooky_atom_impl * temp_atom_impl = calloc(1, sizeof * temp_atom_impl);
+  temp_atom_impl->id = ++spooky_hash_next_id;
+  temp_atom_impl->hash = h;
+	temp_atom->impl = temp_atom_impl;
 
   *hash = h;
   *bucket_index = index;
@@ -254,17 +254,21 @@ errno_t spooky_hash_find_by_id(const spooky_hash_table * self, int id, const cha
 char * spooky_hash_move_string_to_strings(const spooky_hash_table * self, const char * str) {
   spooky_hash_table_impl * impl = SP_DCAST(self);
 
-  if(!str) return NULL;
+  if(!str) { return NULL; }
 
   if(impl->strings_limits.len + 1 > impl->strings_limits.capacity) {
     /* reallocate strings */ 
     impl->strings_limits.capacity += (size_t)(1 << 10);
-    impl->strings = realloc(impl->strings, sizeof * impl->strings * impl->strings_limits.capacity);
+		char ** temp = realloc(impl->strings, sizeof * impl->strings * impl->strings_limits.capacity);
+		if(!temp) { 
+			abort();
+		}
+    impl->strings = temp;
   }
 
-  size_t len = strlen(str); /* not inc null-terminating char */
+  size_t len = strnlen(str, SPOOKY_HASH_MAX_STR_LEN); /* not inc null-terminating char */
 
-  char * temp = malloc(len + 1);
+  char * temp = calloc(1, len + 1);
   if(!temp) abort();
 
   memcpy(temp, str, len);
