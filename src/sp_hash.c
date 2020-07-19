@@ -190,31 +190,26 @@ errno_t spooky_hash_ensure(const spooky_hash_table * self, const char * str, con
     item->prev = item;
     item->atom = temp_atom;
 
-    if(atom) {
-      *atom = item->atom;
-		}
-
     *hash = h;
     *bucket_index = index;
+    if(atom) { *atom = item->atom; }
 
     return SP_SUCCESS;
   }
 
   char * temp = spooky_hash_move_string_to_strings(self, str);
-  if(!temp) {
-    ((spooky_atom *)(uintptr_t)*atom)->impl = NULL;
-    *hash = 0;
-    *bucket_index = 0;
-    return SP_SUCCESS;
-  }
 
   const spooky_atom * temp_atom = spooky_atom_acquire();
-  temp_atom = temp_atom->ctor(temp_atom, temp);
- 
-  *atom = temp_atom;
+  temp_atom = spooky_atom_ctor(temp_atom, temp);
 
-  *hash = h;
-  *bucket_index = index;
+  if(!temp) {
+    *hash = 0;
+    *bucket_index = 0;
+  } else {
+    *hash = h;
+    *bucket_index = index;
+  }
+  *atom = temp_atom;
 
   return SP_SUCCESS;
 }

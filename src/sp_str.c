@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 
 #include "sp_str.h"
 
@@ -56,4 +57,8 @@ err0:
   return SP_FAILURE;
 }
 
+void spooky_str_free(spooky_str * str) {
+  free(str->str), str->str = NULL;
+  free(str), str = NULL;
+}
 

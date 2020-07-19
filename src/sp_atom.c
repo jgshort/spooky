@@ -49,30 +49,35 @@ const spooky_atom * spooky_atom_acquire() {
 }
 
 const spooky_atom * spooky_atom_ctor(const spooky_atom * self, const char * str) {
-  const spooky_ex * ex = NULL;
-
   spooky_atom_impl * impl = calloc(1, sizeof * impl);
   if(!impl) { goto err0; }
 
-  spooky_str * p;
-  if(spooky_str_alloc(str, strnlen(str, SPOOKY_ATOM_MAX_STR_LEN), &p, NULL)) {
+  if(str) {
+    spooky_str * p;
+    if(spooky_str_alloc(str, strnlen(str, SPOOKY_ATOM_MAX_STR_LEN), &p, NULL) != SP_SUCCESS) { goto err1; }
+
     impl->id = ++spooky_atom_next_id;
     impl->hash = p->hash;
     impl->str = p;
   } else {
-    abort();
+    impl->id = 0;
+    impl->hash = 0;
+    impl->str = NULL;
   }
   
   ((spooky_atom *)(uintptr_t)self)->impl = impl;
 
   return self;
 
+err1:
+  free(impl), impl = NULL;
+
 err0:
-  fprintf(stderr, "%s\n", ex->msg);
   abort();
 }
 
 const spooky_atom * spooky_atom_dtor(const spooky_atom * self) {
+  spooky_str_free((spooky_str *)(uintptr_t)self->impl->str);
   free(self->impl), ((spooky_atom *)(uintptr_t)self)->impl = NULL;
   return self;
 }

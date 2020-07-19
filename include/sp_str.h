@@ -16,6 +16,7 @@ typedef struct spooky_str {
 unsigned long spooky_hash_str(const char * restrict /* str */);
 
 errno_t spooky_str_alloc(const char * /* s */, size_t /* len */, spooky_str ** /* out_str */, const spooky_ex ** /* ex */);
+void spooky_str_free(spooky_str * /* str */);
 
 #ifdef __cplusplus
 }
