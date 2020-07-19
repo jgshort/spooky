@@ -119,7 +119,7 @@ err0:
   abort();
 }
 
-static void spooky_hash_clear_strings(const spooky_hash_table * self) {
+void spooky_hash_clear_strings(const spooky_hash_table * self) {
   spooky_hash_table_impl * impl = SP_DCAST(self);
   char ** next = impl->strings;
   char ** end = impl->strings + impl->strings_limits.len;
@@ -132,7 +132,7 @@ static void spooky_hash_clear_strings(const spooky_hash_table * self) {
   free(impl->strings), impl->strings = NULL;
 }
 
-static void spooky_hash_clear_indices(const spooky_hash_table * self) {
+void spooky_hash_clear_indices(const spooky_hash_table * self) {
   spooky_hash_table_impl * impl = SP_DCAST(self);
 
   spooky_hash_bucket_index * next = impl->indices[0];
@@ -171,7 +171,7 @@ void spooky_hash_table_release(const spooky_hash_table * self) {
   self->free(self->dtor(self));
 }
 
-static errno_t spooky_hash_ensure(const spooky_hash_table * self, const char * str, const spooky_atom ** atom, unsigned long * hash, unsigned long * bucket_index) {
+errno_t spooky_hash_ensure(const spooky_hash_table * self, const char * str, const spooky_atom ** atom, unsigned long * hash, unsigned long * bucket_index) {
   if(!str) { return SP_FAILURE; }
 
   spooky_hash_table_impl * impl = SP_DCAST(self);
@@ -237,21 +237,21 @@ static errno_t spooky_hash_ensure(const spooky_hash_table * self, const char * s
   return SP_SUCCESS;
 }
 
-static errno_t spooky_hash_get_atom(const spooky_hash_table * self, const char * str, spooky_atom ** atom) {
+errno_t spooky_hash_get_atom(const spooky_hash_table * self, const char * str, spooky_atom ** atom) {
   (void)self;
   (void)str;
   (void)atom;
   return 0;
 }
 
-static errno_t spooky_hash_find_by_id(const spooky_hash_table * self, int id, const char ** str) {
+errno_t spooky_hash_find_by_id(const spooky_hash_table * self, int id, const char ** str) {
   (void)self;
   (void)id;
   (void)str;
   return 0;
 }
 
-static char * spooky_hash_move_string_to_strings(const spooky_hash_table * self, const char * str) {
+char * spooky_hash_move_string_to_strings(const spooky_hash_table * self, const char * str) {
   spooky_hash_table_impl * impl = SP_DCAST(self);
 
   if(!str) return NULL;

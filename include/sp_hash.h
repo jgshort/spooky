@@ -16,8 +16,6 @@ typedef struct spooky_atom {
 	struct spooky_atom_impl * impl;
 } spooky_atom;
 
-extern const struct spooky_atom_impl * NULL_ATOM;
-
 typedef struct spooky_hash_table spooky_hash_table;
 typedef struct spooky_hash_table {
   const spooky_hash_table * (*ctor)(const spooky_hash_table * /* self */);
