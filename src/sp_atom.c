@@ -20,11 +20,18 @@ typedef struct spooky_atom_impl {
   const spooky_str * str;
 } spooky_atom_impl;
 
+static unsigned long spooky_atom_get_id(const spooky_atom * self);
+static unsigned long spooky_atom_get_hash(const spooky_atom * self);
+static const spooky_str * spooky_atom_get_str(const spooky_atom * self);
+
 static const spooky_atom spooky_atom_funcs = {
   .ctor = &spooky_atom_ctor,
   .dtor = &spooky_atom_dtor,
   .free = &spooky_atom_free,
-  .release = &spooky_atom_release
+  .release = &spooky_atom_release,
+  .get_id = &spooky_atom_get_id,
+  .get_hash = &spooky_atom_get_hash,
+  .get_str = &spooky_atom_get_str
 };
 
 const spooky_atom * spooky_atom_alloc() {
@@ -40,7 +47,7 @@ err0:
 
 const spooky_atom * spooky_atom_init(spooky_atom * self) {
   assert(self);
-  memcpy(self, &spooky_atom_funcs, sizeof spooky_atom_funcs);
+  memmove(self, &spooky_atom_funcs, sizeof spooky_atom_funcs);
   return self;
 }
 
@@ -49,14 +56,17 @@ const spooky_atom * spooky_atom_acquire() {
 }
 
 const spooky_atom * spooky_atom_ctor(const spooky_atom * self, const char * str) {
+  const spooky_ex * ex = NULL;
+  
   spooky_atom_impl * impl = calloc(1, sizeof * impl);
   if(!impl) { goto err0; }
-
+  
   if(str) {
     const spooky_str * p;
-    if(spooky_str_alloc(str, strnlen(str, SPOOKY_MAX_STRING_LEN), &p, NULL) != SP_SUCCESS) { goto err1; }
+    if(spooky_str_alloc(str, strnlen(str, SPOOKY_MAX_STRING_LEN), &p, &ex) != SP_SUCCESS) { goto err1; }
 
-    impl->id = ++spooky_atom_next_id;
+    ++spooky_atom_next_id;
+    impl->id = spooky_atom_next_id;
     impl->hash = p->hash;
     impl->str = p;
   } else {
@@ -73,11 +83,15 @@ err1:
   free(impl), impl = NULL;
 
 err0:
+  if(ex) { fprintf(stderr, "%s\n", ex->msg); }
   abort();
 }
 
 const spooky_atom * spooky_atom_dtor(const spooky_atom * self) {
-  spooky_str_free((spooky_str *)(uintptr_t)self->impl->str);
+  if(self->impl->str) {
+    spooky_str_free((spooky_str *)(uintptr_t)self->impl->str);
+  }
+
   free(self->impl), ((spooky_atom *)(uintptr_t)self)->impl = NULL;
   return self;
 }
@@ -88,6 +102,18 @@ void spooky_atom_free(const spooky_atom * self) {
 
 void spooky_atom_release(const spooky_atom * self) {
   self->free(self->dtor(self));
+}
+
+unsigned long spooky_atom_get_id(const spooky_atom * self) {
+  return self->impl->id;
+}
+
+unsigned long spooky_atom_get_hash(const spooky_atom * self) {
+  return self->impl->hash;
+}
+
+const spooky_str * spooky_atom_get_str(const spooky_atom * self) {
+  return self->impl->str;
 }
 
 
