@@ -1,4 +1,5 @@
 spooky_SOURCES = \
+								 sp_limits.c \
 								 sp_math.c \
 								 sp_error.c \
 								 sp_atom.c \

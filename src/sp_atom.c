@@ -6,12 +6,12 @@
 #include <stdint.h>
 #include <stdio.h>
 
+#include "sp_limits.h"
 #include "sp_error.h"
 #include "sp_iter.h"
 #include "sp_atom.h"
 #include "sp_str.h"
 
-static const size_t SPOOKY_ATOM_MAX_STR_LEN = 2048;
 static unsigned long spooky_atom_next_id = 0;
 
 typedef struct spooky_atom_impl {
@@ -54,7 +54,7 @@ const spooky_atom * spooky_atom_ctor(const spooky_atom * self, const char * str)
 
   if(str) {
     const spooky_str * p;
-    if(spooky_str_alloc(str, strnlen(str, SPOOKY_ATOM_MAX_STR_LEN), &p, NULL) != SP_SUCCESS) { goto err1; }
+    if(spooky_str_alloc(str, strnlen(str, SPOOKY_MAX_STRING_LEN), &p, NULL) != SP_SUCCESS) { goto err1; }
 
     impl->id = ++spooky_atom_next_id;
     impl->hash = p->hash;

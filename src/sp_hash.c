@@ -4,10 +4,9 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdint.h>
+#include "sp_limits.h"
 #include "sp_error.h"
 #include "sp_hash.h"
-
-static size_t SPOOKY_HASH_MAX_STR_LEN = 2048;
 
 typedef struct spooky_array_limits {
   size_t len;
@@ -243,7 +242,7 @@ char * spooky_hash_move_string_to_strings(const spooky_hash_table * self, const 
     impl->strings = temp;
   }
 
-  size_t len = strnlen(str, SPOOKY_HASH_MAX_STR_LEN); /* not inc null-terminating char */
+  size_t len = strnlen(str, SPOOKY_MAX_STRING_LEN); /* not inc null-terminating char */
 
   char * temp = calloc(1, len + 1);
   if(!temp) abort();

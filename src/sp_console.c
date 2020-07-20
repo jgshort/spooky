@@ -5,12 +5,12 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include "config.h"
+#include "sp_limits.h"
 #include "sp_gui.h"
 #include "sp_base.h"
 #include "sp_context.h"
 #include "sp_console.h"
 
-static const size_t spooky_console_max_line_capacity = 1024;
 static const int spooky_console_max_display_lines = 1024;
 static const int spooky_console_animation_speed = 128;
 static const int spooky_console_max_input_len = 80;
@@ -138,7 +138,7 @@ const spooky_console * spooky_console_ctor(const spooky_console * self, const sp
 
   impl->current_command = NULL;
   impl->text_len = 0;
-  impl->text_capacity = spooky_console_max_line_capacity;
+  impl->text_capacity = SPOOKY_MAX_STRING_LEN;
   impl->text = calloc(impl->text_capacity, sizeof * impl->text);;
 
   const spooky_ex * ex = NULL;
@@ -185,7 +185,7 @@ bool spooky_console_handle_event(const spooky_base * self, SDL_Event * event) {
       spooky_console_push_str_impl((const spooky_console *)self, impl->text, true);
       free(impl->text), impl->text = NULL;
       impl->text_len = 0;
-      impl->text_capacity = spooky_console_max_line_capacity;
+      impl->text_capacity = SPOOKY_MAX_STRING_LEN;
       impl->text = calloc(impl->text_capacity, sizeof * impl->text);
     }
     else if(event->type == SDL_TEXTINPUT) {
@@ -194,7 +194,7 @@ bool spooky_console_handle_event(const spooky_base * self, SDL_Event * event) {
         size_t input_len = strnlen(event->text.text, spooky_console_max_input_len);
         if(input_len + impl->text_len <= spooky_console_max_input_len) {
           if(impl->text_len + input_len > impl->text_capacity) {
-            impl->text_capacity += spooky_console_max_line_capacity;
+            impl->text_capacity += SPOOKY_MAX_STRING_LEN;
             char * temp = realloc(impl->text, impl->text_capacity * sizeof * impl->text);
             if(temp == NULL) {
               abort();
@@ -348,7 +348,7 @@ void spooky_console_render(const spooky_base * self, SDL_Renderer * renderer) {
         dest.x += chevron_w;
        
         {
-          char * text = calloc(spooky_console_max_line_capacity, sizeof * text);
+          char * text = calloc(SPOOKY_MAX_STRING_LEN, sizeof * text);
           if(!text) { abort(); }
           snprintf(text, spooky_console_max_input_len, "%s", impl->text + offset);
           int text_width;
@@ -389,7 +389,7 @@ void spooky_console_push_str_impl(const spooky_console * self, const char * str,
   if(strings == NULL) { abort(); }
   size_t split_count = 0;
   
-  char * working_str = strndup(str, spooky_console_max_line_capacity);
+  char * working_str = strndup(str, SPOOKY_MAX_STRING_LEN);
   char * save_ptr = NULL, * token = NULL;
   char * ws = working_str;
   while((token = strtok_r(ws, "\n", &save_ptr)) != NULL) {
@@ -403,7 +403,7 @@ void spooky_console_push_str_impl(const spooky_console * self, const char * str,
     }
     assert(split_count < strings_capacity);
     /* duped string[sc] freed in dtor; copied below on line->line = string: */
-    strings[split_count] = strndup(token, spooky_console_max_line_capacity); 
+    strings[split_count] = strndup(token, SPOOKY_MAX_STRING_LEN); 
     split_count++;
     ws = NULL;
   }
@@ -414,7 +414,7 @@ void spooky_console_push_str_impl(const spooky_console * self, const char * str,
     char * string = strings[split];
     if(string == NULL) { continue; }
     line->line = string;
-    line->line_len = strnlen(string, spooky_console_max_line_capacity);
+    line->line_len = strnlen(string, SPOOKY_MAX_STRING_LEN);
     line->is_command = is_command;
     if(self->impl->lines->count > spooky_console_max_display_lines && self->impl->lines->head->next != NULL) {
       spooky_console_line * deleted = self->impl->lines->head->next;
@@ -460,7 +460,7 @@ void spooky_console_clear_console(const spooky_console * self) {
   free(impl->lines->head), impl->lines->head = NULL;
 
   free(impl->text), impl->text = NULL;
-  impl->text_capacity =spooky_console_max_line_capacity;
+  impl->text_capacity =SPOOKY_MAX_STRING_LEN;
   impl->text = calloc(impl->text_capacity, sizeof * impl->text);
   impl->text_len = 0;
 }
