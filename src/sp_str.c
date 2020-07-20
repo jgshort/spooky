@@ -22,7 +22,7 @@ unsigned long spooky_hash_str(const char * restrict str) {
   return hash;
 }
 
-errno_t spooky_str_alloc(const char * s, size_t len, spooky_str ** out_str, const spooky_ex ** ex) {
+errno_t spooky_str_alloc(const char * s, size_t len, const spooky_str ** out_str, const spooky_ex ** ex) {
   assert(s && len > 0 && out_str);
   if(!s || len == 0 || !out_str) { goto err0; }
 
@@ -31,21 +31,21 @@ errno_t spooky_str_alloc(const char * s, size_t len, spooky_str ** out_str, cons
   assert(s_nlen == len);
   if(s_nlen != len) { goto err0; }
 
-  *out_str = calloc(1, sizeof * (*out_str));
-  if(!(*out_str)) { goto err1; }
+  spooky_str * temp = calloc(1, sizeof * temp);
+  if(!temp) { goto err1; }
 
-  (*out_str)->hash = spooky_hash_str(s);
-  (*out_str)->len = s_nlen;
-  (*out_str)->str = calloc(s_nlen, sizeof (*out_str)->str[0]);
-  if(!(*out_str)->str) { goto err2; }
+  temp->hash = spooky_hash_str(s);
+  temp->len = s_nlen;
+  temp->str = calloc(s_nlen, sizeof temp->str[0]);
+  if(!temp->str) { goto err2; }
 
-  memcpy((*out_str)->str, s, sizeof (*out_str)->str[0] * s_nlen);
-  (*out_str)->str[s_nlen] = '\0';
-
+  memcpy(temp->str, s, sizeof temp->str[0] * s_nlen);
+  temp->str[s_nlen] = '\0';
+  *out_str = temp;
   return SP_SUCCESS;
 
 err2: /* *out_str calloc failure */
-  free(*out_str), *out_str = NULL;
+  free(temp), temp = NULL;
   if(ex) { *ex = &spooky_alloc_ex; }
   goto err0;
 

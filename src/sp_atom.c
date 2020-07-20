@@ -53,7 +53,7 @@ const spooky_atom * spooky_atom_ctor(const spooky_atom * self, const char * str)
   if(!impl) { goto err0; }
 
   if(str) {
-    spooky_str * p;
+    const spooky_str * p;
     if(spooky_str_alloc(str, strnlen(str, SPOOKY_ATOM_MAX_STR_LEN), &p, NULL) != SP_SUCCESS) { goto err1; }
 
     impl->id = ++spooky_atom_next_id;
