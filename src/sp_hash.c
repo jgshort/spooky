@@ -52,6 +52,8 @@ typedef struct spooky_hash_table_impl {
   int * ids;
 } spooky_hash_table_impl;
 
+static void spooky_bucket_item_list_prepend(spooky_hash_bucket_item * head, spooky_hash_bucket_item * item);
+
 const spooky_hash_table * spooky_hash_table_alloc() {
   spooky_hash_table * table = calloc(1, sizeof * table);
   if(!table) goto err0;
@@ -152,7 +154,7 @@ void spooky_hash_table_free(const spooky_hash_table * self) {
 void spooky_hash_table_release(const spooky_hash_table * self) {
   self->free(self->dtor(self));
 }
-static void spooky_bucket_item_list_prepend(spooky_hash_bucket_item * head, spooky_hash_bucket_item * item);
+
 errno_t spooky_hash_ensure(const spooky_hash_table * self, const char * str, const spooky_atom ** atom, unsigned long * hash, unsigned long * bucket_index) {
   if(!str) { return SP_FAILURE; }
 
@@ -170,6 +172,7 @@ errno_t spooky_hash_ensure(const spooky_hash_table * self, const char * str, con
     bucket->items_limits.len = 0;
     bucket->items_limits.capacity = 1 << 10;
     bucket->items = calloc(sizeof * bucket->items, bucket->items_limits.capacity);
+    if(!bucket->items) { goto err0; }
 
     const char * temp = spooky_hash_move_string_to_strings(self, str);
 
@@ -229,7 +232,12 @@ errno_t spooky_hash_ensure(const spooky_hash_table * self, const char * str, con
     *bucket_index = 0;
   }
 
-  /* TODO: Rezie bucket items if len + 1> capacity */
+  if(bucket->items_limits.len + 1 > bucket->items_limits.capacity) {
+    bucket->items_limits.capacity += 1 << 10;
+    spooky_hash_bucket_item * temp_items = realloc(bucket->items, sizeof * bucket->items * bucket->items_limits.capacity);
+    if(!temp_items) { goto err0; }
+    bucket->items = temp_items;
+  }
 
   spooky_hash_bucket_item * new_item = &bucket->items[bucket->items_limits.len];
   spooky_hash_bucket_item * head = &bucket->items[0];
@@ -242,6 +250,9 @@ errno_t spooky_hash_ensure(const spooky_hash_table * self, const char * str, con
   *atom = temp_atom;
 
   return SP_SUCCESS;
+
+err0:
+  abort();
 }
 
 static void spooky_bucket_item_list_prepend(spooky_hash_bucket_item * head, spooky_hash_bucket_item * item) {
@@ -275,9 +286,8 @@ const char * spooky_hash_move_string_to_strings(const spooky_hash_table * self, 
     /* reallocate strings */ 
     impl->strings_limits.capacity += (size_t)(1 << 10);
 		const char ** temp = realloc(impl->strings, sizeof * impl->strings * impl->strings_limits.capacity);
-		if(!temp) { 
-			abort();
-		}
+		if(!temp) { goto err0; }
+
     impl->strings = temp;
   }
 
