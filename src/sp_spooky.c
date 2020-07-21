@@ -14,6 +14,7 @@
 #include "config.h"
 #include "sp_error.h"
 #include "sp_math.h"
+#include "sp_hash.h"
 #include "sp_pak.h"
 #include "sp_gui.h"
 #include "sp_font.h"
@@ -32,6 +33,45 @@ static errno_t spooky_command_parser(spooky_context * context, const spooky_cons
 int main(int argc, char **argv) {
   (void)argc;
   (void)argv;
+
+  const spooky_hash_table * hash = spooky_hash_table_acquire();
+  hash = hash->ctor(hash);
+//  errno_t (*ensure)(const spooky_hash_table * /* self */, const char * /* str */, const spooky_atom ** /* atom */, unsigned long * /* hash */, unsigned long * /* bucket_index */);
+  unsigned long index = 0;
+  unsigned long h = 0;
+  const spooky_atom * atom = NULL;
+
+  if(hash->ensure(hash, "hello, world", &atom, &h, &index) != SP_SUCCESS) { abort(); }
+  if(hash->ensure(hash, "hello, world", &atom, &h, &index) != SP_SUCCESS) { abort(); }
+  if(hash->ensure(hash, "hello, world 0", &atom, &h, &index) != SP_SUCCESS) { abort(); }
+  if(hash->ensure(hash, "hello, world 1", &atom, &h, &index) != SP_SUCCESS) { abort(); }
+  if(hash->ensure(hash, "hello, world 2", &atom, &h, &index) != SP_SUCCESS) { abort(); }
+    
+  fprintf(stdout, "Hash: %lu, index: %lu, atom: %s, ref_count: %lu\n", h, index, atom->get_str(atom)->str, (unsigned long)atom->get_ref_count(atom));
+
+  FILE *wfp = fopen("words.txt", "r");
+  if(wfp == NULL) {
+    perror("Unable to open file!");
+    exit(1);
+  }
+
+  char * line = calloc(1024, sizeof * line);;
+  size_t len = 0;
+
+  ssize_t read = 0;
+  while((read = getline(&line, &len, wfp)) != -1) {
+    char * x = calloc((size_t)read - 1, sizeof * x);
+    memmove(x, line, read - 1);
+    x[read - 1] = '\0'; /* trim the \n */
+    if(hash->ensure(hash, x, &atom, &h, &index) != SP_SUCCESS) { abort(); }
+    free(x), x = NULL;
+  }
+  free(line), line = NULL;
+  fclose(wfp);
+
+  hash->print_stats(hash);
+  
+  if(h && index) { exit(0); }
 
   spooky_pack_tests();
 

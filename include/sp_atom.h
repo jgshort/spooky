@@ -17,6 +17,9 @@ typedef struct spooky_atom {
 
   unsigned long (*get_id)(const spooky_atom * /* self */);
   unsigned long (*get_hash)(const spooky_atom * /* self */);
+  size_t (*get_ref_count)(const spooky_atom * /* self */);
+  void (*inc_ref_count)(const spooky_atom * /* self */);
+  void (*dec_ref_count)(const spooky_atom * /* self */);
   const spooky_str * (*get_str)(const spooky_atom * /* self */);
 
   struct spooky_atom_impl * impl;

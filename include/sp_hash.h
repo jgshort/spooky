@@ -10,12 +10,6 @@ extern "C" {
 #include "sp_str.h"
 
 typedef struct spooky_hash_table_impl spooky_hash_table_impl;
-//typedef struct spooky_atom spooky_atom;
-//struct spooky_atom_impl;
-
-//typedef struct spooky_atom {
-//	struct spooky_atom_impl * impl;
-//} spooky_atom;
 
 typedef struct spooky_hash_table spooky_hash_table;
 typedef struct spooky_hash_table {
@@ -28,6 +22,7 @@ typedef struct spooky_hash_table {
   errno_t (*get_atom)(const spooky_hash_table * /* self */, const char * /* str */, spooky_atom ** /* atom */);
   errno_t (*find_by_id)(const spooky_hash_table * /* self */, int /* id */, const char ** /* str */);
 
+  void (*print_stats)(const spooky_hash_table * /* self */);
   spooky_hash_table_impl * impl;
 } spooky_hash_table;
 

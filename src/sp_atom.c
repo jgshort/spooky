@@ -17,13 +17,17 @@ static unsigned long spooky_atom_next_id = 0;
 typedef struct spooky_atom_impl {
   unsigned long id;
   unsigned long hash;
+  size_t ref_count;
   const spooky_str * str;
 } spooky_atom_impl;
 
 static unsigned long spooky_atom_get_id(const spooky_atom * self);
 static unsigned long spooky_atom_get_hash(const spooky_atom * self);
 static const spooky_str * spooky_atom_get_str(const spooky_atom * self);
-
+static size_t spooky_atom_get_ref_count(const spooky_atom * self);
+static void spooky_atom_inc_ref_count(const spooky_atom * self);
+static void spooky_atom_dec_ref_count(const spooky_atom * self);
+ 
 static const spooky_atom spooky_atom_funcs = {
   .ctor = &spooky_atom_ctor,
   .dtor = &spooky_atom_dtor,
@@ -31,7 +35,10 @@ static const spooky_atom spooky_atom_funcs = {
   .release = &spooky_atom_release,
   .get_id = &spooky_atom_get_id,
   .get_hash = &spooky_atom_get_hash,
-  .get_str = &spooky_atom_get_str
+  .get_str = &spooky_atom_get_str,
+  .get_ref_count = &spooky_atom_get_ref_count,
+  .inc_ref_count =  &spooky_atom_inc_ref_count,
+  .dec_ref_count =  &spooky_atom_dec_ref_count
 };
 
 const spooky_atom * spooky_atom_alloc() {
@@ -60,6 +67,11 @@ const spooky_atom * spooky_atom_ctor(const spooky_atom * self, const char * str)
   
   spooky_atom_impl * impl = calloc(1, sizeof * impl);
   if(!impl) { goto err0; }
+ 
+  impl->id = 0;
+  impl->hash = 0;
+  impl->ref_count = 0;
+  impl->str = NULL;
   
   if(str) {
     const spooky_str * p;
@@ -69,12 +81,8 @@ const spooky_atom * spooky_atom_ctor(const spooky_atom * self, const char * str)
     impl->id = spooky_atom_next_id;
     impl->hash = p->hash;
     impl->str = p;
-  } else {
-    impl->id = 0;
-    impl->hash = 0;
-    impl->str = NULL;
   }
-  
+
   ((spooky_atom *)(uintptr_t)self)->impl = impl;
 
   return self;
@@ -116,4 +124,15 @@ const spooky_str * spooky_atom_get_str(const spooky_atom * self) {
   return self->impl->str;
 }
 
+size_t spooky_atom_get_ref_count(const spooky_atom * self) {
+  return self->impl->ref_count;
+}
+
+void spooky_atom_inc_ref_count(const spooky_atom * self) {
+  self->impl->ref_count++;
+}
+
+void spooky_atom_dec_ref_count(const spooky_atom * self) {
+  self->impl->ref_count--;
+}
 
