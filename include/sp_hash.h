@@ -18,7 +18,7 @@ typedef struct spooky_hash_table {
   void (*free)(const spooky_hash_table * /* self */);
   void (*release)(const spooky_hash_table * /* self */);
 
-  errno_t (*ensure)(const spooky_hash_table * /* self */, const char * /* str */, const spooky_atom ** /* atom */, unsigned long * /* hash */, unsigned long * /* bucket_index */);
+  errno_t (*ensure)(const spooky_hash_table * /* self */, const char * /* str */, const spooky_atom ** /* atom */);
   errno_t (*get_atom)(const spooky_hash_table * /* self */, const char * /* str */, spooky_atom ** /* atom */);
   errno_t (*find_by_id)(const spooky_hash_table * /* self */, int /* id */, const char ** /* str */);
 

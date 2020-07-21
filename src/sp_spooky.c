@@ -36,19 +36,7 @@ int main(int argc, char **argv) {
 
   const spooky_hash_table * hash = spooky_hash_table_acquire();
   hash = hash->ctor(hash);
-//  errno_t (*ensure)(const spooky_hash_table * /* self */, const char * /* str */, const spooky_atom ** /* atom */, unsigned long * /* hash */, unsigned long * /* bucket_index */);
-  unsigned long index = 0;
-  unsigned long h = 0;
-  const spooky_atom * atom = NULL;
-
-  if(hash->ensure(hash, "hello, world", &atom, &h, &index) != SP_SUCCESS) { abort(); }
-  if(hash->ensure(hash, "hello, world", &atom, &h, &index) != SP_SUCCESS) { abort(); }
-  if(hash->ensure(hash, "hello, world 0", &atom, &h, &index) != SP_SUCCESS) { abort(); }
-  if(hash->ensure(hash, "hello, world 1", &atom, &h, &index) != SP_SUCCESS) { abort(); }
-  if(hash->ensure(hash, "hello, world 2", &atom, &h, &index) != SP_SUCCESS) { abort(); }
-    
-  fprintf(stdout, "Hash: %lu, index: %lu, atom: %s, ref_count: %lu\n", h, index, atom->get_str(atom)->str, (unsigned long)atom->get_ref_count(atom));
-
+  
   FILE *wfp = fopen("words.txt", "r");
   if(wfp == NULL) {
     perror("Unable to open file!");
@@ -60,18 +48,22 @@ int main(int argc, char **argv) {
 
   ssize_t read = 0;
   while((read = getline(&line, &len, wfp)) != -1) {
-    char * x = calloc((size_t)read - 1, sizeof * x);
-    memmove(x, line, read - 1);
-    x[read - 1] = '\0'; /* trim the \n */
-    if(hash->ensure(hash, x, &atom, &h, &index) != SP_SUCCESS) { abort(); }
-    free(x), x = NULL;
+    if(read > 1) {
+      char * x = calloc((size_t)read - 1, sizeof * x);
+      memmove(x, line, read - 1);
+      x[read - 1] = '\0'; /* trim the \n */
+      const spooky_atom * atom = NULL;
+      if(hash->ensure(hash, x, &atom) != SP_SUCCESS) { abort(); }
+      free(x), x = NULL;
+    }
   }
   free(line), line = NULL;
   fclose(wfp);
 
-  hash->print_stats(hash);
+//  hash->print_stats(hash);
   
-  if(h && index) { exit(0); }
+  spooky_hash_table_release(hash);
+  if(hash) { exit(0); }
 
   spooky_pack_tests();
 
