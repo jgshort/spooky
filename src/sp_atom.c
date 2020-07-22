@@ -75,7 +75,7 @@ const spooky_atom * spooky_atom_ctor(const spooky_atom * self, const char * str)
   
   if(str) {
     const spooky_str * p;
-    if(spooky_str_alloc(str, strnlen(str, SPOOKY_MAX_STRING_LEN), &p, &ex) != SP_SUCCESS) { goto err1; }
+    if(spooky_str_ref(str, strnlen(str, SPOOKY_MAX_STRING_LEN), &p, &ex) != SP_SUCCESS) { goto err1; }
 
     ++spooky_atom_next_id;
     impl->id = spooky_atom_next_id;
@@ -96,10 +96,6 @@ err0:
 }
 
 const spooky_atom * spooky_atom_dtor(const spooky_atom * self) {
-  if(self->impl->str) {
-    spooky_str_free((spooky_str *)(uintptr_t)self->impl->str);
-  }
-
   free(self->impl), ((spooky_atom *)(uintptr_t)self)->impl = NULL;
   return self;
 }

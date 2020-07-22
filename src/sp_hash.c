@@ -37,7 +37,7 @@ typedef struct spooky_hash_bucket {
   char padding[7]; /* not portable */
   
   spooky_array_limits atoms_limits;
-  const spooky_atom ** atoms;
+  const spooky_atom * atoms;
 } spooky_hash_bucket;
 
 typedef struct spooky_hash_table_impl {
@@ -115,14 +115,13 @@ void spooky_hash_clear_buckets(const spooky_hash_table * self) {
 
   for(size_t i = 0; i < impl->prime; i++) {
     spooky_hash_bucket * bucket = &impl->buckets[i];
-    if(bucket->is_init) {
-      if(bucket->atoms) {
-        for(size_t j = 0; j < bucket->atoms_limits.len; j++) {
-          const spooky_atom * atom = bucket->atoms[j];
-          spooky_atom_release(atom);
-        }
-        free((void *)(uintptr_t)bucket->atoms), bucket->atoms = NULL;
+    if(bucket->is_init && bucket->atoms) {
+      for(size_t j = 0; j < bucket->atoms_limits.len; j++) {
+        const spooky_atom * atom = &(bucket->atoms[j]);
+        (void)atom;
+        //spooky_atom_release(atom);
       }
+      free((void *)(uintptr_t)bucket->atoms), bucket->atoms = NULL;
     }
   }
 
@@ -168,11 +167,11 @@ errno_t spooky_hash_ensure(const spooky_hash_table * self, const char * str, con
 
     const char * str_copy = spooky_hash_move_string_to_strings(self, str);
 
-    const spooky_atom * temp_atom = spooky_atom_acquire();
+    const spooky_atom * temp_atom = &(bucket->atoms[bucket->atoms_limits.len]);
+    temp_atom = spooky_atom_init((spooky_atom *)(uintptr_t)temp_atom);
     temp_atom = temp_atom->ctor(temp_atom, str_copy);
     temp_atom->inc_ref_count(temp_atom);
  
-    bucket->atoms[bucket->atoms_limits.len] = temp_atom;
     bucket->atoms_limits.len++;
 
     impl->buckets_limits.len++;
@@ -185,7 +184,7 @@ errno_t spooky_hash_ensure(const spooky_hash_table * self, const char * str, con
   
   /* check if it already exists */
   for(size_t i = 0; i < bucket->atoms_limits.len; i++) {
-    const spooky_atom * next_atom = bucket->atoms[i];
+    const spooky_atom * next_atom = &(bucket->atoms[i]);
     const spooky_str * atom_str = next_atom->get_str(next_atom);
     const char * atom_str_str = atom_str->str;
     if(atom_str_str == str) {
@@ -205,21 +204,19 @@ errno_t spooky_hash_ensure(const spooky_hash_table * self, const char * str, con
   const char * temp_str = spooky_hash_move_string_to_strings(self, str);
 
   if(bucket->atoms_limits.len + 1 > bucket->atoms_limits.capacity) {
-    fprintf(stdout, "Reallocating... ");
     bucket->atoms_limits.capacity += SPOOKY_HASH_DEFAULT_ATOM_ALLOC;
-    const spooky_atom ** temp_atoms = realloc(bucket->atoms, sizeof * temp_atoms * bucket->atoms_limits.capacity);
+    const spooky_atom * temp_atoms = realloc((spooky_atom *)(uintptr_t)bucket->atoms, sizeof * temp_atoms * bucket->atoms_limits.capacity);
     if(!temp_atoms) { goto err0; }
     
     bucket->atoms = temp_atoms;
     bucket->atoms_limits.reallocs++;
-    fprintf(stdout, "Success\n");
   }
 
-  const spooky_atom * temp_atom = spooky_atom_acquire();
+  const spooky_atom * temp_atom = &(bucket->atoms[bucket->atoms_limits.len]);
+  temp_atom = spooky_atom_init((spooky_atom *)(uintptr_t)temp_atom);
   temp_atom = temp_atom->ctor(temp_atom, temp_str);
   temp_atom->inc_ref_count(temp_atom);
   
-  bucket->atoms[bucket->atoms_limits.len] = temp_atom;
   bucket->atoms_limits.len++;
 
   if(atom) { *atom = temp_atom; }

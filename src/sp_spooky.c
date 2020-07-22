@@ -12,6 +12,7 @@
 #include <sys/resource.h>
 
 #include "config.h"
+#include "sp_str.h"
 #include "sp_error.h"
 #include "sp_math.h"
 #include "sp_hash.h"
@@ -33,7 +34,7 @@ static errno_t spooky_command_parser(spooky_context * context, const spooky_cons
 int main(int argc, char **argv) {
   (void)argc;
   (void)argv;
-
+  spooky_str_init();
   const spooky_hash_table * hash = spooky_hash_table_acquire();
   hash = hash->ctor(hash);
   
@@ -63,6 +64,7 @@ int main(int argc, char **argv) {
 //  hash->print_stats(hash);
   
   spooky_hash_table_release(hash);
+  spooky_str_quit();
   if(hash) { exit(0); }
 
   spooky_pack_tests();
