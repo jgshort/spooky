@@ -18,7 +18,7 @@ typedef struct spooky_atom_impl {
   unsigned long id;
   unsigned long hash;
   size_t ref_count;
-  const spooky_str * str;
+  spooky_str str;
 } spooky_atom_impl;
 
 static unsigned long spooky_atom_get_id(const spooky_atom * self);
@@ -71,16 +71,12 @@ const spooky_atom * spooky_atom_ctor(const spooky_atom * self, const char * str)
   impl->id = 0;
   impl->hash = 0;
   impl->ref_count = 0;
-  impl->str = NULL;
   
   if(str) {
-    const spooky_str * p = NULL;
-    if(spooky_str_ref(str, strnlen(str, SPOOKY_MAX_STRING_LEN), &p, &ex) != SP_SUCCESS) { goto err1; }
-    assert(p);
+    if(spooky_str_ref(str, strnlen(str, SPOOKY_MAX_STRING_LEN), &impl->str, &ex) != SP_SUCCESS) { goto err1; }
     ++spooky_atom_next_id;
     impl->id = spooky_atom_next_id;
-    impl->hash = p->hash;
-    impl->str = p;
+    impl->hash = impl->str.hash;
   }
 
   ((spooky_atom *)(uintptr_t)self)->impl = impl;
@@ -117,8 +113,8 @@ unsigned long spooky_atom_get_hash(const spooky_atom * self) {
 }
 
 const spooky_str * spooky_atom_get_str(const spooky_atom * self) {
-  assert(self && self->impl && self->impl->str);
-  return self->impl->str;
+  assert(self && self->impl);
+  return &self->impl->str;
 }
 
 size_t spooky_atom_get_ref_count(const spooky_atom * self) {

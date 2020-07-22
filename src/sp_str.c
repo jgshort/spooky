@@ -10,9 +10,9 @@
 #include "sp_error.h"
 #include "sp_str.h"
 
-#define SPOOKY_STR_BUFFER_CAPACITY_DEFAULT 1024 
+#define SPOOKY_STR_BUFFER_CAPACITY_DEFAULT (1024)
 
-static const size_t SPOOKY_STR_MAX_STR_LEN = 2048;
+static const size_t SPOOKY_STR_MAX_STR_LEN = sizeof("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.");
 
 typedef struct spooky_strings {
   size_t len;
@@ -72,7 +72,7 @@ unsigned long spooky_hash_str(const char * restrict str) {
   return hash;
 }
 
-errno_t spooky_str_ref(const char * s, size_t len, const spooky_str ** out_str, const spooky_ex ** ex) {
+errno_t spooky_str_ref(const char * s, size_t len, spooky_str * out_str, const spooky_ex ** ex) {
   assert(s && len > 0 && out_str);
   if(!s || len == 0 || !out_str) { goto err0; }
 
@@ -90,7 +90,7 @@ errno_t spooky_str_ref(const char * s, size_t len, const spooky_str ** out_str, 
 
   assert(temp->str);
 
-  *out_str = temp;
+  *out_str = *temp;
 
   return SP_SUCCESS;
 

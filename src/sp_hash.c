@@ -10,13 +10,13 @@
 #include "sp_error.h"
 #include "sp_hash.h"
 
-#define SPOOKY_HASH_DEFAULT_ATOM_ALLOC 12
+#define SPOOKY_HASH_DEFAULT_ATOM_ALLOC 2048
 #define SPOOKY_HASH_DEFAULT_STR_ALLOC 1024
 
 typedef struct spooky_array_limits {
   size_t len;
-  size_t reallocs;
   size_t capacity;
+  size_t reallocs;
 } spooky_array_limits;
 
 /* pre-generated primes */
@@ -146,7 +146,7 @@ void spooky_hash_table_release(const spooky_hash_table * self) {
   self->free(self->dtor(self));
 }
 
-errno_t spooky_hash_ensure(const spooky_hash_table * self, const char * str, const spooky_atom ** atom) {
+errno_t spooky_hash_ensure(const spooky_hash_table * self, const char * str, const spooky_atom ** out_atom) {
   if(!str) { return SP_FAILURE; }
 
   spooky_hash_table_impl * impl = self->impl;
@@ -172,29 +172,30 @@ errno_t spooky_hash_ensure(const spooky_hash_table * self, const char * str, con
     temp_atom->inc_ref_count(temp_atom);
  
     bucket->atoms_limits.len++;
-    if(atom) { *atom = temp_atom; }
+    if(out_atom) { *out_atom = temp_atom; }
 
     impl->buckets_limits.len++;
     bucket->is_init = true;
 
     return SP_SUCCESS;
   }
-  
+ 
+  fprintf(stdout, "Checking bucket[%lu][%lu]: %lu (%lu)\n", index, bucket->prime, bucket->atoms_limits.len, bucket->atoms_limits.capacity);
   /* check if it already exists */
   for(size_t i = 0; i < bucket->atoms_limits.len; i++) {
-    const spooky_atom * next_atom = &(bucket->atoms[i]);
-    const spooky_str * atom_str = next_atom->get_str(next_atom);
+    const spooky_atom * atom = &(bucket->atoms[i]);
+    const spooky_str * atom_str = atom->get_str(atom);
     const char * atom_str_str = atom_str->str;
     //fprintf(stdout, "comparing '%s' '%s'\n", atom_str_str, str);
     if(atom_str_str == str) {
       /* pointers are equal; return it: */
-      next_atom->inc_ref_count(next_atom);
-      if(atom) { *atom = next_atom; }
+      atom->inc_ref_count(atom);
+      if(out_atom) { *out_atom = atom; }
       return SP_SUCCESS;
     } else if(strncmp(atom_str_str, str, SPOOKY_MAX_STRING_LEN) == 0) {
       /* strings are equal; return it: */
-      next_atom->inc_ref_count(next_atom);
-      if(atom) { *atom = next_atom; }
+      atom->inc_ref_count(atom);
+      if(out_atom) { *out_atom = atom; }
       return SP_SUCCESS;
     }
   }
@@ -217,7 +218,7 @@ errno_t spooky_hash_ensure(const spooky_hash_table * self, const char * str, con
   temp_atom->inc_ref_count(temp_atom);
   bucket->atoms_limits.len++;
 
-  if(atom) { *atom = temp_atom; }
+  if(out_atom) { *out_atom = temp_atom; }
 
   return SP_SUCCESS;
 

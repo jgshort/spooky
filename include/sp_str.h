@@ -8,6 +8,7 @@ extern "C" {
 #include "sp_error.h"
 
 typedef struct spooky_str {
+  size_t ordinal;
   size_t len;
   unsigned long hash;
   const char * str;
@@ -17,7 +18,7 @@ void spooky_str_init();
 void spooky_str_quit();
  
 unsigned long spooky_hash_str(const char * restrict /* str */);
-errno_t spooky_str_ref(const char * s, size_t len, const spooky_str ** out_str, const spooky_ex ** ex);
+errno_t spooky_str_ref(const char * s, size_t len, spooky_str * out_str, const spooky_ex ** ex);
 
 #ifdef __cplusplus
 }

@@ -45,7 +45,7 @@ int main(int argc, char **argv) {
     exit(1);
   }
 
-  char * line = calloc(1024, sizeof * line);;
+  char * line = NULL;
   size_t len = 0;
 
   ssize_t read = 0;
@@ -53,9 +53,11 @@ int main(int argc, char **argv) {
     if(read > 1) {
       const spooky_atom * atom = NULL;
       if(hash->ensure(hash, line, &atom) != SP_SUCCESS) { abort(); }
+      free(line), line = NULL;
+      len = 0;
     }
   }
-  free(line), line = NULL;
+  
   fclose(wfp);
 
   hash->print_stats(hash);
