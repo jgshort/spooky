@@ -74,9 +74,9 @@ const spooky_atom * spooky_atom_ctor(const spooky_atom * self, const char * str)
   impl->str = NULL;
   
   if(str) {
-    const spooky_str * p;
+    const spooky_str * p = NULL;
     if(spooky_str_ref(str, strnlen(str, SPOOKY_MAX_STRING_LEN), &p, &ex) != SP_SUCCESS) { goto err1; }
-
+    assert(p);
     ++spooky_atom_next_id;
     impl->id = spooky_atom_next_id;
     impl->hash = p->hash;
@@ -117,6 +117,7 @@ unsigned long spooky_atom_get_hash(const spooky_atom * self) {
 }
 
 const spooky_str * spooky_atom_get_str(const spooky_atom * self) {
+  assert(self && self->impl && self->impl->str);
   return self->impl->str;
 }
 

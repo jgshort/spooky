@@ -37,7 +37,7 @@ typedef struct spooky_hash_bucket {
   char padding[7]; /* not portable */
   
   spooky_array_limits atoms_limits;
-  const spooky_atom * atoms;
+  spooky_atom * atoms;
 } spooky_hash_bucket;
 
 typedef struct spooky_hash_table_impl {
@@ -165,19 +165,17 @@ errno_t spooky_hash_ensure(const spooky_hash_table * self, const char * str, con
     bucket->atoms = calloc(bucket->atoms_limits.capacity, sizeof * bucket->atoms);
     if(!bucket->atoms) { goto err0; }
 
-    const char * str_copy = spooky_hash_move_string_to_strings(self, str);
-
+    const char * s = spooky_hash_move_string_to_strings(self, str);
     const spooky_atom * temp_atom = &(bucket->atoms[bucket->atoms_limits.len]);
     temp_atom = spooky_atom_init((spooky_atom *)(uintptr_t)temp_atom);
-    temp_atom = temp_atom->ctor(temp_atom, str_copy);
+    temp_atom = temp_atom->ctor(temp_atom, s);
     temp_atom->inc_ref_count(temp_atom);
  
     bucket->atoms_limits.len++;
+    if(atom) { *atom = temp_atom; }
 
     impl->buckets_limits.len++;
     bucket->is_init = true;
-    
-    if(atom) { *atom = temp_atom; }
 
     return SP_SUCCESS;
   }
@@ -187,6 +185,7 @@ errno_t spooky_hash_ensure(const spooky_hash_table * self, const char * str, con
     const spooky_atom * next_atom = &(bucket->atoms[i]);
     const spooky_str * atom_str = next_atom->get_str(next_atom);
     const char * atom_str_str = atom_str->str;
+    //fprintf(stdout, "comparing '%s' '%s'\n", atom_str_str, str);
     if(atom_str_str == str) {
       /* pointers are equal; return it: */
       next_atom->inc_ref_count(next_atom);
@@ -201,22 +200,21 @@ errno_t spooky_hash_ensure(const spooky_hash_table * self, const char * str, con
   }
  
   /* bucket exists but str wasn't found, above; allocate string and stuff it into a bucket */
-  const char * temp_str = spooky_hash_move_string_to_strings(self, str);
 
   if(bucket->atoms_limits.len + 1 > bucket->atoms_limits.capacity) {
-    bucket->atoms_limits.capacity += SPOOKY_HASH_DEFAULT_ATOM_ALLOC;
-    const spooky_atom * temp_atoms = realloc((spooky_atom *)(uintptr_t)bucket->atoms, sizeof * temp_atoms * bucket->atoms_limits.capacity);
+    bucket->atoms_limits.capacity *= 2;
+    spooky_atom * temp_atoms = realloc(bucket->atoms, (sizeof * temp_atoms) * bucket->atoms_limits.capacity);
     if(!temp_atoms) { goto err0; }
     
     bucket->atoms = temp_atoms;
     bucket->atoms_limits.reallocs++;
   }
 
+  const char * s = spooky_hash_move_string_to_strings(self, str);
   const spooky_atom * temp_atom = &(bucket->atoms[bucket->atoms_limits.len]);
   temp_atom = spooky_atom_init((spooky_atom *)(uintptr_t)temp_atom);
-  temp_atom = temp_atom->ctor(temp_atom, temp_str);
+  temp_atom = temp_atom->ctor(temp_atom, s);
   temp_atom->inc_ref_count(temp_atom);
-  
   bucket->atoms_limits.len++;
 
   if(atom) { *atom = temp_atom; }
@@ -266,22 +264,16 @@ const char * spooky_hash_move_string_to_strings(const spooky_hash_table * self, 
 
   if(impl->strings_limits.len + 1 > impl->strings_limits.capacity) {
     /* reallocate strings */ 
-    impl->strings_limits.capacity += SPOOKY_HASH_DEFAULT_STR_ALLOC;
-    impl->strings_limits.reallocs++;
+    impl->strings_limits.capacity *= 2;
 		const char ** temp = realloc(impl->strings, sizeof * impl->strings * impl->strings_limits.capacity);
 		if(!temp) { goto err0; }
-
+    
+    impl->strings_limits.reallocs++;
     impl->strings = temp;
   }
 
-  size_t len = strnlen(str, SPOOKY_MAX_STRING_LEN); /* not inc null-terminating char */
-
-  char * temp = calloc(1, len + 1);
+  char * temp = strndup(str, SPOOKY_MAX_STRING_LEN);
   if(!temp) { goto err0; }
-
-  memmove(temp, str, len);
-  temp[len] = '\0';
-
   impl->strings[impl->strings_limits.len] = temp;
   impl->strings_limits.len++;
 

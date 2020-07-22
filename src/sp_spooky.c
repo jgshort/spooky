@@ -34,6 +34,7 @@ static errno_t spooky_command_parser(spooky_context * context, const spooky_cons
 int main(int argc, char **argv) {
   (void)argc;
   (void)argv;
+
   spooky_str_init();
   const spooky_hash_table * hash = spooky_hash_table_acquire();
   hash = hash->ctor(hash);
@@ -50,18 +51,14 @@ int main(int argc, char **argv) {
   ssize_t read = 0;
   while((read = getline(&line, &len, wfp)) != -1) {
     if(read > 1) {
-      char * x = calloc((size_t)read - 1, sizeof * x);
-      memmove(x, line, read - 1);
-      x[read - 1] = '\0'; /* trim the \n */
       const spooky_atom * atom = NULL;
-      if(hash->ensure(hash, x, &atom) != SP_SUCCESS) { abort(); }
-      free(x), x = NULL;
+      if(hash->ensure(hash, line, &atom) != SP_SUCCESS) { abort(); }
     }
   }
   free(line), line = NULL;
   fclose(wfp);
 
-//  hash->print_stats(hash);
+  hash->print_stats(hash);
   
   spooky_hash_table_release(hash);
   spooky_str_quit();

@@ -5,11 +5,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+#include <stdio.h>
 
 #include "sp_error.h"
 #include "sp_str.h"
 
-#define SPOOKY_STR_BUFFER_CAPACITY_DEFAULT 1024
+#define SPOOKY_STR_BUFFER_CAPACITY_DEFAULT 1024 
 
 static const size_t SPOOKY_STR_MAX_STR_LEN = 2048;
 
@@ -19,38 +20,42 @@ typedef struct spooky_strings {
   spooky_str * strings;
 } spooky_strings;
 
-static spooky_strings strings_buf = { 
-  .len = 0,
-  .capacity = SPOOKY_STR_BUFFER_CAPACITY_DEFAULT,
-  .strings = NULL
-};
+static spooky_strings * strings_buf = NULL;
 
 static bool is_init = false;
 
 void spooky_str_init() {
-  assert(strings_buf.capacity > 0);
-  strings_buf.strings = calloc(strings_buf.capacity, sizeof * strings_buf.strings); 
+  strings_buf = calloc(1, sizeof * strings_buf);
+  assert(strings_buf);
+
+  strings_buf->len = 0;
+  strings_buf->capacity = SPOOKY_STR_BUFFER_CAPACITY_DEFAULT;
+  strings_buf->strings = calloc(strings_buf->capacity, sizeof * strings_buf->strings); 
+  assert(strings_buf->capacity > 0);
+
   is_init = true;
 }
 
 void spooky_str_quit() {
-  free(strings_buf.strings), strings_buf.strings = NULL;
-  strings_buf.len = 0;
-  strings_buf.capacity = SPOOKY_STR_BUFFER_CAPACITY_DEFAULT;
+  strings_buf->len = 0;
+  strings_buf->capacity = SPOOKY_STR_BUFFER_CAPACITY_DEFAULT;
+  free(strings_buf->strings), strings_buf->strings = NULL;
+  free(strings_buf), strings_buf = NULL;
   is_init = false;
 }
 
 static spooky_str * spooky_str_get_next() {
-  assert(is_init && strings_buf.strings);
-
-  if(strings_buf.len + 1 > strings_buf.capacity) {
-    strings_buf.capacity += SPOOKY_STR_BUFFER_CAPACITY_DEFAULT;
-    spooky_str * temp = realloc(strings_buf.strings, sizeof * temp * strings_buf.capacity);
+  assert(is_init && strings_buf->strings && strings_buf->capacity > 0);
+  if(strings_buf->len + 1 > strings_buf->capacity) {
+    fprintf(stdout, "reallocating strings... (%i), (%i)", (int)strings_buf->len + 1, (int)strings_buf->capacity);
+    strings_buf->capacity *= 2;
+    spooky_str * temp = realloc(strings_buf->strings, (sizeof * temp) * strings_buf->capacity);
     if(!temp) { abort(); }
-    strings_buf.strings = temp;
+    strings_buf->strings = temp;
+    fprintf(stdout, "success.\n");
   }
-  spooky_str * res = &(strings_buf.strings[strings_buf.len]);
-  strings_buf.len++;
+  spooky_str * res = &(strings_buf->strings[strings_buf->len]);
+  strings_buf->len++;
   return res;
 }
 
@@ -82,6 +87,8 @@ errno_t spooky_str_ref(const char * s, size_t len, const spooky_str ** out_str, 
   temp->hash = spooky_hash_str(s);
   temp->len = s_nlen;
   temp->str = s;
+
+  assert(temp->str);
 
   *out_str = temp;
 
