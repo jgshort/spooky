@@ -6,7 +6,6 @@ extern "C" {
 #endif
 
 #include <stdlib.h>
-#include "sp_atom.h"
 #include "sp_str.h"
 
 typedef struct spooky_hash_table_impl spooky_hash_table_impl;
@@ -18,8 +17,8 @@ typedef struct spooky_hash_table {
   void (*free)(const spooky_hash_table * /* self */);
   void (*release)(const spooky_hash_table * /* self */);
 
-  errno_t (*ensure)(const spooky_hash_table * /* self */, const char * /* str */, const spooky_atom ** /* atom */);
-  errno_t (*get_atom)(const spooky_hash_table * /* self */, const char * /* str */, spooky_atom ** /* atom */);
+  errno_t (*ensure)(const spooky_hash_table * /* self */, const char * /* str */, const spooky_str ** /* atom */);
+  errno_t (*get_atom)(const spooky_hash_table * /* self */, const char * /* str */, spooky_str ** /* atom */);
   errno_t (*find_by_id)(const spooky_hash_table * /* self */, int /* id */, const char ** /* str */);
 
   void (*print_stats)(const spooky_hash_table * /* self */);

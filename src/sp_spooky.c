@@ -51,7 +51,7 @@ int main(int argc, char **argv) {
   ssize_t read = 0;
   while((read = getline(&line, &len, wfp)) != -1) {
     if(read > 1) {
-      const spooky_atom * atom = NULL;
+      const spooky_str * atom = NULL;
       if(hash->ensure(hash, line, &atom) != SP_SUCCESS) { abort(); }
       free(line), line = NULL;
       len = 0;
@@ -64,6 +64,7 @@ int main(int argc, char **argv) {
   
   spooky_hash_table_release(hash);
   spooky_str_quit();
+
   if(hash) { exit(0); }
 
   spooky_pack_tests();
