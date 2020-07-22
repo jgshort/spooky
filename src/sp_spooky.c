@@ -35,10 +35,7 @@ int main(int argc, char **argv) {
   (void)argc;
   (void)argv;
 
-  spooky_str_init();
-  const spooky_hash_table * hash = spooky_hash_table_acquire();
-  hash = hash->ctor(hash);
-  
+#if 1 == 0
   FILE *wfp = fopen("words.txt", "r");
   if(wfp == NULL) {
     perror("Unable to open file!");
@@ -60,12 +57,8 @@ int main(int argc, char **argv) {
   
   fclose(wfp);
 
-  hash->print_stats(hash);
-  
-  spooky_hash_table_release(hash);
-  spooky_str_quit();
 
-  if(hash) { exit(0); }
+#endif
 
   spooky_pack_tests();
 
@@ -130,6 +123,10 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
   int64_t frame_count = 0,
           fps = 0,
           seconds_since_start = 0;
+
+
+  const spooky_hash_table * hash = spooky_hash_table_acquire();
+  hash = hash->ctor(hash);
 
   uint64_t last_second_time = (uint64_t) (last_update_time / BILLION);
 
@@ -419,12 +416,7 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
       frame_count = 0;
       last_second_time = this_second;
       seconds_since_start++;
-      
       spooky_debug_update(debug, fps, seconds_since_start, interpolation);
-
-      
-      
-      
     }
 
     /* Try to be friendly to the OS: */
@@ -442,6 +434,9 @@ end_of_running_loop: ;
   spooky_console_release(console);
   spooky_log_release(log);
   spooky_wm_release(wm);
+  
+  hash->print_stats(hash);
+  spooky_hash_table_release(hash);
 
   return SP_SUCCESS;
 

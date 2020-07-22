@@ -20,6 +20,7 @@ typedef struct spooky_strings {
   spooky_str * strings;
 } spooky_strings;
 
+#if 1 == 0
 static spooky_strings * strings_buf = NULL;
 
 static bool is_init = false;
@@ -57,6 +58,10 @@ static spooky_str * spooky_str_get_next() {
   strings_buf->len++;
   return res;
 }
+#else
+void spooky_str_init() { }
+void spooky_str_quit() { }
+#endif
 
 unsigned long spooky_hash_str(const char * restrict str) {
   /* See: http://www.cse.yorku.ca/~oz/hash.html */
@@ -71,7 +76,7 @@ unsigned long spooky_hash_str(const char * restrict str) {
   return hash;
 }
 
-errno_t spooky_str_ref(const char * s, size_t len, spooky_str * out_str, const spooky_ex ** ex) {
+errno_t spooky_str_ref(const char * s, size_t len, spooky_str * out_str) {
   assert(s && len > 0 && out_str);
   if(!s || len == 0 || !out_str) { goto err0; }
 
@@ -80,21 +85,13 @@ errno_t spooky_str_ref(const char * s, size_t len, spooky_str * out_str, const s
   assert(s_nlen == len);
   if(s_nlen != len) { goto err0; }
 
-  spooky_str * temp = spooky_str_get_next();
-  if(!temp) { goto err1; }
+  out_str->hash = spooky_hash_str(s);
+  out_str->len = s_nlen;
+  out_str->str = s;
 
-  temp->hash = spooky_hash_str(s);
-  temp->len = s_nlen;
-  temp->str = s;
-
-  assert(temp->str);
-
-  *out_str = *temp;
+  assert(out_str->str);
 
   return SP_SUCCESS;
-
-err1:
-  if(ex) { *ex = &spooky_alloc_ex; }
 
 err0:
   return SP_FAILURE;
