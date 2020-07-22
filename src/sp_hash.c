@@ -154,7 +154,7 @@ errno_t spooky_hash_ensure(const spooky_hash_table * self, const char * str, con
   register unsigned long h = spooky_hash_str(str);
   register unsigned long index = h % impl->prime;
 
-  assert(index >= 0 && index < impl->prime);
+  assert(index < impl->prime);
   spooky_hash_bucket * bucket = &impl->buckets[index];
 
   if(!bucket->is_init) {
