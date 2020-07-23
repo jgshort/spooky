@@ -48,7 +48,7 @@ int main(int argc, char **argv) {
   size_t len = 0;
 
   ssize_t read = 0;
-  //for(int i = 0; i < 10; i++) {
+  for(int i = 0; i < 10; i++) {
     fseek(wfp, 0, SEEK_SET);
     while((read = getline(&line, &len, wfp)) != -1) {
       if(read > 1) {
@@ -58,15 +58,16 @@ int main(int argc, char **argv) {
         len = 0;
       }
     }
-  //} 
+  } 
   fclose(wfp);
+
+  hash->print_stats(hash);
 
   const spooky_str * atom = NULL;
   if(hash->find(hash, "foo", strlen("foo"), &atom) == SP_SUCCESS) {
     fprintf(stdout, "Found 'foo', added %i times\n", (int)atom->ref_count);  
   }
 
-  hash->print_stats(hash);
   if(argv) { exit(0); }
 
   spooky_pack_tests();
