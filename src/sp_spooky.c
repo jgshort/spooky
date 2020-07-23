@@ -35,7 +35,9 @@ int main(int argc, char **argv) {
   (void)argc;
   (void)argv;
 
-#if 1 == 0
+  const spooky_hash_table * hash = spooky_hash_table_acquire();
+  hash = hash->ctor(hash);
+
   FILE *wfp = fopen("words.txt", "r");
   if(wfp == NULL) {
     perror("Unable to open file!");
@@ -46,19 +48,21 @@ int main(int argc, char **argv) {
   size_t len = 0;
 
   ssize_t read = 0;
-  while((read = getline(&line, &len, wfp)) != -1) {
-    if(read > 1) {
-      const spooky_str * atom = NULL;
-      if(hash->ensure(hash, line, &atom) != SP_SUCCESS) { abort(); }
-      free(line), line = NULL;
-      len = 0;
+  for(int i = 0; i < 100; i++) {
+    fseek(wfp, 0, SEEK_SET);
+    while((read = getline(&line, &len, wfp)) != -1) {
+      if(read > 1) {
+        const spooky_str * atom = NULL;
+        if(hash->ensure(hash, line, &atom) != SP_SUCCESS) { abort(); }
+        free(line), line = NULL;
+        len = 0;
+      }
     }
-  }
-  
+  } 
   fclose(wfp);
 
-
-#endif
+  hash->print_stats(hash);
+  if(argv) { exit(0); }
 
   spooky_pack_tests();
 

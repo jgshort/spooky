@@ -222,19 +222,19 @@ err0:
 void spooky_hash_print_stats(const spooky_hash_table * self) {
   spooky_hash_table_impl * impl = self->impl;
   fprintf(stdout, "Prime: %lu, buckets: (%lu, %lu) strings: (%lu, %lu)\n", impl->prime, (unsigned long)impl->buckets_limits.capacity, (unsigned long)impl->buckets_limits.len, (unsigned long)impl->strings_limits.capacity, (unsigned long)impl->strings_limits.len);
+  fprintf(stdout, "Indices (%lu, %lu):\n", impl->buckets_limits.capacity, impl->buckets_limits.len);
 
 #if 1 == 0
   fprintf(stdout, "Strings:\n");
   for(size_t i = 0; i < impl->strings_limits.len; i++) {
     fprintf(stdout, "\t'%s'\n", impl->strings[i]);
   }
-#endif
-  fprintf(stdout, "Indices (%lu, %lu):\n", impl->buckets_limits.capacity, impl->buckets_limits.len);
   for(size_t i = 0; i < impl->prime; i++) {
     if(impl->buckets[i].is_init) {
       fprintf(stdout, "\t %i %lu, strs: (%lu, %lu, [%lu])\n", impl->buckets[i].is_init, impl->buckets[i].prime, impl->buckets[i].strs_limits.capacity, impl->buckets[i].strs_limits.len, impl->buckets[i].strs_limits.reallocs);
     }
   }
+  #endif
 }
 
 errno_t spooky_hash_find_by_id(const spooky_hash_table * self, int id, const char ** str) {
