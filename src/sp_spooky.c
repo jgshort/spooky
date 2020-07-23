@@ -48,18 +48,23 @@ int main(int argc, char **argv) {
   size_t len = 0;
 
   ssize_t read = 0;
-  for(int i = 0; i < 100; i++) {
+  //for(int i = 0; i < 10; i++) {
     fseek(wfp, 0, SEEK_SET);
     while((read = getline(&line, &len, wfp)) != -1) {
       if(read > 1) {
-        const spooky_str * atom = NULL;
-        if(hash->ensure(hash, line, &atom) != SP_SUCCESS) { abort(); }
+        line[read - 1] = '\0';
+        if(hash->ensure(hash, line, (size_t)read - 1, NULL) != SP_SUCCESS) { abort(); }
         free(line), line = NULL;
         len = 0;
       }
     }
-  } 
+  //} 
   fclose(wfp);
+
+  const spooky_str * atom = NULL;
+  if(hash->find(hash, "foo", strlen("foo"), &atom) == SP_SUCCESS) {
+    fprintf(stdout, "Found 'foo', added %i times\n", (int)atom->ref_count);  
+  }
 
   hash->print_stats(hash);
   if(argv) { exit(0); }
