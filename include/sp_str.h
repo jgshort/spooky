@@ -18,7 +18,7 @@ typedef struct spooky_str {
 void spooky_str_init();
 void spooky_str_quit();
  
-unsigned long spooky_hash_str(const char * restrict /* str */);
+unsigned long spooky_hash_str(const char * restrict /* s */, size_t /* s_len */);
 errno_t spooky_str_ref(const char * /* s */, size_t /* len */, size_t /* ordinal */, spooky_str * /* out_str */);
 
 unsigned long spooky_str_get_id(const spooky_str * /* self */);

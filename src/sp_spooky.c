@@ -38,6 +38,15 @@ int main(int argc, char **argv) {
   const spooky_hash_table * hash = spooky_hash_table_acquire();
   hash = hash->ctor(hash);
 
+  int64_t now = 0;
+
+  now = sp_get_time_in_us();
+
+  const spooky_str * atom = NULL;
+  if(hash->find(hash, "foo", strlen("foo"), &atom) != SP_SUCCESS) {
+    fprintf(stdout, "'foo' NOT found, which is good");  
+  }
+
   FILE *wfp = fopen("words.txt", "r");
   if(wfp == NULL) {
     perror("Unable to open file!");
@@ -61,9 +70,9 @@ int main(int argc, char **argv) {
   } 
   fclose(wfp);
 
-  hash->print_stats(hash);
+  fprintf(stdout, "TIME: %"PRId64"\n", sp_get_time_in_us() - now);
+  //hash->print_stats(hash);
 
-  const spooky_str * atom = NULL;
   if(hash->find(hash, "foo", strlen("foo"), &atom) == SP_SUCCESS) {
     fprintf(stdout, "Found 'foo', added %i times\n", (int)atom->ref_count);  
   }

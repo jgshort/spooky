@@ -63,17 +63,47 @@ void spooky_str_init() { }
 void spooky_str_quit() { }
 #endif
 
-unsigned long spooky_hash_str(const char * restrict str) {
-  /* See: http://www.cse.yorku.ca/~oz/hash.html */
-  register unsigned long hash = 5381;
+/* See: http://www.cse.yorku.ca/~oz/hash.html */
+#define SPOOKY_HASH_USE_SDBM
+inline static unsigned long spooky_hash_str_internal(const char * restrict s, size_t s_len) {
+  register unsigned long hash;
+#ifdef SPOOKY_HASH_USE_SDBM
+  /* use SDBM algorithm: */
+# define HASHC	hash = (((unsigned long)*(s++)) + /* good: 65599; better: */ 65587 * hash)
+  hash = 0;
+  if (s_len > 0) {
+		register unsigned long loop = (s_len + 8 - 1) >> 3;
+		switch(s_len & (8 - 1)) {
+		case 0:
+      do {
+			  HASHC;
+        case 7: HASHC;
+        case 6: HASHC;
+        case 5: HASHC;
+        case 4: HASHC;
+        case 3: HASHC;
+        case 2: HASHC;
+        case 1: HASHC;
+			} while (--loop);
+		}
+	}
+# undef HASHC
+
+#else
+  /* use djb2 algorithm: */
+  (void)s_len;
+  hash = 5381;
   register char c = '\0';
 
-  while((c = *(str++))) {
-    // >> hash(i) = hash(i - 1) * 33 ^ str[i]
+  while((c = *(s++))) {
     hash = ((hash << 5) + hash) + (unsigned long)c; /* hash * 33 + c */
   }
-
+#endif /* SPOOKY_HASH_USE_SDBM */
   return hash;
+}
+
+unsigned long spooky_hash_str(const char * restrict s, size_t s_len) {
+  return spooky_hash_str_internal(s, s_len);
 }
 
 errno_t spooky_str_ref(const char * s, size_t len, size_t ordinal, spooky_str * out_str) {
@@ -85,7 +115,7 @@ errno_t spooky_str_ref(const char * s, size_t len, size_t ordinal, spooky_str * 
   assert(s_nlen == len);
   if(s_nlen != len) { goto err0; }
 
-  out_str->hash = spooky_hash_str(s);
+  out_str->hash = spooky_hash_str(s, s_nlen);
   out_str->ordinal = ordinal;
   out_str->len = s_nlen;
   out_str->str = s;
