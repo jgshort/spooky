@@ -20,7 +20,7 @@ typedef struct spooky_hash_table {
   errno_t (*ensure)(const spooky_hash_table * /* self */, const char * /* s */, size_t /* s_len */, const spooky_str ** /* str */);
   errno_t (*find)(const spooky_hash_table * /* self */, const char * /* s */, size_t /* s_len */, const spooky_str ** /* atom */);
 
-  void (*print_stats)(const spooky_hash_table * /* self */);
+  char * (*print_stats)(const spooky_hash_table * /* self */);
   spooky_hash_table_impl * impl;
 } spooky_hash_table;
 

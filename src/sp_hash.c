@@ -19,7 +19,16 @@ static const unsigned long primes[] = {
 };
 
 static const size_t SPOOKY_HASH_DEFAULT_ATOM_ALLOC = 48;
-static const size_t SPOOKY_HASH_DEFAULT_STRING_ALLOC = 4096;
+static const size_t SPOOKY_HASH_DEFAULT_STRING_ALLOC = 1048576;
+
+typedef struct spooky_string_buffer spooky_string_buffer;
+typedef struct spooky_string_buffer {
+  size_t capacity;
+  size_t len;
+  size_t string_count;
+  char * strings;
+  spooky_string_buffer * next;
+} spooky_string_buffer;
 
 typedef struct spooky_array_limits {
   size_t len;
@@ -42,8 +51,9 @@ typedef struct spooky_hash_table_impl {
   spooky_array_limits buckets_limits;
   spooky_hash_bucket * buckets;
 
-  spooky_array_limits strings_limits;
-  const char ** strings;
+  size_t string_count;
+  spooky_string_buffer * buffers;
+  spooky_string_buffer * current_buffer;
 } spooky_hash_table_impl;
 
 static errno_t spooky_hash_ensure(const spooky_hash_table * self, const char * s, size_t s_len, const spooky_str ** out_str);
@@ -51,7 +61,7 @@ static errno_t spooky_hash_find_internal(const spooky_hash_bucket * bucket, cons
 static errno_t spooky_hash_find(const spooky_hash_table * self, const char * s, size_t s_len, const spooky_str ** atom);
 static const char * spooky_hash_move_string_to_strings(const spooky_hash_table * self, const char * s, size_t s_len, size_t * out_len);
 static void spooky_hash_clear_strings(const spooky_hash_table * self);
-static void spooky_hash_print_stats(const spooky_hash_table * self);
+static char * spooky_hash_print_stats(const spooky_hash_table * self);
 
 static const spooky_str * spooky_hash_atom_alloc(const spooky_hash_table * self, spooky_hash_bucket * bucket, const char * s, size_t s_len, size_t * out_len);
 
@@ -92,10 +102,12 @@ const spooky_hash_table * spooky_hash_table_ctor(const spooky_hash_table * self)
   impl->buckets_limits.len = 0;
   impl->buckets = calloc(impl->buckets_limits.capacity, sizeof * impl->buckets);
 
-  impl->strings_limits.capacity = impl->strings_alloc;
-  impl->strings_limits.len = 0;
-  impl->strings = calloc(impl->strings_limits.capacity, sizeof * impl->strings);
-
+  impl->buffers = calloc(1, sizeof * impl->buffers);
+  impl->buffers->next = NULL;
+  impl->buffers->len = 0;
+  impl->buffers->capacity = SPOOKY_HASH_DEFAULT_STRING_ALLOC;
+  impl->buffers->strings = calloc(impl->buffers->capacity , sizeof * impl->buffers->strings);
+  impl->current_buffer = impl->buffers;
   ((spooky_hash_table *)(uintptr_t)self)->impl = impl;
  
   return self;
@@ -106,15 +118,14 @@ err0:
 
 void spooky_hash_clear_strings(const spooky_hash_table * self) {
   spooky_hash_table_impl * impl = self->impl;
-  const char ** next = impl->strings;
-  const char ** end = impl->strings + impl->strings_limits.len;
-  while(next != end) {
-    char * temp = (char *)(uintptr_t)(*next);
-    free(temp), temp = NULL;
-    next++;
+
+  spooky_string_buffer * buffer = impl->buffers;
+  while(buffer) {
+    free(buffer->strings), buffer->strings = NULL;
+    spooky_string_buffer * old = buffer;
+    buffer = buffer->next;
+    free(old), old = NULL;
   }
-  impl->strings_limits.len = impl->strings_limits.capacity = 0;
-  free(impl->strings), impl->strings = NULL;
 }
 
 void spooky_hash_clear_buckets(const spooky_hash_table * self) {
@@ -209,36 +220,40 @@ err0:
 static const spooky_str * spooky_hash_atom_alloc(const spooky_hash_table * self, spooky_hash_bucket * bucket, const char * s, size_t s_len, size_t * out_len) {
   assert(self && bucket && bucket->prime);
 
-  const char * s_cp = spooky_hash_move_string_to_strings(self, s, s_len, out_len);
   spooky_str * atom = &bucket->atoms[bucket->atoms_limits.len];
-  memset(atom, 0, sizeof * atom);
-  spooky_str_ref(s_cp, strnlen(s_cp, SPOOKY_MAX_STRING_LEN), bucket->atoms_limits.len, atom);
+  const char * s_cp = spooky_hash_move_string_to_strings(self, s, s_len, out_len);
+  spooky_str_ref(s_cp, s_len, bucket->atoms_limits.len, atom);
   spooky_str_inc_ref_count(atom);
 
   return atom;
 }
 
-void spooky_hash_print_stats(const spooky_hash_table * self) {
+char * spooky_hash_print_stats(const spooky_hash_table * self) {
+  static const size_t max_buf_len = 2048;
   spooky_hash_table_impl * impl = self->impl;
-  fprintf(stdout, "Prime: %lu, buckets: (%lu, %lu) strings: (%lu, %lu)\n", impl->prime, (unsigned long)impl->buckets_limits.capacity, (unsigned long)impl->buckets_limits.len, (unsigned long)impl->strings_limits.capacity, (unsigned long)impl->strings_limits.len);
-  fprintf(stdout, "Indices (%lu, %lu):\n", impl->buckets_limits.capacity, impl->buckets_limits.len);
+  char * out = calloc(max_buf_len, sizeof * out);
+  char * result = out;
+  out += snprintf(out, max_buf_len - (size_t)(out - result), "Prime: %lu, buckets: (%lu, %lu)\n", impl->prime, (unsigned long)impl->buckets_limits.capacity, (unsigned long)impl->buckets_limits.len);
+  out += snprintf(out, max_buf_len - (size_t)(out - result), "Indices (%lu, %lu):\n", impl->buckets_limits.capacity, impl->buckets_limits.len);
 
-  fprintf(stdout, "Strings:\n");
-  for(size_t i = 0; i < impl->strings_limits.len; i++) {
-    fprintf(stdout, "'%s'", impl->strings[i]);
-    if(i > 256) { fprintf(stdout, "...\n"); break; }
-    if(i < impl->strings_limits.len - 1) { fprintf(stdout, ","); }
-    if(i == impl->strings_limits.len - 1) { fprintf(stdout, "\n"); }
+  spooky_string_buffer * buffer = impl->buffers;
+  int buffer_count = 0;
+  size_t buffer_total_len = 0;
+
+  out += snprintf(out, max_buf_len - (size_t)(out - result), "Buffers:\n");
+  while(buffer) {
+    out += snprintf(out, max_buf_len - (size_t)(out - result), "\t%i: %lu (%lu, %lu)\n", buffer_count++, buffer->string_count, buffer->capacity, buffer->len);
+    buffer_total_len += buffer->len;
+    buffer = buffer->next;
   }
-
-  fprintf(stdout, "Buckets:\n");
+  out += snprintf(out, max_buf_len - (size_t)(out - result), "Total buffer size: %lu\n", buffer_total_len);
+  out += snprintf(out, max_buf_len - (size_t)(out - result), "Buckets:\n");
   int collisions = 0;
   int reallocs = 0;
   int max_atoms = 0;
   for(size_t i = 0; i < impl->prime; i++) {
     const spooky_hash_bucket * bucket = &impl->buckets[i];
     if(bucket->prime) {
-      fprintf(stdout, "  %lu, atoms: (%lu, %lu, [%lu])\n", impl->buckets[i].prime, impl->buckets[i].atoms_limits.capacity, impl->buckets[i].atoms_limits.len, impl->buckets[i].atoms_limits.reallocs);
       max_atoms = (int)bucket->atoms_limits.len > max_atoms ? (int)bucket->atoms_limits.len : max_atoms;
       if(bucket->atoms_limits.len > 1) {
         if(bucket->atoms_limits.reallocs > 0) { reallocs++; };
@@ -248,18 +263,22 @@ void spooky_hash_print_stats(const spooky_hash_table * self) {
             const spooky_str * inner = &bucket->atoms[y];
             if(outer != inner && outer->hash == inner->hash) {
               collisions++;
-              fprintf(stdout, "Hash Collisions!\n");
-              fprintf(stdout, "    X: '%s': len: %lu, hash: %lu, ordinal: %lu\n", outer->str, outer->len, outer->hash, outer->ordinal);
-              fprintf(stdout, "    Y: '%s': len: %lu, hash: %lu, ordinal: %lu\n", inner->str, inner->len, inner->hash, inner->ordinal);
+              out += snprintf(out, max_buf_len - (size_t)(out - result), "Hash Collisions!\n");
+              out += snprintf(out, max_buf_len - (size_t)(out - result), "    X: '%s': len: %lu, hash: %lu, ordinal: %lu\n", outer->str, outer->len, outer->hash, outer->ordinal);
+              out += snprintf(out, max_buf_len - (size_t)(out - result), "    Y: '%s': len: %lu, hash: %lu, ordinal: %lu\n", inner->str, inner->len, inner->hash, inner->ordinal);
             }
           }
         }
       }
     }
   }
-  fprintf(stdout, "Total atom reallocations: %i\n", reallocs);
-  fprintf(stdout, "Max list count: %i\n", max_atoms);
-  fprintf(stdout, "Total Collisions: %i\n", collisions / 2);
+
+  out += snprintf(out, max_buf_len - (size_t)(out - result), "Total atom reallocations: %i\n", reallocs);
+  out += snprintf(out, max_buf_len - (size_t)(out - result), "Max list count: %i\n", max_atoms);
+  out += snprintf(out, max_buf_len - (size_t)(out - result), "Total Collisions: %i\n", collisions / 2);
+  out += snprintf(out, max_buf_len - (size_t)(out - result), "Unique Strings: %i\n", (int)impl->string_count);
+
+  return result;
 }
 
 errno_t spooky_hash_find_internal(const spooky_hash_bucket * bucket, const char * s, size_t s_len, unsigned long hash, const spooky_str ** out_atom) {
@@ -299,27 +318,45 @@ const char * spooky_hash_move_string_to_strings(const spooky_hash_table * self, 
   assert(s_len > 0);
   if(s_len <= 0) { return NULL; }
 
-  if(impl->strings_limits.len + 1 > impl->strings_limits.capacity) {
-    /* reallocate strings */ 
-    impl->strings_limits.capacity *= 2;
-		const char ** temp = realloc(impl->strings, sizeof * impl->strings * impl->strings_limits.capacity);
-		if(!temp) { goto err0; }
+  spooky_string_buffer * buffer = impl->current_buffer;
+  size_t alloc_len = s_len + 1;
+  if(buffer->len + alloc_len > buffer->capacity) {
+    /* reallocate strings */
+    size_t new_len = 0;
+    size_t new_capacity = SPOOKY_HASH_DEFAULT_STRING_ALLOC;
+    while(new_len + alloc_len > new_capacity) {
+      new_capacity *= 1.5;
+    }
+    spooky_string_buffer * new_buffer = calloc(1, sizeof * new_buffer);
+    if(!new_buffer) { goto err0; }
+
+    new_buffer->len = 0;
+    new_buffer->capacity = new_capacity;
+    new_buffer->strings = calloc(new_capacity, sizeof * new_buffer->strings);
+		if(!new_buffer->strings) { goto err0; }
     
-    impl->strings_limits.reallocs++;
-    impl->strings = temp;
+    impl->current_buffer->next = new_buffer;
+    impl->current_buffer = new_buffer;
+    buffer = new_buffer;
   }
 
-  char * temp = strndup(s, SPOOKY_MAX_STRING_LEN);
-  if(!temp) { goto err0; }
+  buffer->string_count++;
+  impl->string_count++;
 
-  *out_len = s_len >= SPOOKY_MAX_STRING_LEN ? SPOOKY_MAX_STRING_LEN : s_len;
-  assert(*out_len == s_len);
-  if(*out_len != s_len) { abort(); }
+  size_t n_len = s_len >= SPOOKY_MAX_STRING_LEN ? SPOOKY_MAX_STRING_LEN : s_len;
+  char * offset = buffer->strings + buffer->len;
+  buffer->len += n_len + 1;
 
-  impl->strings[impl->strings_limits.len] = temp;
-  impl->strings_limits.len++;
+  assert(n_len > 0);
 
-  return temp;
+  //memcpy(offset, s, n_len + 1);
+  //offset[n_len] = '\0';
+
+  strncpy(offset, s, n_len);
+
+  *out_len = n_len;
+
+  return offset;
 
 err0:
   abort();

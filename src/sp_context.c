@@ -6,6 +6,7 @@
 #include <math.h>
 
 #include "config.h"
+#include "sp_hash.h"
 #include "sp_context.h"
 #include "sp_error.h"
 #include "sp_math.h"
@@ -45,6 +46,7 @@ typedef struct spooky_context_data {
   SDL_GLContext glContext;
   SDL_Texture * canvas;
   const spooky_console * console;
+  const spooky_hash_table * hash;
 
   size_t font_type_index;
   size_t fonts_len[SPOOKY_FONT_MAX_TYPES];
@@ -115,6 +117,10 @@ static void spooky_context_set_is_paused(const spooky_context * context, bool is
   context->data->is_paused = is_paused;  
 }
 
+static const spooky_hash_table * spooky_context_get_hash(const spooky_context * context) {
+  return context->data->hash;
+}
+
 errno_t spooky_init_context(spooky_context * context) {
   assert(!(context == NULL));
 
@@ -135,6 +141,7 @@ errno_t spooky_init_context(spooky_context * context) {
   context->get_is_running = &spooky_context_get_is_running;
   context->set_is_running = &spooky_context_set_is_running;
   context->next_font_type = &spooky_context_next_font_type;
+  context->get_hash = &spooky_context_get_hash;
 
   context->data = &global_data;
 
@@ -143,6 +150,9 @@ errno_t spooky_init_context(spooky_context * context) {
   fprintf(stdout, "Initializing...");
   fflush(stdout);
   const char * error_message = NULL;
+
+  context->data->hash = spooky_hash_table_acquire();
+  context->data->hash = context->data->hash->ctor(context->data->hash);
 
   SDL_ClearError();
   /* allow high-DPI windows */
@@ -319,8 +329,10 @@ err0:
 }
 
 void spooky_release_context(spooky_context * context) {
-  if(context != NULL) {
+  if(context) {
     spooky_context_data * data = context->data;
+    
+    spooky_hash_table_release(data->hash);
 
     for(size_t i = 0; i < SPOOKY_FONT_MAX_TYPES; i++) {
       if(data->fonts[i] != NULL) {
@@ -331,7 +343,7 @@ void spooky_release_context(spooky_context * context) {
         } while(++next < global_data.fonts[i] + global_data.fonts_len[i]);
       }
     }
-    if(data->canvas != NULL) {
+    if(data->canvas) {
       SDL_ClearError();
       SDL_DestroyTexture(data->canvas), data->canvas = NULL;
       if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
@@ -341,7 +353,7 @@ void spooky_release_context(spooky_context * context) {
       }
     }
 
-    if(data->glContext != NULL) {
+    if(data->glContext) {
       SDL_ClearError();
       SDL_GL_DeleteContext(data->glContext), data->glContext = NULL;
       if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
@@ -351,7 +363,7 @@ void spooky_release_context(spooky_context * context) {
       }
     }
 
-    if(data->renderer != NULL) {
+    if(data->renderer) {
       SDL_ClearError();
       SDL_DestroyRenderer(data->renderer), data->renderer = NULL;
       if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
@@ -361,7 +373,7 @@ void spooky_release_context(spooky_context * context) {
       }
     }
 
-    if(data->window != NULL) {
+    if(data->window) {
       SDL_ClearError();
       SDL_DestroyWindow(data->window), data->window = NULL;
       if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }

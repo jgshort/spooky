@@ -4,6 +4,7 @@
 #include <stdbool.h>
 
 #include "sp_error.h"
+#include "sp_hash.h"
 #include "sp_gui.h"
 #include "sp_font.h"
 
@@ -31,6 +32,8 @@ typedef struct spooky_context {
   void (*set_is_running)(const spooky_context * context, bool value);
 
   void (*next_font_type)(spooky_context * context);
+
+  const spooky_hash_table * (*get_hash)(const spooky_context * context);
 
   struct spooky_context_data * data;
 } spooky_context;

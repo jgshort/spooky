@@ -35,16 +35,34 @@ int main(int argc, char **argv) {
   (void)argc;
   (void)argv;
 
-  const spooky_hash_table * hash = spooky_hash_table_acquire();
-  hash = hash->ctor(hash);
+  spooky_pack_tests();
 
-  int64_t now = 0;
+  int fd = 0;
+  fd = open("./test.spdb", O_CREAT | O_RDWR | O_EXCL, S_IRUSR | S_IWUSR);
+  if(fd < 0) {
+    if(errno == EEXIST) {
+      fd = open("./test.spdb", O_RDWR | O_EXCL, S_IRUSR | S_IWUSR);
+    }
+  }
+  FILE * fp = fdopen(fd, "wb+x");
+  
+  spooky_pack_create(fp);
+  fseek(fp, 0, SEEK_SET);
+  spooky_pack_verify(fp);
 
-  now = sp_get_time_in_us();
+  spooky_context context = { 0 };
 
+  const spooky_ex * ex = NULL;
+  if(spooky_init_context(&context) != SP_SUCCESS) { goto err0; }
+/***********
+ *
+ *
+ */
+
+  const spooky_hash_table * hash = context.get_hash(&context);
   const spooky_str * atom = NULL;
   if(hash->find(hash, "foo", strlen("foo"), &atom) != SP_SUCCESS) {
-    fprintf(stdout, "'foo' NOT found, which is good");  
+    fprintf(stdout, "'foo' NOT found, which is good\n");
   }
 
   FILE *wfp = fopen("words.txt", "r");
@@ -70,34 +88,10 @@ int main(int argc, char **argv) {
   } 
   fclose(wfp);
 
-  fprintf(stdout, "TIME: %"PRId64"\n", sp_get_time_in_us() - now);
-  //hash->print_stats(hash);
-
   if(hash->find(hash, "foo", strlen("foo"), &atom) == SP_SUCCESS) {
     fprintf(stdout, "Found 'foo', added %i times\n", (int)atom->ref_count);  
   }
 
-  if(argv) { exit(0); }
-
-  spooky_pack_tests();
-
-  int fd = 0;
-  fd = open("./test.spdb", O_CREAT | O_RDWR | O_EXCL, S_IRUSR | S_IWUSR);
-  if(fd < 0) {
-    if(errno == EEXIST) {
-      fd = open("./test.spdb", O_RDWR | O_EXCL, S_IRUSR | S_IWUSR);
-    }
-  }
-  FILE * fp = fdopen(fd, "wb+x");
-  
-  spooky_pack_create(fp);
-  fseek(fp, 0, SEEK_SET);
-  spooky_pack_verify(fp);
-
-  spooky_context context = { 0 };
-
-  const spooky_ex * ex = NULL;
-  if(spooky_init_context(&context) != SP_SUCCESS) { goto err0; }
   if(spooky_test_resources(&context) != SP_SUCCESS) { goto err0; }
   if(spooky_loop(&context, &ex) != SP_SUCCESS) { goto err1; }
   if(spooky_quit_context(&context) != SP_SUCCESS) { goto err2; }
@@ -485,7 +479,8 @@ errno_t spooky_command_parser(spooky_context * context, const spooky_console * c
     console->push_str(console, "Quitting...\n");
     context->set_is_running(context, false);
   } else if(strncmp(command, "info", sizeof("info")) == 0) {
-    char info[1024] = { 0 };
+    char info[4096] = { 0 };
+    char * out = info;
     struct rusage usage;
     
     long int tv_usec = 0, tv_sec = 0;
@@ -504,7 +499,7 @@ errno_t spooky_command_parser(spooky_context * context, const spooky_console * c
     }
 
 #ifdef __APPLE__
-    snprintf(info, sizeof info, 
+    out += snprintf(out, 4096 - (out - info), 
         PACKAGE_STRING " :: "
         "Time: %ld.%06ld\n"
         "Logging entries: %zu\n"
@@ -513,7 +508,7 @@ errno_t spooky_command_parser(spooky_context * context, const spooky_console * c
     );
 #endif
 #ifdef __linux__
-    snprintf(info, sizeof info, 
+    out += snprintf(out, 4096 - (out - info), 
         PACKAGE_STRING " :: "
         "Time: %ld.%06ld\n"
         "Resident set: %ld\n"
@@ -525,6 +520,11 @@ errno_t spooky_command_parser(spooky_context * context, const spooky_console * c
         , log->get_entries_count(log)
     );   
 #endif
+    const spooky_hash_table * hash = context->get_hash(context);
+    char * hash_stats = hash->print_stats(hash);
+    assert(strnlen(hash_stats, 4096) < 4096);
+    out += snprintf(out, 4096 - (out - info), "%s\n", hash_stats);
+    free(hash_stats), hash_stats = NULL;
     console->push_str(console, info);
   } else if(strncmp(command, "log", sizeof("log")) == 0) {
     log->dump(log, console);
