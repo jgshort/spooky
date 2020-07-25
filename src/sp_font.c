@@ -12,9 +12,9 @@
 #include "sp_font.h"
 
 const char * spooky_default_font_names[SPOOKY_FONT_MAX_TYPES] = {
-  "./res/fonts/DejaVuSansMono.ttf",
-  "./res/fonts/PrintChar21.ttf",
-  "./res/fonts/PRNumber3.ttf"
+  "./res/fonts/DejaVuSansMono.ttf"
+//  "./res/fonts/PrintChar21.ttf",
+//  "./res/fonts/PRNumber3.ttf"
 };
 
 static const int spooky_font_outline = 1;

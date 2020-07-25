@@ -13,7 +13,7 @@
 #include "sp_error.h"
 #include "sp_hash.h"
 
-#define SPOOKY_HASH_DEFAULT_PRIME (1 << 11)
+#define SPOOKY_HASH_DEFAULT_PRIME (1 << 10)
 
 /* pre-generated primes */
 static const unsigned long primes[] = {
@@ -235,8 +235,9 @@ char * spooky_hash_print_stats(const spooky_hash_table * self) {
   spooky_hash_table_impl * impl = self->impl;
   char * out = calloc(max_buf_len, sizeof * out);
   char * result = out;
-  out += snprintf(out, max_buf_len - (size_t)(out - result), "Prime: %lu, buckets: (%lu, %lu)\n", impl->prime, (unsigned long)impl->buckets_limits.capacity, (unsigned long)impl->buckets_limits.len);
-  out += snprintf(out, max_buf_len - (size_t)(out - result), "Indices (%lu, %lu):\n", impl->buckets_limits.capacity, impl->buckets_limits.len);
+  out += snprintf(out, max_buf_len - (size_t)(out - result), "Load factor: %f\n", (double)impl->string_count / (double)impl->buckets_limits.capacity);
+  out += snprintf(out, max_buf_len - (size_t)(out - result), "Buckets: (%lu, %lu)\n", (unsigned long)impl->buckets_limits.capacity, (unsigned long)impl->buckets_limits.len);
+  out += snprintf(out, max_buf_len - (size_t)(out - result), "Indices: (%lu, %lu):\n", impl->buckets_limits.capacity, impl->buckets_limits.len);
 
   spooky_string_buffer * buffer = impl->buffers;
   int buffer_count = 0;
@@ -249,7 +250,7 @@ char * spooky_hash_print_stats(const spooky_hash_table * self) {
     buffer = buffer->next;
   }
   out += snprintf(out, max_buf_len - (size_t)(out - result), "Total buffer size: %lu\n", buffer_total_len);
-  out += snprintf(out, max_buf_len - (size_t)(out - result), "Buckets:\n");
+  //out += snprintf(out, max_buf_len - (size_t)(out - result), "Buckets:\n");
   int collisions = 0;
   int reallocs = 0;
   int max_atoms = 0;
@@ -275,10 +276,10 @@ char * spooky_hash_print_stats(const spooky_hash_table * self) {
     }
   }
 
-  out += snprintf(out, max_buf_len - (size_t)(out - result), "Total atom reallocations: %i\n", reallocs);
-  out += snprintf(out, max_buf_len - (size_t)(out - result), "Max list count: %i\n", max_atoms);
-  out += snprintf(out, max_buf_len - (size_t)(out - result), "Total Collisions: %i\n", collisions / 2);
-  out += snprintf(out, max_buf_len - (size_t)(out - result), "Unique Strings: %i\n", (int)impl->string_count);
+  out += snprintf(out, max_buf_len - (size_t)(out - result), "Total chain reallocations: %i\n", reallocs);
+  out += snprintf(out, max_buf_len - (size_t)(out - result), "Total key collisions: %i\n", collisions / 2);
+  out += snprintf(out, max_buf_len - (size_t)(out - result), "Max bucket chain count: %i\n", max_atoms);
+  out += snprintf(out, max_buf_len - (size_t)(out - result), "Unique keys: %i\n", (int)impl->string_count);
 
   return result;
 }
