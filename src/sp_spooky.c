@@ -77,13 +77,15 @@ int main(int argc, char **argv) {
   ssize_t read = 0;
   for(int i = 0; i < 10; i++) {
     fseek(wfp, 0, SEEK_SET);
-    while((read = getline(&line, &len, wfp)) != -1) {
+    int x = 0;
+    while(x < 1000 && (read = getline(&line, &len, wfp)) != -1) {
       if(read > 1) {
         line[read - 1] = '\0';
         if(hash->ensure(hash, line, (size_t)read - 1, NULL) != SP_SUCCESS) { abort(); }
         free(line), line = NULL;
         len = 0;
       }
+      x++;
     }
   } 
   fclose(wfp);
