@@ -325,7 +325,7 @@ const char * spooky_hash_move_string_to_strings(const spooky_hash_table * self, 
     size_t new_len = 0;
     size_t new_capacity = SPOOKY_HASH_DEFAULT_STRING_ALLOC;
     while(new_len + alloc_len > new_capacity) {
-      new_capacity *= 1.5;
+      new_capacity *= 2;
     }
     spooky_string_buffer * new_buffer = calloc(1, sizeof * new_buffer);
     if(!new_buffer) { goto err0; }

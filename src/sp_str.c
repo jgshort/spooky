@@ -69,25 +69,32 @@ inline static unsigned long spooky_hash_str_internal(const char * restrict s, si
   register unsigned long hash;
 #ifdef SPOOKY_HASH_USE_SDBM
   /* use SDBM algorithm: */
-# define HASHC	hash = (((unsigned long)*(s++)) + /* good: 65599; better: */ 65587 * hash)
+
+# define HASH_DEF hash = (((unsigned long)*(s++)) + /* good: 65599; better: */ 65587 * hash)
   hash = 0;
   if (s_len > 0) {
 		register unsigned long loop = (s_len + 8 - 1) >> 3;
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wswitch-default"
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
 		switch(s_len & (8 - 1)) {
 		case 0:
       do {
-			  HASHC;
-        case 7: HASHC;
-        case 6: HASHC;
-        case 5: HASHC;
-        case 4: HASHC;
-        case 3: HASHC;
-        case 2: HASHC;
-        case 1: HASHC;
+			  HASH_DEF;
+        case 7: HASH_DEF;
+        case 6: HASH_DEF;
+        case 5: HASH_DEF;
+        case 4: HASH_DEF;
+        case 3: HASH_DEF;
+        case 2: HASH_DEF;
+        case 1: HASH_DEF;
 			} while (--loop);
 		}
+#pragma GCC diagnostic pop
+#pragma GCC diagnostic pop
 	}
-# undef HASHC
+# undef HASH_DEF
 
 #else
   /* use djb2 algorithm: */

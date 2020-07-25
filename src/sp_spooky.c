@@ -508,7 +508,7 @@ errno_t spooky_command_parser(spooky_context * context, const spooky_console * c
     );
 #endif
 #ifdef __linux__
-    out += snprintf(out, 4096 - (out - info), 
+    out += snprintf(out, 4096 - (size_t)(out - info), 
         PACKAGE_STRING " :: "
         "Time: %ld.%06ld\n"
         "Resident set: %ld\n"
@@ -523,7 +523,7 @@ errno_t spooky_command_parser(spooky_context * context, const spooky_console * c
     const spooky_hash_table * hash = context->get_hash(context);
     char * hash_stats = hash->print_stats(hash);
     assert(strnlen(hash_stats, 4096) < 4096);
-    out += snprintf(out, 4096 - (out - info), "%s\n", hash_stats);
+    out += snprintf(out, 4096 - (size_t)(out - info), "%s\n", hash_stats);
     free(hash_stats), hash_stats = NULL;
     console->push_str(console, info);
   } else if(strncmp(command, "log", sizeof("log")) == 0) {
