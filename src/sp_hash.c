@@ -6,6 +6,8 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <limits.h>
+#include <stddef.h>
 
 #include "sp_limits.h"
 #include "sp_error.h"

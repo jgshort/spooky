@@ -26,6 +26,7 @@
 #include "sp_context.h"
 #include "sp_wm.h"
 #include "sp_log.h"
+#include "sp_limits.h"
 #include "sp_time.h"
 
 static errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex);
@@ -463,6 +464,7 @@ err0:
 }
 
 errno_t spooky_command_parser(spooky_context * context, const spooky_console * console, const spooky_log * log, const char * command) {
+
   if(strncmp(command, "clear", sizeof("clear")) == 0) {
     console->clear_console(console);
   } else if(strncmp(command, "help", sizeof("help")) == 0) {

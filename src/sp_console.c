@@ -383,12 +383,17 @@ void spooky_console_push_str(const spooky_console * self, const char * str) {
   spooky_console_push_str_impl(self, str, false);
 }
 
-void spooky_console_push_str_impl(const spooky_console * self, const char * str, bool is_command) {
+void spooky_console_push_str_impl(const spooky_console * self, const char * s, bool is_command) {
   size_t strings_capacity = 128;
   char ** strings = calloc(strings_capacity, sizeof * strings);
   if(strings == NULL) { abort(); }
   size_t split_count = 0;
-  
+
+  size_t s_len = strnlen(s, SPOOKY_MAX_STRING_LEN);
+  char * str = NULL;
+  size_t str_len = 0;
+  if(spooky_str_trim(s, s_len, SPOOKY_MAX_STRING_LEN, &str, &str_len) != SP_SUCCESS) { abort(); }  
+
   char * working_str = strndup(str, SPOOKY_MAX_STRING_LEN);
   char * save_ptr = NULL, * token = NULL;
   char * ws = working_str;
@@ -464,3 +469,4 @@ void spooky_console_clear_console(const spooky_console * self) {
   impl->text = calloc(impl->text_capacity, sizeof * impl->text);
   impl->text_len = 0;
 }
+

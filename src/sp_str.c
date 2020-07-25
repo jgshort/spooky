@@ -1,4 +1,8 @@
+#ifdef __STDC_ALLOC_LIB__
+#define __STDC_WANT_LIB_EXT2__ 1
+#else
 #define _POSIX_C_SOURCE 200809L
+#endif
 
 #include <assert.h>
 #include <stdbool.h>
@@ -6,6 +10,10 @@
 #include <string.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <ctype.h>
+#include <limits.h>
+#include <stddef.h>
+#include <errno.h>
 
 #include "sp_error.h"
 #include "sp_str.h"
@@ -157,5 +165,92 @@ void spooky_str_inc_ref_count(spooky_str * self) {
 
 void spooky_str_dec_ref_count(spooky_str * self) {
   self->ref_count--;
+}
+
+errno_t spooky_str_isspace(int c, bool * out_space) {
+  assert(!(NULL == out_space || (EOF != c  && (UCHAR_MAX < c || 0 > c))));
+
+  if(NULL == out_space || (EOF != c  && (UCHAR_MAX < c || 0 > c))) {
+    return SP_FAILURE; 
+  }
+
+  *out_space = isspace((unsigned char)c);
+
+  return SP_SUCCESS;
+}
+
+errno_t spooky_str_trim(const char * str, size_t str_len, size_t n_max, char ** out_str, size_t * out_str_len) {
+  assert(!(n_max < 1 || !out_str || !out_str_len));
+
+  if(n_max < 1 || !out_str || !out_str_len) { goto err0; }
+
+  char * temp = NULL;
+  if(!str) { goto happy; }
+
+  size_t len = strnlen(str, n_max);
+  assert(len <= str_len);
+
+  const char * start = str;
+  const char * end = str + len;
+
+  assert(start && end);
+
+  {
+    bool space = false;
+    do {
+      if(start < end) {
+        if(spooky_str_isspace(*start, &space)) { goto err0; }
+      }
+    } while(space && ++start < end);
+  }
+
+  {
+    bool space = false;
+    do {
+      if(end > start) {
+        if(spooky_str_isspace(*(end - 1),  &space)) { goto err0; }
+      }
+    } while(space && --end > start);
+  }
+
+  ptrdiff_t diff = end - start;
+  if(diff > 0) {
+    size_t new_len = (size_t)diff;
+    if(new_len > n_max) { new_len = n_max; }
+
+    errno = 0;
+    if(new_len + 1 > SIZE_MAX / sizeof * temp) { goto err0; }
+    temp = calloc(new_len + 1, sizeof * temp);
+    if(!temp) { goto err1; }
+
+    assert(start >= str);
+    memmove(temp, start, new_len);
+    temp[new_len] = '\0';
+  } else {
+    errno = 0;
+    if(diff == 0) {
+      temp = strndup("", 1);
+    } else {
+      temp = strndup(str, n_max);
+    }
+    if(!temp) { goto err1; }
+  }
+
+happy:
+  if(!temp) {
+    *out_str_len = 0;
+  } else {
+    assert(diff >= 0);
+    *out_str_len = (size_t)diff;
+  }
+  *out_str = temp;
+
+  return SP_SUCCESS;
+
+err1:
+  /* handle errno */
+
+err0:
+  return SP_FAILURE;
 }
 

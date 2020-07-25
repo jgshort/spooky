@@ -28,6 +28,9 @@ size_t spooky_str_get_ref_count(const spooky_str * /* self */);
 void spooky_str_inc_ref_count(spooky_str * /* self */);
 void spooky_str_dec_ref_count(spooky_str * /* self */);
 
+errno_t spooky_str_isspace(int /* c */, bool * /* out_space */);
+errno_t spooky_str_trim(const char * /* str */, size_t /* str_len */, size_t /* n_max */, char ** /* out_str */, size_t * /* out_str_len */);
+
 #ifdef __cplusplus
 }
 #endif
