@@ -20,6 +20,7 @@ static const unsigned long primes[] = {
   #include "primes.dat"
 };
 
+static errno_t spooky_generate_primes(unsigned int limit);
 static const size_t SPOOKY_HASH_DEFAULT_ATOM_ALLOC = 48;
 static const size_t SPOOKY_HASH_DEFAULT_STRING_ALLOC = 1048576;
 
@@ -96,6 +97,8 @@ const spooky_hash_table * spooky_hash_table_acquire() {
 const spooky_hash_table * spooky_hash_table_ctor(const spooky_hash_table * self) {
   spooky_hash_table_impl * impl = calloc(1, sizeof * self->impl); 
   if(!impl) goto err0;
+  
+  (void)spooky_generate_primes;
 
   impl->atoms_alloc = SPOOKY_HASH_DEFAULT_ATOM_ALLOC;
   impl->strings_alloc = SPOOKY_HASH_DEFAULT_STRING_ALLOC;
@@ -364,4 +367,87 @@ const char * spooky_hash_move_string_to_strings(const spooky_hash_table * self, 
 err0:
   abort();
 }
+
+/* Prime generation for hash table function
+see https://en.wikipedia.org/wiki/Sieve_of_Atkin 
+limit ← 1000000000        // arbitrary search limit
+
+# set of wheel "hit" positions for a 2/3/5 wheel rolled twice as per the Atkin algorithm
+s ← {1,7,11,13,17,19,23,29,31,37,41,43,47,49,53,59}
+
+# Initialize the sieve with enough wheels to include limit:
+for n ← 60 × w + x where w ∈ {0,1,...,limit ÷ 60}, x ∈ s:
+    is_prime(n) ← false
+
+# Put in candidate primes:
+#   integers which have an odd number of
+#   representations by certain quadratic forms.
+# Algorithm step 3.1:
+for n ≤ limit, n ← 4x²+y² where x ∈ {1,2,...} and y ∈ {1,3,...} // all x's odd y's
+    if n mod 60 ∈ {1,13,17,29,37,41,49,53}:
+        is_prime(n) ← ¬is_prime(n)   // toggle state
+# Algorithm step 3.2:
+for n ≤ limit, n ← 3x²+y² where x ∈ {1,3,...} and y ∈ {2,4,...} // only odd x's
+    if n mod 60 ∈ {7,19,31,43}:                                 // and even y's
+        is_prime(n) ← ¬is_prime(n)   // toggle state
+# Algorithm step 3.3:
+for n ≤ limit, n ← 3x²-y² where x ∈ {2,3,...} and y ∈ {x-1,x-3,...,1} //all even/odd
+    if n mod 60 ∈ {11,23,47,59}:                                   // odd/even combos
+        is_prime(n) ← ¬is_prime(n)   // toggle state
+
+# Eliminate composites by sieving, only for those occurrences on the wheel:
+for n² ≤ limit, n ← 60 × w + x where w ∈ {0,1,...}, x ∈ s, n ≥ 7:
+    if is_prime(n):
+        // n is prime, omit multiples of its square; this is sufficient 
+        // because square-free composites can't get on this list
+        for c ≤ limit, c ← n² × (60 × w + x) where w ∈ {0,1,...}, x ∈ s:
+            is_prime(c) ← false
+
+# one sweep to produce a sequential list of primes up to limit:
+output 2, 3, 5
+for 7 ≤ n ≤ limit, n ← 60 × w + x where w ∈ {0,1,...}, x ∈ s:
+    if is_prime(n): output n
+ */
+
+/* prime generation correctness unchecked */
+errno_t spooky_generate_primes(unsigned int limit) {
+  bool sieve[limit], *s = sieve;
+  memset(s, 0, (size_t)limit * sizeof * s);
+
+  for (register unsigned int x = 1; x * x < limit; x++) { 
+    for (register unsigned int y = 1; y * y < limit; y++) { 
+      register unsigned int n = (4 * x * x) + (y * y); 
+      if (n <= limit && (n % 12 == 1 || n % 12 == 5)) { *(s + n) ^= true; }
+
+      n = (3 * x * x) + (y * y); 
+      if (n <= limit && n % 12 == 7) { *(s + n) ^= true; }
+
+      n = (3 * x * x) - (y * y); 
+      if (x > y && n <= limit && n % 12 == 11) { *(s + n) ^= true; }
+    } 
+  } 
+
+  for (register unsigned int r = 5; r * r < limit; r++) { 
+    if (*(s + r)) { 
+      for (register unsigned int i = r * r; i < limit; i += r * r) {
+        *(s + i) = false; 
+      }
+    } 
+  } 
+
+  int i = 0;
+  for (register unsigned int a = 5; a < limit; a++) {
+    if (*(s + a)) {
+      i++;
+      if((i % 10 == 0) && a < limit - 1) { fprintf(stdout, "\n"); }
+      fprintf(stdout, "%i",  a);  
+      if(a < limit - 3) { fprintf(stdout, ","); }
+    }
+  }
+  fprintf(stdout, "\n");
+
+  return SP_SUCCESS;
+}
+
+
 
