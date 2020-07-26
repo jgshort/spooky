@@ -411,8 +411,9 @@ for 7 ≤ n ≤ limit, n ← 60 × w + x where w ∈ {0,1,...}, x ∈ s:
 
 /* prime generation correctness unchecked */
 errno_t spooky_generate_primes(unsigned int limit) {
-  bool sieve[limit], *s = sieve;
-  memset(s, 0, (size_t)limit * sizeof * s);
+  assert(limit <= 1000000000);
+  bool * sieve = calloc(limit, sizeof * sieve);
+  bool *s = sieve;
 
   for (register unsigned int x = 1; x * x < limit; x++) { 
     for (register unsigned int y = 1; y * y < limit; y++) { 
