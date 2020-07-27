@@ -55,10 +55,6 @@ int main(int argc, char **argv) {
 
   const spooky_ex * ex = NULL;
   if(spooky_init_context(&context) != SP_SUCCESS) { goto err0; }
-/***********
- *
- *
- */
 
   const spooky_hash_table * hash = context.get_hash(&context);
   const spooky_str * atom = NULL;
@@ -78,15 +74,13 @@ int main(int argc, char **argv) {
   ssize_t read = 0;
   for(int i = 0; i < 10; i++) {
     fseek(wfp, 0, SEEK_SET);
-    int x = 0;
-    while(x < 1000 && (read = getline(&line, &len, wfp)) != -1) {
+    while((read = getline(&line, &len, wfp)) != -1) {
       if(read > 1) {
         line[read - 1] = '\0';
         if(hash->ensure(hash, line, (size_t)read - 1, NULL) != SP_SUCCESS) { abort(); }
         free(line), line = NULL;
         len = 0;
       }
-      x++;
     }
   } 
   fclose(wfp);
@@ -95,6 +89,7 @@ int main(int argc, char **argv) {
     fprintf(stdout, "Found 'foo', added %i times\n", (int)atom->ref_count);  
   }
 
+  if(argv) { exit(0); }
   if(spooky_test_resources(&context) != SP_SUCCESS) { goto err0; }
   if(spooky_loop(&context, &ex) != SP_SUCCESS) { goto err1; }
   if(spooky_quit_context(&context) != SP_SUCCESS) { goto err2; }

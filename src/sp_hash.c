@@ -13,7 +13,9 @@
 #include "sp_error.h"
 #include "sp_hash.h"
 
-#define SPOOKY_HASH_DEFAULT_PRIME (1 << 10)
+#define SPOOKY_HASH_DEFAULT_PRIME_INDEX (1 << 5)
+
+static const double spooky_hash_default_load_factor = 0.75;
 
 /* pre-generated primes */
 static const unsigned long primes[] = {
@@ -46,6 +48,7 @@ typedef struct spooky_hash_bucket {
 } spooky_hash_bucket;
 
 typedef struct spooky_hash_table_impl {
+  size_t prime_index;
   unsigned long prime;
 
   size_t atoms_alloc;
@@ -59,6 +62,7 @@ typedef struct spooky_hash_table_impl {
   spooky_string_buffer * current_buffer;
 } spooky_hash_table_impl;
 
+static const spooky_hash_table * spooky_hash_table_cctor(const spooky_hash_table * self, unsigned long prime_index, spooky_string_buffer * buffers, spooky_string_buffer * current_buffer);
 static errno_t spooky_hash_ensure(const spooky_hash_table * self, const char * s, size_t s_len, const spooky_str ** out_str);
 static errno_t spooky_hash_find_internal(const spooky_hash_bucket * bucket, const char * s, size_t s_len, unsigned long hash, const spooky_str ** atom);
 static errno_t spooky_hash_find(const spooky_hash_table * self, const char * s, size_t s_len, const spooky_str ** atom);
@@ -94,7 +98,7 @@ const spooky_hash_table * spooky_hash_table_acquire() {
   return spooky_hash_table_init((spooky_hash_table *)(uintptr_t)spooky_hash_table_alloc());
 }
 
-const spooky_hash_table * spooky_hash_table_ctor(const spooky_hash_table * self) {
+const spooky_hash_table * spooky_hash_table_cctor(const spooky_hash_table * self, unsigned long prime_index, spooky_string_buffer * buffers, spooky_string_buffer * current_buffer) {
   spooky_hash_table_impl * impl = calloc(1, sizeof * self->impl); 
   if(!impl) goto err0;
   
@@ -103,22 +107,41 @@ const spooky_hash_table * spooky_hash_table_ctor(const spooky_hash_table * self)
   impl->atoms_alloc = SPOOKY_HASH_DEFAULT_ATOM_ALLOC;
   impl->strings_alloc = SPOOKY_HASH_DEFAULT_STRING_ALLOC;
 
-  impl->buckets_limits.capacity = impl->prime = primes[SPOOKY_HASH_DEFAULT_PRIME];
+  assert(prime_index < sizeof primes);
+  impl->prime_index = prime_index;
+  impl->prime = primes[impl->prime_index];
+  impl->buckets_limits.capacity = primes[impl->prime_index];
   impl->buckets_limits.len = 0;
   impl->buckets = calloc(impl->buckets_limits.capacity, sizeof * impl->buckets);
+  if(!impl->buckets) { abort(); }
+  fprintf(stdout, "Allocated buckets with size (%lu, %lu), %lu\n",impl->buckets_limits.capacity, impl->buckets_limits.len, impl->buckets_limits.capacity * sizeof * impl->buckets);
 
-  impl->buffers = calloc(1, sizeof * impl->buffers);
-  impl->buffers->next = NULL;
-  impl->buffers->len = 0;
-  impl->buffers->capacity = SPOOKY_HASH_DEFAULT_STRING_ALLOC;
-  impl->buffers->strings = calloc(impl->buffers->capacity , sizeof * impl->buffers->strings);
-  impl->current_buffer = impl->buffers;
+  if(!buffers) {
+    impl->buffers = calloc(1, sizeof * impl->buffers);
+    impl->buffers->next = NULL;
+    impl->buffers->len = 0;
+    impl->buffers->capacity = SPOOKY_HASH_DEFAULT_STRING_ALLOC;
+    impl->buffers->strings = calloc(impl->buffers->capacity , sizeof * impl->buffers->strings);
+    impl->current_buffer = impl->buffers;
+  } else {
+    impl->buffers = buffers;
+    if(current_buffer) {
+      impl->current_buffer = current_buffer;
+    } else {
+      impl->current_buffer = impl->buffers;
+    }
+  }
+
   ((spooky_hash_table *)(uintptr_t)self)->impl = impl;
  
   return self;
 
 err0:
   abort();
+}
+
+const spooky_hash_table * spooky_hash_table_ctor(const spooky_hash_table * self) {
+  return spooky_hash_table_cctor(self, SPOOKY_HASH_DEFAULT_PRIME_INDEX, NULL, NULL);
 }
 
 void spooky_hash_clear_strings(const spooky_hash_table * self) {
@@ -164,20 +187,66 @@ void spooky_hash_table_release(const spooky_hash_table * self) {
   self->free(self->dtor(self));
 }
 
+void spooky_hash_rebalance(const spooky_hash_table * self) {
+  const spooky_hash_table * old_self = self;
+  spooky_hash_table_impl * old_impl = old_self->impl;
+  size_t old_buckets_len = old_impl->buckets_limits.len;
+
+  double load_factor = (double)old_impl->string_count / (double)old_impl->buckets_limits.capacity;
+
+  if(load_factor > spooky_hash_default_load_factor && old_impl->prime_index * 2 < (sizeof primes / sizeof(unsigned long))) {
+    fprintf(stdout, "Rebalancing hash with load factor of %f...\n", load_factor);
+    unsigned long new_prime_index = old_impl->prime_index * 2;
+    
+    spooky_hash_bucket * old_buckets = old_impl->buckets;
+
+    self = spooky_hash_table_cctor(self, new_prime_index, old_impl->buffers, old_impl->current_buffer);
+
+    {
+      // Relocate atoms to new hash table:
+      spooky_hash_bucket * old_bucket = old_buckets;
+      const spooky_hash_bucket * old_bucket_end = old_buckets + old_buckets_len;
+
+      while(old_bucket < old_bucket_end) {
+        if(old_bucket->atoms_limits.len > 0) {
+          for(size_t key = 0; key < old_bucket->atoms_limits.len; key++) {
+            self->ensure(self, old_bucket->atoms[key].str, old_bucket->atoms[key].len, NULL);
+          }
+        }
+        old_bucket++;
+      }
+    }
+
+    {
+      // release the old hash table, but not the string buffers which are owned by new self->impl:
+      spooky_hash_bucket * old_bucket = old_buckets;
+      const spooky_hash_bucket * old_bucket_end = old_buckets + old_buckets_len;
+      while(old_bucket < old_bucket_end) {
+        free(old_bucket->atoms), old_bucket->atoms = NULL;
+        old_bucket++;
+      }
+      free(old_buckets), old_buckets = NULL; 
+    }
+    free(old_impl), old_impl = NULL;
+  }
+}
+
 errno_t spooky_hash_ensure(const spooky_hash_table * self, const char * s, size_t s_len, const spooky_str ** out_str) {
   if(!s) { return SP_FAILURE; }
   if(s_len <= 0) { return SP_FAILURE; }
 
   assert(s_len <= SPOOKY_MAX_STRING_LEN);
 
+  spooky_hash_rebalance(self);
+  
   spooky_hash_table_impl * impl = self->impl;
 
   register unsigned long hash = spooky_hash_str(s, s_len);
   register unsigned long index = hash % impl->prime;
 
   assert(index < impl->prime);
-  spooky_hash_bucket * bucket = &impl->buckets[index];
-
+  spooky_hash_bucket * bucket = &(impl->buckets[index]);
+  
   if(!bucket->prime) {
     /* bucket hasn't been initialized: */
     bucket->prime = primes[index];
@@ -207,7 +276,10 @@ errno_t spooky_hash_ensure(const spooky_hash_table * self, const char * s, size_
     }
   }
 
-  assert(bucket && bucket->prime);
+  if(!(bucket && bucket->prime > 0)) {
+    fprintf(stdout, "%lu, bucket prime: %lu,index: %lu, prime index: %lu, self prime: %lu, primes[index]: %lu, sizeof primes: %lu, total primes: %lu\n", (unsigned long)(uintptr_t)bucket, bucket->prime, index, impl->prime_index, impl->prime, primes[impl->prime_index], sizeof primes, sizeof primes / sizeof(unsigned long));
+  }
+  assert(bucket && bucket->prime > 0);
 
   size_t out_len = 0;
   const spooky_str * temp_str = spooky_hash_atom_alloc(self, bucket, s, s_len, &out_len);
