@@ -89,6 +89,8 @@ int main(int argc, char **argv) {
     fprintf(stdout, "Found 'foo', added %i times\n", (int)atom->ref_count);  
   }
 
+  fprintf(stdout, "STATS:\n%s\n", hash->print_stats(hash));
+
   if(argv) { exit(0); }
   if(spooky_test_resources(&context) != SP_SUCCESS) { goto err0; }
   if(spooky_loop(&context, &ex) != SP_SUCCESS) { goto err1; }
