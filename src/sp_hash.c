@@ -108,7 +108,7 @@ const spooky_hash_table * spooky_hash_table_cctor(const spooky_hash_table * self
   impl->atoms_alloc = SPOOKY_HASH_DEFAULT_ATOM_ALLOC;
   impl->strings_alloc = SPOOKY_HASH_DEFAULT_STRING_ALLOC;
 
-  impl->primes_len = primes_len * 2;
+  impl->primes_len = primes_len;
   impl->primes = spooky_generate_primes(impl->primes_len);
   impl->prime_index = prime_index;
   impl->prime = impl->primes[impl->prime_index];
@@ -202,7 +202,7 @@ void spooky_hash_rebalance(const spooky_hash_table * self) {
        
     spooky_hash_bucket * old_buckets = old_impl->buckets;
   
-    self = spooky_hash_table_cctor(self, old_impl->primes_len, new_prime_index, old_impl->buffers, old_impl->current_buffer);
+    self = spooky_hash_table_cctor(self, old_impl->primes_len * 2, new_prime_index, old_impl->buffers, old_impl->current_buffer);
     
     {
       // Relocate atoms to new hash table:
@@ -534,7 +534,7 @@ unsigned long * spooky_generate_primes(size_t limit) {
   }
 
   unsigned long * primes = calloc(count, sizeof * primes);
-  if(!primes) {abort();}
+  if(!primes) { abort(); }
   
   unsigned long * p = primes;
   for(register unsigned int a = 5; a < limit; a++) {
@@ -544,6 +544,8 @@ unsigned long * spooky_generate_primes(size_t limit) {
     }
   }
 
+  //14630841
+  fprintf(stdout, "New Primes: %lu, space: %lu\n", count, count * sizeof primes[0]);
   return primes;
 }
 
