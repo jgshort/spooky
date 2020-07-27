@@ -435,7 +435,7 @@ errno_t spooky_generate_primes(unsigned int limit) {
       }
     } 
   } 
-
+/*
   int i = 0;
   for (register unsigned int a = 5; a < limit; a++) {
     if (*(s + a)) {
@@ -446,7 +446,7 @@ errno_t spooky_generate_primes(unsigned int limit) {
     }
   }
   fprintf(stdout, "\n");
-
+*/
   return SP_SUCCESS;
 }
 
