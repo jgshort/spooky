@@ -121,7 +121,7 @@ unsigned long spooky_hash_str(const char * restrict s, size_t s_len) {
   return spooky_hash_str_internal(s, s_len);
 }
 
-errno_t spooky_str_ref(const char * s, size_t len, size_t ordinal, spooky_str * out_str) {
+errno_t spooky_str_ref(const char * s, size_t len, size_t ordinal, unsigned long hash, spooky_str * out_str) {
   assert(s && len > 0 && out_str);
   if(!s || len == 0 || !out_str) { goto err0; }
 
@@ -130,7 +130,7 @@ errno_t spooky_str_ref(const char * s, size_t len, size_t ordinal, spooky_str * 
   assert(s_nlen == len);
   if(s_nlen != len) { goto err0; }
 
-  out_str->hash = spooky_hash_str(s, s_nlen);
+  out_str->hash = hash;
   out_str->ordinal = ordinal;
   out_str->len = s_nlen;
   out_str->str = s;

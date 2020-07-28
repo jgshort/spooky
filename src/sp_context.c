@@ -18,10 +18,10 @@
 #include "sp_help.h"
 #include "sp_time.h"
 
-#define MAX_FONT_LEN 120
+#define MAX_FONT_LEN 1
 static const size_t max_font_len = MAX_FONT_LEN;
 static size_t spooky_font_sizes[MAX_FONT_LEN] = { 
-  0, 0, 0, 0,
+  0/*, 0, 0, 0,
   4, 0, 0, 0,
   8,
   9,
@@ -36,7 +36,7 @@ static size_t spooky_font_sizes[MAX_FONT_LEN] = {
   48, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   60, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   72, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  84, 0
+  84, 0 */
 };
 #undef MAX_FONT_LEN
 
@@ -272,7 +272,6 @@ errno_t spooky_init_context(spooky_context * context) {
     int point_size = 1;
     const char * spooky_default_font_name = spooky_default_font_names[i];
     do {
-      fprintf(stdout, "%s\n", spooky_default_font_name);
       assert(point_size > 0);
       assert(point_size <= (int)global_data.fonts_len[i]);
       *next = spooky_font_acquire();
