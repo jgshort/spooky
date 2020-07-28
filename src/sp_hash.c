@@ -17,11 +17,12 @@
 
 static const double spooky_hash_default_load_factor = 0.75;
 
-/* pre-generated primes */
-//static const unsigned long primes[] = {
-//  #include "primes.dat"
-//};
+static const unsigned long spooky_hash_primes[] = {
+  #include "primes.dat"
+};
 
+static unsigned long spooky_hash_get_next_prime(unsigned long base_prime);
+static bool spooky_hash_miller_is_prime(int64_t p, int iteration) ;
 static unsigned long * spooky_generate_primes(size_t limit);
 static const size_t SPOOKY_HASH_DEFAULT_ATOM_ALLOC = 48;
 static const size_t SPOOKY_HASH_DEFAULT_STRING_ALLOC = 1048576;
@@ -86,7 +87,7 @@ err0:
 }
 
 const spooky_hash_table * spooky_hash_table_init(spooky_hash_table * self) {
-	self->ctor = &spooky_hash_table_ctor;
+  self->ctor = &spooky_hash_table_ctor;
   self->dtor = &spooky_hash_table_dtor;
   self->free = &spooky_hash_table_free;
   self->release = &spooky_hash_table_release;
@@ -104,7 +105,7 @@ const spooky_hash_table * spooky_hash_table_acquire() {
 const spooky_hash_table * spooky_hash_table_cctor(const spooky_hash_table * self, size_t primes_len, size_t prime_index, spooky_string_buffer * buffers, spooky_string_buffer * current_buffer) {
   spooky_hash_table_impl * impl = calloc(1, sizeof * self->impl); 
   if(!impl) goto err0;
-  
+
   impl->atoms_alloc = SPOOKY_HASH_DEFAULT_ATOM_ALLOC;
   impl->strings_alloc = SPOOKY_HASH_DEFAULT_STRING_ALLOC;
 
@@ -135,7 +136,7 @@ const spooky_hash_table * spooky_hash_table_cctor(const spooky_hash_table * self
   }
 
   ((spooky_hash_table *)(uintptr_t)self)->impl = impl;
- 
+
   return self;
 
 err0:
@@ -176,7 +177,7 @@ void spooky_hash_clear_buckets(const spooky_hash_table * self) {
 const spooky_hash_table * spooky_hash_table_dtor(const spooky_hash_table * self) {
   spooky_hash_clear_buckets(self);
   spooky_hash_clear_strings(self);
-  
+
   free((spooky_hash_table *)(uintptr_t)self->impl), ((spooky_hash_table *)(uintptr_t)self)->impl = NULL;
   return self;
 }
@@ -199,11 +200,11 @@ void spooky_hash_rebalance(const spooky_hash_table * self) {
   if(load_factor >= spooky_hash_default_load_factor) {
     fprintf(stdout, "Rebalancing hash with load factor of %f...\n", load_factor);
     unsigned long new_prime_index = old_impl->prime_index * 2;
-       
+
     spooky_hash_bucket * old_buckets = old_impl->buckets;
-  
+
     self = spooky_hash_table_cctor(self, old_impl->primes_len * 2, new_prime_index, old_impl->buffers, old_impl->current_buffer);
-    
+
     {
       // Relocate atoms to new hash table:
       spooky_hash_bucket * old_bucket = old_buckets;
@@ -247,16 +248,16 @@ errno_t spooky_hash_ensure_internal(const spooky_hash_table * self, const char *
   assert(s_len <= SPOOKY_MAX_STRING_LEN);
 
   spooky_hash_rebalance(self);
-  
+
   spooky_hash_table_impl * impl = self->impl;
 
   register unsigned long hash = spooky_hash_str(s, s_len);
   register unsigned long index = hash % impl->prime;
 
   assert(index < impl->prime);
-  
+
   spooky_hash_bucket * bucket = &(impl->buckets[index]);
-  
+
   if(!bucket->prime) {
     /* bucket hasn't been initialized: */
     bucket->prime = impl->primes[index];
@@ -264,7 +265,7 @@ errno_t spooky_hash_ensure_internal(const spooky_hash_table * self, const char *
     bucket->atoms_limits.capacity = impl->atoms_alloc;
     bucket->atoms = calloc(bucket->atoms_limits.capacity, sizeof * bucket->atoms);
     if(!bucket->atoms) { goto err0; }
-   
+
     impl->buckets_limits.len++;
   } else {
     /* check if it already exists */
@@ -274,13 +275,13 @@ errno_t spooky_hash_ensure_internal(const spooky_hash_table * self, const char *
       if(out_str) { *out_str = found; }
       return SP_SUCCESS; 
     }
-  
+
     /* bucket exists but str wasn't found, above; allocate string and stuff it into a bucket */
     if(bucket->atoms_limits.len + 1 > bucket->atoms_limits.capacity) {
       bucket->atoms_limits.capacity *= 2;
       spooky_str * temp_atoms = realloc(bucket->atoms, (sizeof * temp_atoms) * bucket->atoms_limits.capacity);
       if(!temp_atoms) { goto err0; }
-      
+
       bucket->atoms = temp_atoms;
       bucket->atoms_limits.reallocs++;
     }
@@ -430,8 +431,8 @@ const char * spooky_hash_move_string_to_strings(const spooky_hash_table * self, 
     new_buffer->len = 0;
     new_buffer->capacity = new_capacity;
     new_buffer->strings = calloc(new_capacity, sizeof * new_buffer->strings);
-		if(!new_buffer->strings) { goto err0; }
-    
+    if(!new_buffer->strings) { goto err0; }
+
     impl->current_buffer->next = new_buffer;
     impl->current_buffer = new_buffer;
     buffer = new_buffer;
@@ -460,53 +461,62 @@ err0:
 }
 
 /* Prime generation for hash table function
-see https://en.wikipedia.org/wiki/Sieve_of_Atkin 
-limit ← 1000000000        // arbitrary search limit
+   see https://en.wikipedia.org/wiki/Sieve_of_Atkin 
+   limit ← 1000000000        // arbitrary search limit
 
 # set of wheel "hit" positions for a 2/3/5 wheel rolled twice as per the Atkin algorithm
 s ← {1,7,11,13,17,19,23,29,31,37,41,43,47,49,53,59}
 
 # Initialize the sieve with enough wheels to include limit:
 for n ← 60 × w + x where w ∈ {0,1,...,limit ÷ 60}, x ∈ s:
-    is_prime(n) ← false
+is_prime(n) ← false
 
 # Put in candidate primes:
 #   integers which have an odd number of
 #   representations by certain quadratic forms.
 # Algorithm step 3.1:
 for n ≤ limit, n ← 4x²+y² where x ∈ {1,2,...} and y ∈ {1,3,...} // all x's odd y's
-    if n mod 60 ∈ {1,13,17,29,37,41,49,53}:
-        is_prime(n) ← ¬is_prime(n)   // toggle state
+if n mod 60 ∈ {1,13,17,29,37,41,49,53}:
+is_prime(n) ← ¬is_prime(n)   // toggle state
 # Algorithm step 3.2:
 for n ≤ limit, n ← 3x²+y² where x ∈ {1,3,...} and y ∈ {2,4,...} // only odd x's
-    if n mod 60 ∈ {7,19,31,43}:                                 // and even y's
-        is_prime(n) ← ¬is_prime(n)   // toggle state
+if n mod 60 ∈ {7,19,31,43}:                                 // and even y's
+is_prime(n) ← ¬is_prime(n)   // toggle state
 # Algorithm step 3.3:
 for n ≤ limit, n ← 3x²-y² where x ∈ {2,3,...} and y ∈ {x-1,x-3,...,1} //all even/odd
-    if n mod 60 ∈ {11,23,47,59}:                                   // odd/even combos
-        is_prime(n) ← ¬is_prime(n)   // toggle state
+if n mod 60 ∈ {11,23,47,59}:                                   // odd/even combos
+is_prime(n) ← ¬is_prime(n)   // toggle state
 
 # Eliminate composites by sieving, only for those occurrences on the wheel:
 for n² ≤ limit, n ← 60 × w + x where w ∈ {0,1,...}, x ∈ s, n ≥ 7:
-    if is_prime(n):
-        // n is prime, omit multiples of its square; this is sufficient 
-        // because square-free composites can't get on this list
-        for c ≤ limit, c ← n² × (60 × w + x) where w ∈ {0,1,...}, x ∈ s:
-            is_prime(c) ← false
+if is_prime(n):
+// n is prime, omit multiples of its square; this is sufficient 
+// because square-free composites can't get on this list
+for c ≤ limit, c ← n² × (60 × w + x) where w ∈ {0,1,...}, x ∈ s:
+is_prime(c) ← false
 
 # one sweep to produce a sequential list of primes up to limit:
 output 2, 3, 5
 for 7 ≤ n ≤ limit, n ← 60 × w + x where w ∈ {0,1,...}, x ∈ s:
-    if is_prime(n): output n
- */
+if is_prime(n): output n
+*/
 
 /* prime generation correctness unchecked */
 
 unsigned long * spooky_generate_primes(size_t limit) {
-  assert(limit <= 10000000000);
-  bool * sieve = calloc(limit, sizeof * sieve);
-  bool *s = sieve;
+  unsigned long * primes = calloc(limit, sizeof * primes);
+  unsigned long * p = primes;
+  for(unsigned long prime = 2; prime < limit; prime++) {
+    *p = spooky_hash_get_next_prime(prime);
+    p++;
+  }
+  return primes;
 
+#if 1 == 0
+  bool * sieve = calloc(limit, sizeof * sieve);
+  if(!sieve) { abort(); }
+
+  bool *s = sieve;
   for (register unsigned int x = 1; x * x < limit; x++) { 
     for (register unsigned int y = 1; y * y < limit; y++) { 
       register unsigned int n = (4 * x * x) + (y * y); 
@@ -535,7 +545,7 @@ unsigned long * spooky_generate_primes(size_t limit) {
 
   unsigned long * primes = calloc(count, sizeof * primes);
   if(!primes) { abort(); }
-  
+
   unsigned long * p = primes;
   for(register unsigned int a = 5; a < limit; a++) {
     if(*(s + a)) {
@@ -546,6 +556,95 @@ unsigned long * spooky_generate_primes(size_t limit) {
 
   //14630841
   fprintf(stdout, "New Primes: %lu, space: %lu\n", count, count * sizeof primes[0]);
-  return primes;
+#endif
+}
+
+bool spooky_hash_find_prime(const unsigned long * primes, size_t low, size_t n, unsigned long prime, size_t * out_index) {
+  assert(out_index != NULL && n > 0);
+  size_t i = low, j = n - 1;
+
+  while(i <= j) {
+    assert(j != 0);
+    size_t k = i + ((j - i) / 2);
+    assert(k <= n);
+
+    if(primes[k] < prime) {
+      i = k + 1;
+    } else if(primes[k] > prime) {
+      j = k - 1;
+    } else {
+      *out_index = k;
+      return true;
+    } 
+  }
+
+  return false;
+}
+
+unsigned long spooky_hash_get_next_prime(unsigned long base_prime) {
+  size_t pre_calculated_prime_count = sizeof spooky_hash_primes / sizeof spooky_hash_primes[0];
+  if(base_prime < spooky_hash_primes[pre_calculated_prime_count - 1]) {
+    size_t current_prime_index = 0;
+    if(spooky_hash_find_prime(spooky_hash_primes, 0, pre_calculated_prime_count, base_prime, &current_prime_index)) {
+      /* prime exists in our pre-calculated array */
+      if(current_prime_index + 1 < pre_calculated_prime_count) {
+        return spooky_hash_primes[current_prime_index + 1];
+      }
+    }
+  }
+
+  unsigned long max_pre_calculated_prime = spooky_hash_primes[pre_calculated_prime_count];
+  bool is_prime = false;
+  unsigned long next_prime = max_pre_calculated_prime;
+  do {
+    if((is_prime = spooky_hash_miller_is_prime((int64_t)next_prime, 5))) { break; }
+    next_prime++;
+  } while(!is_prime);
+
+  return next_prime;
+}
+
+int64_t spooky_hash_mulmod(int64_t a, int64_t b, int64_t mod) {
+  int64_t x = 0,y = a % mod;
+  while(b > 0) {
+    if(b % 2 == 1) {
+      x = (x + y) % mod;
+    }
+    y = (y * 2) % mod;
+    b /= 2;
+  }
+  return x % mod;
+}
+
+int64_t spooky_hash_modulo(int64_t base, int64_t exponent, int64_t mod) {
+  int64_t x = 1;
+  int64_t y = base;
+  while(exponent > 0) {
+    if(exponent % 2 == 1) {
+      x = (x * y) % mod;
+    }
+    y = (y * y) % mod;
+    exponent = exponent / 2;
+  }
+  return x % mod;
+}
+
+static bool spooky_hash_miller_is_prime(int64_t p, int iteration) {
+  if(p < 2) { return false; }
+  if(p != 2 && p % 2==0) { return false; }
+  int64_t s = p - 1;
+  while(s % 2 == 0) { s /= 2; }
+  for(int i = 0; i < iteration; i++) {
+    int64_t a = rand() % (p - 1) + 1, temp = s;
+    int64_t mod = spooky_hash_modulo(a, temp, p);
+    while(temp != p - 1 && mod != 1 && mod != p - 1) {
+      mod = spooky_hash_mulmod(mod, mod, p);
+      temp *= 2;
+    }
+    if(mod != p - 1 && temp % 2 == 0) {
+      return false;
+    }
+  }
+  return true;
 }
 
