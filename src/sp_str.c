@@ -22,6 +22,44 @@
 
 static const size_t SPOOKY_STR_MAX_STR_LEN = sizeof("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.");
 
+/* Reference type:
+ * typedef struct spooky_str {
+ *  size_t ordinal;
+ *  size_t len;
+ *  size_t ref_count;
+ *  unsigned long hash;
+ *  const char * str;
+ * } spooky_str;
+ */
+
+void spooky_str_swap(spooky_str ** left, spooky_str ** right) {
+#ifndef SPOOKY_STR_SWAP_MEMCPY
+  spooky_str temp = { 
+    .ordinal = (*left)->ordinal,
+    .len = (*left)->len,
+    .ref_count = (*left)->ref_count,
+    .hash = (*left)->hash,
+    .str = (*left)->str
+  };
+
+  (*left)->ordinal = (*right)->ordinal;
+  (*left)->len = (*right)->len;
+  (*left)->ref_count = (*right)->ref_count;
+  (*left)->hash = (*right)->hash;
+  (*left)->str = (*right)->str;
+
+  (*right)->ordinal = temp.ordinal;
+  (*right)->len = temp.len;
+  (*right)->ref_count = temp.ref_count;
+  (*right)->hash = temp.hash;
+  (*right)->str = temp.str;
+#else
+  memcpy(&temp, *left, sizeof temp);
+  memcpy(*left, *right, sizeof ** left);
+  memcpy(*right, &temp, sizeof ** right);
+#endif /* SPOOKY_STR_SWAP_MEMCPY */
+}
+
 /* See: http://www.cse.yorku.ca/~oz/hash.html */
 #define SPOOKY_HASH_USE_SDBM
 inline static unsigned long spooky_hash_str_internal(const char * restrict s, size_t s_len) {

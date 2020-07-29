@@ -35,7 +35,7 @@ static errno_t spooky_command_parser(spooky_context * context, const spooky_cons
 int main(int argc, char **argv) {
   (void)argc;
   (void)argv;
-
+  
   spooky_pack_tests();
 
   int fd = 0;
