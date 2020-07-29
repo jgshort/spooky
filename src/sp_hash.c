@@ -154,7 +154,7 @@ const spooky_hash_table * spooky_hash_table_cctor(const spooky_hash_table * self
   impl->buckets = calloc(impl->buckets_limits.capacity, sizeof * impl->buckets);
   if(!impl->buckets) { abort(); }
 
-  fprintf(stdout, "Allocated buckets (%lu, %lu), %lu\n",impl->buckets_limits.capacity, impl->buckets_limits.len, impl->buckets_limits.capacity * sizeof * impl->buckets);
+  //fprintf(stdout, "Allocated buckets (%lu, %lu), %lu\n",impl->buckets_limits.capacity, impl->buckets_limits.len, impl->buckets_limits.capacity * sizeof * impl->buckets);
 
   if(!buffers) {
     impl->buffers = calloc(1, sizeof * impl->buffers);
@@ -241,7 +241,7 @@ void spooky_hash_rebalance(const spooky_hash_table * self) {
       return;
     }
 
-    fprintf(stdout, "Rebalancing hash with load factor of %f with %lu keys...\n", load_factor, old_impl->string_count);
+    //fprintf(stdout, "Rebalancing hash with load factor of %f with %lu keys...\n", load_factor, old_impl->string_count);
     spooky_hash_bucket * old_buckets = old_impl->buckets;
     self = spooky_hash_table_cctor(self, new_prime_index, old_impl->buffers, old_impl->current_buffer);
 
@@ -282,10 +282,10 @@ void spooky_hash_rebalance(const spooky_hash_table * self) {
                 new_bucket->atoms_limits.reallocs++;
               }
 
-              fprintf(stdout, "new_bucket->atoms_limit.capacity: %lu, new_bucket->atoms_limits.len: %lu\n", new_bucket->atoms_limits.capacity, new_bucket->atoms_limits.len);
+              //fprintf(stdout, "new_bucket->atoms_limit.capacity: %lu, new_bucket->atoms_limits.len: %lu\n", new_bucket->atoms_limits.capacity, new_bucket->atoms_limits.len);
 
               spooky_str * new_atom = new_bucket->atoms + new_bucket->atoms_limits.len;
-              fprintf(stdout, "new_atom %lu, old_atom: %lu\n", (uintptr_t)new_atom, (uintptr_t)old_atom);
+              //fprintf(stdout, "new_atom %lu, old_atom: %lu\n", (uintptr_t)new_atom, (uintptr_t)old_atom);
               new_atom->str = old_atom->str;
               new_atom->ref_count = old_atom->ref_count;
               new_atom->len = old_atom->len;

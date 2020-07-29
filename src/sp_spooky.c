@@ -72,7 +72,7 @@ int main(int argc, char **argv) {
   size_t len = 0;
 
   ssize_t read = 0;
-  for(int i = 0; i < 10; i++) {
+  for(int i = 0; i < 1; i++) {
     fseek(wfp, 0, SEEK_SET);
     while((read = getline(&line, &len, wfp)) != -1) {
       if(read > 1) {
