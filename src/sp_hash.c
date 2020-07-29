@@ -111,6 +111,7 @@ static void spooky_hash_clear_strings(const spooky_hash_table * self);
 static char * spooky_hash_print_stats(const spooky_hash_table * self);
 
 static const spooky_str * spooky_hash_atom_alloc(const spooky_hash_table * self, spooky_hash_bucket * bucket, const char * s, size_t s_len, unsigned long hash, size_t * out_len, bool skip_s_cp);
+static spooky_str * spooky_hash_order_bucket_atoms(const spooky_hash_bucket * bucket, spooky_str * atom);
 
 const spooky_hash_table * spooky_hash_table_alloc() {
   spooky_hash_table * self = calloc(1, sizeof * self);
@@ -275,13 +276,16 @@ void spooky_hash_rebalance(const spooky_hash_table * self) {
                 new_bucket->atoms = temp_atoms;
                 new_bucket->atoms_limits.reallocs++;
               }
+
               spooky_str * new_atom = new_bucket->atoms + new_bucket->atoms_limits.len;
-              spooky_str_swap(&old_atom, &new_atom);
               new_bucket->atoms_limits.len++;
+              
+              spooky_str_swap(&old_atom, &new_atom);
+
+              spooky_hash_order_bucket_atoms(new_bucket, new_atom);
             }
             old_atom++;
           }
-          qsort(new_bucket->atoms, new_bucket->atoms_limits.len, sizeof * new_bucket->atoms, &spooky_str_hash_compare);
         }
         old_bucket++;
       }
@@ -364,6 +368,57 @@ err0:
   abort();
 }
 
+static spooky_str * spooky_hash_order_bucket_atoms(const spooky_hash_bucket * bucket, spooky_str * atom) {
+  static int print_first = 0;
+  size_t index = 0;
+  for(; index < bucket->atoms_limits.len; index++) {
+    // 4
+    //|1|2|3|4|5|
+    //       ^ 
+    const spooky_str * temp = bucket->atoms + index;
+    if(atom->hash > temp->hash) { break; }
+  }
+  if(!print_first && print_first < 10) {
+    fprintf(stdout, "Insert '%s' with hash %lu\n", atom->str, atom->hash);
+  }
+  if(index > 0 && index < bucket->atoms_limits.len) {
+    if(!print_first) {
+      fprintf(stdout, "Start Hashes: (%lu) ", bucket->atoms_limits.len);
+      for(size_t i = 0; i < bucket->atoms_limits.len; i++) {
+        const spooky_str * x = bucket->atoms + i;
+        fprintf(stdout, "%lu - ", x->hash);
+      }
+      fprintf(stdout, "\n");
+    }
+    spooky_str temp = { 0 }, * tp = &temp;
+    spooky_str_swap(&atom, &tp);
+    //         5 len
+    //|0|1|2|3|4| 
+    //   ^
+    //   1 inx
+    //         5 - 1 = 4
+    size_t shift_len = bucket->atoms_limits.len - index - 1;
+    const spooky_str * src = bucket->atoms + index;
+    spooky_str * dest = bucket->atoms + (index + 1);
+    memmove(dest, src, shift_len * sizeof bucket->atoms[0]);
+    atom = &(bucket->atoms[index]);
+    spooky_str_swap(&tp, &atom);
+    atom->ordinal = index;
+    if(!print_first && print_first < 10) {
+      fprintf(stdout, "End Hashes: (%lu) ", bucket->atoms_limits.len);
+      for(size_t i = 0; i < bucket->atoms_limits.len; i++) {
+        const spooky_str * x = bucket->atoms + i;
+        fprintf(stdout, "%lu - ", x->hash);
+      }
+      fprintf(stdout, "\n");
+      fprintf(stdout, "Inserted '%s' with hash %lu\n", atom->str, atom->hash);
+      print_first++;
+    }
+  }
+
+  return atom;
+}
+
 static const spooky_str * spooky_hash_atom_alloc(const spooky_hash_table * self, spooky_hash_bucket * bucket, const char * s, size_t s_len, unsigned long hash, size_t * out_len, bool skip_s_cp) {
   assert(self && bucket && bucket->prime);
 
@@ -380,12 +435,9 @@ static const spooky_str * spooky_hash_atom_alloc(const spooky_hash_table * self,
   spooky_str_ref(s_cp, s_len, bucket->atoms_limits.len, hash, atom);
   spooky_str_inc_ref_count(atom);
   bucket->atoms_limits.len++;
+  atom = spooky_hash_order_bucket_atoms(bucket, atom);
   
-  qsort(bucket->atoms, bucket->atoms_limits.len, sizeof * bucket->atoms, &spooky_str_hash_compare);
-
-  const spooky_str * res = NULL;
-  spooky_hash_find_internal(bucket, s, s_len, hash, &res);
-  return res;
+  return atom;
 }
 
 char * spooky_hash_print_stats(const spooky_hash_table * self) {
@@ -443,31 +495,20 @@ char * spooky_hash_print_stats(const spooky_hash_table * self) {
 }
 
 bool spooky_hash_binary_search(const spooky_str * atoms, size_t low, size_t n, unsigned long hash, size_t * out_index) {
-  /*
-   * function binary_search_leftmost(A, n, T):
-    L := 0
-    R := n
-    while L < R:
-        m := floor((L + R) / 2)
-        if A[m] < T:
-            L := m + 1
-        else:
-            R := m
-    return L */
-
-  assert(out_index != NULL);
-  size_t L = low, R = n;
-  while(L < R) {
-    size_t m = (L + R) / 2;
-    if(atoms[m].hash < hash) {
-      L = m + 1;
+  size_t i = low, j = n - 1;
+  while(i <= j) {
+    size_t k = i + ((j - i) / 2);
+    if(atoms[k].hash < hash) {
+      i = k + 1;
+    } else if(atoms[k].hash > hash) {
+      j = k - 1;
     } else {
-      R = m;
-    }
+      *out_index = k;
+      return true;
+    } 
   }
- 
-  *out_index = L;
-  return atoms[L].hash == hash ? SP_SUCCESS : SP_FAILURE;
+
+  return false;
 }
 
 errno_t spooky_hash_find_internal(const spooky_hash_bucket * bucket, const char * s, size_t s_len, unsigned long hash, const spooky_str ** out_atom) {
