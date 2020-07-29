@@ -22,55 +22,6 @@
 
 static const size_t SPOOKY_STR_MAX_STR_LEN = sizeof("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.");
 
-typedef struct spooky_strings {
-  size_t len;
-  size_t capacity;
-  spooky_str * strings;
-} spooky_strings;
-
-#if 1 == 0
-static spooky_strings * strings_buf = NULL;
-
-static bool is_init = false;
-
-void spooky_str_init() {
-  strings_buf = calloc(1, sizeof * strings_buf);
-  assert(strings_buf);
-
-  strings_buf->len = 0;
-  strings_buf->capacity = SPOOKY_STR_BUFFER_CAPACITY_DEFAULT;
-  strings_buf->strings = calloc(strings_buf->capacity, sizeof * strings_buf->strings); 
-  assert(strings_buf->capacity > 0);
-
-  is_init = true;
-}
-
-void spooky_str_quit() {
-  strings_buf->len = 0;
-  strings_buf->capacity = SPOOKY_STR_BUFFER_CAPACITY_DEFAULT;
-  free(strings_buf->strings), strings_buf->strings = NULL;
-  free(strings_buf), strings_buf = NULL;
-  is_init = false;
-}
-
-static spooky_str * spooky_str_get_next() {
-  assert(is_init && strings_buf->strings && strings_buf->capacity > 0);
-  if(strings_buf->len + 1 > strings_buf->capacity) {
-    strings_buf->capacity *= 2;
-    spooky_str * temp = realloc(strings_buf->strings, (sizeof * temp) * strings_buf->capacity);
-    if(!temp) { abort(); }
-    strings_buf->strings = temp;
-  }
-  spooky_str * res = &(strings_buf->strings[strings_buf->len]);
-  res->ordinal = strings_buf->len;
-  strings_buf->len++;
-  return res;
-}
-#else
-void spooky_str_init() { }
-void spooky_str_quit() { }
-#endif
-
 /* See: http://www.cse.yorku.ca/~oz/hash.html */
 #define SPOOKY_HASH_USE_SDBM
 inline static unsigned long spooky_hash_str_internal(const char * restrict s, size_t s_len) {
