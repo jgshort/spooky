@@ -72,7 +72,10 @@ int main(int argc, char **argv) {
   size_t len = 0;
 
   ssize_t read = 0;
-  for(int i = 0; i < 1; i++) {
+  fprintf(stdout, "Ensuring words...\n");
+  size_t count = 0;
+  for(int i = 0; i < 5; i++) {
+    fprintf(stdout, "Starting iteration %i...\n", i);
     fseek(wfp, 0, SEEK_SET);
     while((read = getline(&line, &len, wfp)) != -1) {
       if(read > 1) {
@@ -80,15 +83,19 @@ int main(int argc, char **argv) {
         if(hash->ensure(hash, line, (size_t)read - 1, NULL) != SP_SUCCESS) { abort(); }
         free(line), line = NULL;
         len = 0;
+        count++;
       }
     }
+    fprintf(stdout, "Done with %i\n", i);
   } 
   fclose(wfp);
+  fprintf(stdout, "Done. Added %lu words\n", count);
 
+  fprintf(stdout, "Finding \"foo\"\n");
   if(hash->find(hash, "foo", strlen("foo"), &atom) == SP_SUCCESS) {
     fprintf(stdout, "Found 'foo', added %i times\n", (int)atom->ref_count);  
   }
-
+  fprintf(stdout, "Done.\n");
   fprintf(stdout, "STATS:\n%s\n", hash->print_stats(hash));
 
   if(argv) { exit(0); }

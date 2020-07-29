@@ -33,6 +33,8 @@ void spooky_str_dec_ref_count(spooky_str * /* self */);
 errno_t spooky_str_isspace(int /* c */, bool * /* out_space */);
 errno_t spooky_str_trim(const char * /* str */, size_t /* str_len */, size_t /* n_max */, char ** /* out_str */, size_t * /* out_str_len */);
 
+int spooky_str_hash_compare(const void * a, const void * b);
+
 #ifdef __cplusplus
 }
 #endif

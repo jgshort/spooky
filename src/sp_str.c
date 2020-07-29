@@ -243,3 +243,12 @@ err0:
   return SP_FAILURE;
 }
 
+int spooky_str_hash_compare(const void * a, const void * b) {
+  const spooky_str * l = (const spooky_str *)a;
+  const spooky_str * r = (const spooky_str *)b;
+  if(l->hash < r->hash) return -1;
+  if(l->hash == r->hash) return 0;
+  else return 1;
+}
+
+
