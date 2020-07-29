@@ -32,6 +32,14 @@ static const size_t SPOOKY_STR_MAX_STR_LEN = sizeof("Lorem ipsum dolor sit amet,
  * } spooky_str;
  */
 
+void spooky_str_copy(spooky_str ** dest, const spooky_str * src) {
+  (*dest)->ordinal = src->ordinal;
+  (*dest)->len = src->len;
+  (*dest)->ref_count = src->ref_count;
+  (*dest)->hash = src->hash;
+  (*dest)->str = src->str;
+}
+
 void spooky_str_swap(spooky_str ** left, spooky_str ** right) {
 #ifndef SPOOKY_STR_SWAP_MEMCPY
   spooky_str temp = { 

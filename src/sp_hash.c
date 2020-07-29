@@ -280,7 +280,7 @@ void spooky_hash_rebalance(const spooky_hash_table * self) {
               spooky_str * new_atom = new_bucket->atoms + new_bucket->atoms_limits.len;
               new_bucket->atoms_limits.len++;
               
-              spooky_str_swap(&old_atom, &new_atom);
+              spooky_str_copy(&new_atom, old_atom);
 
               spooky_hash_order_bucket_atoms(new_bucket, new_atom);
             }
@@ -370,18 +370,24 @@ err0:
 
 static spooky_str * spooky_hash_order_bucket_atoms(const spooky_hash_bucket * bucket, spooky_str * atom) {
   static int print_first = 0;
+  bool perform_shift = false;
   size_t index = 0;
   for(; index < bucket->atoms_limits.len; index++) {
     // 4
     //|1|2|3|4|5|
     //       ^ 
     const spooky_str * temp = bucket->atoms + index;
-    if(atom->hash > temp->hash) { break; }
+    if(atom->hash > temp->hash) { 
+      perform_shift = true;
+      break;
+    }
   }
+
   if(!print_first && print_first < 10) {
     fprintf(stdout, "Insert '%s' with hash %lu\n", atom->str, atom->hash);
   }
-  if(index > 0 && index < bucket->atoms_limits.len) {
+
+  if(perform_shift) {
     if(!print_first) {
       fprintf(stdout, "Start Hashes: (%lu) ", bucket->atoms_limits.len);
       for(size_t i = 0; i < bucket->atoms_limits.len; i++) {
@@ -392,11 +398,13 @@ static spooky_str * spooky_hash_order_bucket_atoms(const spooky_hash_bucket * bu
     }
     spooky_str temp = { 0 }, * tp = &temp;
     spooky_str_swap(&atom, &tp);
+    
     //         5 len
     //|0|1|2|3|4| 
     //   ^
     //   1 inx
     //         5 - 1 = 4
+
     size_t shift_len = bucket->atoms_limits.len - index - 1;
     const spooky_str * src = bucket->atoms + index;
     spooky_str * dest = bucket->atoms + (index + 1);
@@ -404,6 +412,7 @@ static spooky_str * spooky_hash_order_bucket_atoms(const spooky_hash_bucket * bu
     atom = &(bucket->atoms[index]);
     spooky_str_swap(&tp, &atom);
     atom->ordinal = index;
+
     if(!print_first && print_first < 10) {
       fprintf(stdout, "End Hashes: (%lu) ", bucket->atoms_limits.len);
       for(size_t i = 0; i < bucket->atoms_limits.len; i++) {
@@ -440,70 +449,31 @@ static const spooky_str * spooky_hash_atom_alloc(const spooky_hash_table * self,
   return atom;
 }
 
-char * spooky_hash_print_stats(const spooky_hash_table * self) {
-  static const size_t max_buf_len = 2048;
-  spooky_hash_table_impl * impl = self->impl;
-  char * out = calloc(max_buf_len, sizeof * out);
-  char * result = out;
-  out += snprintf(out, max_buf_len - (size_t)(out - result), "Load factor: %f\n", (double)impl->string_count / (double)impl->buckets_limits.len);
-  out += snprintf(out, max_buf_len - (size_t)(out - result), "Buckets: (%lu, %lu)\n", (unsigned long)impl->buckets_limits.capacity, (unsigned long)impl->buckets_limits.len);
+bool spooky_hash_binary_search(const spooky_str * atoms, size_t low, size_t n, unsigned long hash, size_t * out_index) {
+  assert(n > 0);
 
-  spooky_string_buffer * buffer = impl->buffers;
-  int buffer_count = 0;
-  size_t buffer_total_len = 0;
-
-  out += snprintf(out, max_buf_len - (size_t)(out - result), "Buffers:\n");
-  while(buffer) {
-    out += snprintf(out, max_buf_len - (size_t)(out - result), "\t%i: %lu (%lu, %lu)\n", buffer_count++, buffer->string_count, buffer->capacity, buffer->len);
-    buffer_total_len += buffer->len;
-    buffer = buffer->next;
-  }
-  out += snprintf(out, max_buf_len - (size_t)(out - result), "Total buffer size: %lu\n", buffer_total_len);
-  //out += snprintf(out, max_buf_len - (size_t)(out - result), "Buckets:\n");
-  int collisions = 0;
-  int reallocs = 0;
-  int max_atoms = 0;
-  
-  for(size_t i = 0; i < impl->buckets_limits.len; i++) {
-    const spooky_hash_bucket * bucket = &impl->buckets[i];
-    if(bucket->prime) {
-      max_atoms = (int)bucket->atoms_limits.len > max_atoms ? (int)bucket->atoms_limits.len : max_atoms;
-      if(bucket->atoms_limits.len > 1) {
-        if(bucket->atoms_limits.reallocs > 0) { reallocs++; };
-        for(size_t x = 0; x < bucket->atoms_limits.len; x++) {
-          const spooky_str * outer = &bucket->atoms[x];
-          for(size_t y = 0; y < bucket->atoms_limits.len; y++) {
-            const spooky_str * inner = &bucket->atoms[y];
-            if(outer != inner && outer->hash == inner->hash) {
-              collisions++;
-              out += snprintf(out, max_buf_len - (size_t)(out - result), "Hash Collisions!\n");
-              out += snprintf(out, max_buf_len - (size_t)(out - result), "    X: '%s': len: %lu, hash: %lu, ordinal: %lu\n", outer->str, outer->len, outer->hash, outer->ordinal);
-              out += snprintf(out, max_buf_len - (size_t)(out - result), "    Y: '%s': len: %lu, hash: %lu, ordinal: %lu\n", inner->str, inner->len, inner->hash, inner->ordinal);
-            }
-          }
-        }
-      }
+  if(n > 1) {
+    for(size_t x = 0; x < n - 1; x++) {
+      const spooky_str * first = atoms + x;
+      const spooky_str * second = atoms + x + 1;
+      if(!(first->hash >= second->hash)) { fprintf(stdout, "FAILED: %lu, %lu\n", first->hash, second->hash); }
+      assert(first->hash >= second->hash);
     }
   }
- 
-  out += snprintf(out, max_buf_len - (size_t)(out - result), "Total chain reallocations: %i\n", reallocs);
-  out += snprintf(out, max_buf_len - (size_t)(out - result), "Total key collisions: %i\n", collisions / 2);
-  out += snprintf(out, max_buf_len - (size_t)(out - result), "Max bucket chain count: %i\n", max_atoms);
-  out += snprintf(out, max_buf_len - (size_t)(out - result), "Unique keys: %i\n", (int)impl->string_count);
 
-  return result;
-}
-
-bool spooky_hash_binary_search(const spooky_str * atoms, size_t low, size_t n, unsigned long hash, size_t * out_index) {
-  size_t i = low, j = n - 1;
+  if(n == 0) abort();
+  int64_t i = (int64_t)low, j = (int64_t)n - 1;
   while(i <= j) {
-    size_t k = i + ((j - i) / 2);
+    int64_t k = i + ((j - i) / 2);
+    //fprintf(stdout, "i: %lu, j: %lu, low: %lu, n: %lu, k: %lu\n", i, j, low, n, k);
     if(atoms[k].hash < hash) {
       i = k + 1;
     } else if(atoms[k].hash > hash) {
-      j = k - 1;
+      j = k - 1; 
     } else {
-      *out_index = k;
+      if(k >= 0 && k < INT64_MAX) {
+        *out_index = (size_t)k;
+      }
       return true;
     } 
   }
@@ -587,5 +557,59 @@ const char * spooky_hash_move_string_to_strings(const spooky_hash_table * self, 
 
 err0:
   abort();
+}
+
+char * spooky_hash_print_stats(const spooky_hash_table * self) {
+  static const size_t max_buf_len = 2048;
+  spooky_hash_table_impl * impl = self->impl;
+  char * out = calloc(max_buf_len, sizeof * out);
+  char * result = out;
+  out += snprintf(out, max_buf_len - (size_t)(out - result), "Load factor: %f\n", (double)impl->string_count / (double)impl->buckets_limits.len);
+  out += snprintf(out, max_buf_len - (size_t)(out - result), "Buckets: (%lu, %lu)\n", (unsigned long)impl->buckets_limits.capacity, (unsigned long)impl->buckets_limits.len);
+
+  spooky_string_buffer * buffer = impl->buffers;
+  int buffer_count = 0;
+  size_t buffer_total_len = 0;
+
+  out += snprintf(out, max_buf_len - (size_t)(out - result), "Buffers:\n");
+  while(buffer) {
+    out += snprintf(out, max_buf_len - (size_t)(out - result), "\t%i: %lu (%lu, %lu)\n", buffer_count++, buffer->string_count, buffer->capacity, buffer->len);
+    buffer_total_len += buffer->len;
+    buffer = buffer->next;
+  }
+  out += snprintf(out, max_buf_len - (size_t)(out - result), "Total buffer size: %lu\n", buffer_total_len);
+  //out += snprintf(out, max_buf_len - (size_t)(out - result), "Buckets:\n");
+  int collisions = 0;
+  int reallocs = 0;
+  int max_atoms = 0;
+  
+  for(size_t i = 0; i < impl->buckets_limits.len; i++) {
+    const spooky_hash_bucket * bucket = &impl->buckets[i];
+    if(bucket->prime) {
+      max_atoms = (int)bucket->atoms_limits.len > max_atoms ? (int)bucket->atoms_limits.len : max_atoms;
+      if(bucket->atoms_limits.len > 1) {
+        if(bucket->atoms_limits.reallocs > 0) { reallocs++; };
+        for(size_t x = 0; x < bucket->atoms_limits.len; x++) {
+          const spooky_str * outer = &bucket->atoms[x];
+          for(size_t y = 0; y < bucket->atoms_limits.len; y++) {
+            const spooky_str * inner = &bucket->atoms[y];
+            if(outer != inner && outer->hash == inner->hash) {
+              collisions++;
+              out += snprintf(out, max_buf_len - (size_t)(out - result), "Hash Collisions!\n");
+              out += snprintf(out, max_buf_len - (size_t)(out - result), "    X: '%s': len: %lu, hash: %lu, ordinal: %lu\n", outer->str, outer->len, outer->hash, outer->ordinal);
+              out += snprintf(out, max_buf_len - (size_t)(out - result), "    Y: '%s': len: %lu, hash: %lu, ordinal: %lu\n", inner->str, inner->len, inner->hash, inner->ordinal);
+            }
+          }
+        }
+      }
+    }
+  }
+ 
+  out += snprintf(out, max_buf_len - (size_t)(out - result), "Total chain reallocations: %i\n", reallocs);
+  out += snprintf(out, max_buf_len - (size_t)(out - result), "Total key collisions: %i\n", collisions / 2);
+  out += snprintf(out, max_buf_len - (size_t)(out - result), "Max bucket chain count: %i\n", max_atoms);
+  out += snprintf(out, max_buf_len - (size_t)(out - result), "Unique keys: %i\n", (int)impl->string_count);
+
+  return result;
 }
 
