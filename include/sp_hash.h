@@ -21,6 +21,12 @@ typedef struct spooky_hash_table {
   errno_t (*find)(const spooky_hash_table * /* self */, const char * /* s */, size_t /* s_len */, spooky_str ** /* atom */);
 
   char * (*print_stats)(const spooky_hash_table * /* self */);
+  double (*get_load_factor)(const spooky_hash_table * /* self */);
+
+  size_t (*get_bucket_length)(const spooky_hash_table * /* self */);
+  size_t (*get_bucket_capacity)(const spooky_hash_table * /* self */);
+  size_t (*get_key_count)(const spooky_hash_table * /* self */);
+
   spooky_hash_table_impl * impl;
 } spooky_hash_table;
 

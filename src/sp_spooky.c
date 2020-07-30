@@ -55,6 +55,7 @@ int main(int argc, char **argv) {
   ssize_t read = 0;
   fprintf(stdout, "Ensuring words...\n");
   size_t count = 0;
+  bool load_factor_printed = false;
   for(int i = 0; i < 5; i++) {
     fprintf(stdout, "Starting iteration %i...\n", i);
     fseek(wfp, 0, SEEK_SET);
@@ -65,6 +66,13 @@ int main(int argc, char **argv) {
         free(line), line = NULL;
         len = 0;
         count++;
+      }
+      size_t capacity = hash->get_bucket_capacity(hash);
+      size_t bucket_len = hash->get_bucket_length(hash);
+
+      if(!load_factor_printed && hash->get_load_factor(hash) > 0.75 & bucket_len < capacity) {
+        fprintf(stdout, "Max load factor hit at %lu\n", count);
+        load_factor_printed = true;
       }
     }
     fprintf(stdout, "Done with %i\n", i);
@@ -88,8 +96,9 @@ int main(int argc, char **argv) {
     fprintf(stdout, "Found 'foo', added %i times\n", (int)atom->ref_count);  
   }
   fprintf(stdout, "Done.\n");
-  fprintf(stdout, "STATS:\n%s\n", hash->print_stats(hash));
-
+  char * stats = hash->print_stats(hash);
+  fprintf(stdout, "STATS:\n%s\n", stats);
+  free(stats), stats = NULL;
   spooky_hash_table_release(hash);
 
   if(argv) { exit(0); }
