@@ -373,9 +373,11 @@ static spooky_str * spooky_hash_order_bucket_atoms(const spooky_hash_bucket * bu
   spooky_str temp = { 0 }, * t = &temp;
   const spooky_str * x = NULL;
   spooky_str_copy(&t, atom);
-
+  assert(temp.str == atom->str && temp.len == atom->len && temp.ref_count == atom->ref_count && atom->ordinal == atom->ordinal);
   qsort(bucket->atoms, bucket->atoms_limits.len, sizeof bucket->atoms[0], &spooky_str_hash_compare);
-  spooky_hash_find_internal(bucket, t->str, t->len, t->hash, &x);
+  if(spooky_hash_find_internal(bucket, t->str, t->len, t->hash, &x) != SP_SUCCESS) {
+    abort();
+  }
 
   return (spooky_str *)(uintptr_t)x;
 }
@@ -401,9 +403,9 @@ static const spooky_str * spooky_hash_atom_alloc(const spooky_hash_table * self,
   return atom;
 }
 
-bool spooky_hash_binary_search(const spooky_str * atoms, size_t low, size_t n, unsigned long hash, size_t * out_index) {
+errno_t spooky_hash_binary_search(const spooky_str * atoms, size_t low, size_t n, unsigned long hash, size_t * out_index) {
   assert(n > 0);
-
+/*
   if(n > 1) {
     for(size_t x = 0; x < n - 1; x++) {
       const spooky_str * first = atoms + x;
@@ -412,25 +414,23 @@ bool spooky_hash_binary_search(const spooky_str * atoms, size_t low, size_t n, u
       assert(first->hash >= second->hash);
     }
   }
-
+*/
   if(n == 0) abort();
   int64_t i = (int64_t)low, j = (int64_t)n - 1;
   while(i <= j) {
     int64_t k = i + ((j - i) / 2);
-    //fprintf(stdout, "i: %lu, j: %lu, low: %lu, n: %lu, k: %lu\n", i, j, low, n, k);
     if(atoms[k].hash < hash) {
       i = k + 1;
     } else if(atoms[k].hash > hash) {
       j = k - 1; 
     } else {
-      if(k >= 0 && k < INT64_MAX) {
-        *out_index = (size_t)k;
-      }
-      return true;
+      assert(k >= 0);
+      *out_index = (size_t)k;
+      return SP_SUCCESS;
     } 
   }
 
-  return false;
+  return SP_FAILURE;
 }
 
 errno_t spooky_hash_find_internal(const spooky_hash_bucket * bucket, const char * s, size_t s_len, unsigned long hash, const spooky_str ** out_atom) {
@@ -449,7 +449,7 @@ errno_t spooky_hash_find_internal(const spooky_hash_bucket * bucket, const char 
           if(out_atom) { *out_atom = atom; }
           return SP_SUCCESS;
         }
-      } else if(hash != atom->hash) { break; }
+      } else if(hash < atom->hash) { break; }
       atom++;
     }
   }
