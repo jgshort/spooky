@@ -61,8 +61,8 @@ static const uint64_t spooky_hash_primes[] = {
   11493228998133068689llu, 14480561146010017169llu, 18446744073709551557llu
 };
 
-static const size_t SPOOKY_HASH_DEFAULT_ATOM_ALLOC = 1 << 13;
-static const size_t SPOOKY_HASH_DEFAULT_STRING_ALLOC = 1048576;
+static const size_t SPOOKY_HASH_DEFAULT_ATOM_ALLOC = 1 << 12;
+static const size_t SPOOKY_HASH_DEFAULT_STRING_ALLOC = 1048576 * 2;
 
 typedef struct spooky_string_buffer spooky_string_buffer;
 typedef struct spooky_string_buffer {
@@ -165,19 +165,22 @@ const spooky_hash_table * spooky_hash_table_cctor(const spooky_hash_table * self
 
   if(!buffers) {
     static const size_t max_buffers = 5;
-    impl->buffers = calloc(max_buffers, sizeof * impl->buffers);
-    for(size_t i = 0; i < max_buffers; i++) {
-      spooky_string_buffer * buffer = &impl->buffers[i];
-      if(i < max_buffers - 1) {
-        buffer->next = &impl->buffers[i + 1];
-      } else {
-        buffer->next = NULL;
-      }
 
+    size_t i = 0;
+    spooky_string_buffer * first_buffer = NULL;
+    spooky_string_buffer * prev = NULL;
+    do {
+      spooky_string_buffer * buffer = calloc(1, sizeof * impl->buffers);
+      if(prev) { prev->next = buffer; }
+      if(!first_buffer) { first_buffer = buffer; }
+      buffer->next = NULL;
       buffer->len = 0;
       buffer->capacity = SPOOKY_HASH_DEFAULT_STRING_ALLOC;
       buffer->strings = calloc(buffer->capacity , sizeof * buffer->strings);
-    }
+      prev = buffer;
+      i++;
+    } while(i < max_buffers);
+    impl->buffers = first_buffer; 
     impl->current_buffer = impl->buffers;
   } else {
     impl->buffers = buffers;
@@ -449,12 +452,14 @@ static spooky_str * spooky_hash_atom_alloc(const spooky_hash_table * self, spook
 errno_t spooky_hash_binary_search(const spooky_str * atoms, size_t low, size_t n, unsigned long hash, size_t * out_index) {
   assert(n > 0);
 
-  int64_t i = (int64_t)low, j = (int64_t)n - 1;
+  register int64_t i = (int64_t)low;
+  register int64_t j = (int64_t)n - 1;
   while(i <= j) {
-    int64_t k = i + ((j - i) / 2);
-    if(atoms[k].hash < hash) {
+    register int64_t k = i + ((j - i) / 2);
+    register unsigned long a_hash = atoms[k].hash;
+    if(a_hash < hash) {
       i = k + 1;
-    } else if(atoms[k].hash > hash) {
+    } else if(a_hash > hash) {
       j = k - 1; 
     } else {
       assert(k >= 0 && k < (int64_t)n);
@@ -473,16 +478,17 @@ errno_t spooky_hash_find_internal(const spooky_hash_bucket * bucket, const char 
 
   size_t index = 0;
   if(spooky_hash_binary_search(bucket->atoms, 0, bucket->atoms_limits.len, hash, &index) == SP_SUCCESS) {
-    spooky_str * atom = &(bucket->atoms[index]);
+    register spooky_str * atom = &(bucket->atoms[index]);
     const spooky_str * end = bucket->atoms + bucket->atoms_limits.len;
     while(atom < end) {
-      if(s_len == atom->len && hash == atom->hash) {
-        const char * str = atom->str;
-        if(str == s || strncmp(str, s, SPOOKY_MAX_STRING_LEN) == 0) {
+      if(hash < atom->hash) { break; }
+      if(hash == atom->hash) {
+        register const char * str = atom->str;
+        if(s_len == atom->len && (str == s || strncmp(str, s, SPOOKY_MAX_STRING_LEN) == 0)) {
           if(out_atom) { *out_atom = atom; }
           return SP_SUCCESS;
         }
-      } else if(hash < atom->hash) { break; }
+      }
       atom++;
     }
   }
@@ -500,29 +506,36 @@ errno_t spooky_hash_find(const spooky_hash_table * self, const char * s, size_t 
 
 const char * spooky_hash_move_string_to_strings(const spooky_hash_table * self, const char * s, size_t s_len, size_t * out_len) {
   spooky_hash_table_impl * impl = self->impl;
-
+  
   if(!s) { return NULL; }
-
-  assert(s_len > 0);
   if(s_len <= 0) { return NULL; }
+  if(s_len >= SPOOKY_MAX_STRING_LEN) { s_len = SPOOKY_MAX_STRING_LEN; }
 
+  assert(s_len > 0 && s_len <= SPOOKY_MAX_STRING_LEN);
   spooky_string_buffer * buffer = impl->current_buffer;
   size_t alloc_len = s_len + 1;
   if(buffer->len + alloc_len > buffer->capacity) {
-    /* reallocate strings */
+    // reallocate strings
     size_t new_len = 0;
     size_t new_capacity = SPOOKY_HASH_DEFAULT_STRING_ALLOC;
     while(new_len + alloc_len > new_capacity) {
       new_capacity *= 2;
     }
-    spooky_string_buffer * new_buffer = calloc(1, sizeof * new_buffer);
-    if(!new_buffer) { goto err0; }
+    spooky_string_buffer * new_buffer = buffer->next;
+    if(new_buffer == NULL) {
+      new_buffer = calloc(1, sizeof * new_buffer);
+      buffer->next = new_buffer;
+      if(!new_buffer) { goto err0; }
+    }
 
     new_buffer->len = 0;
-    new_buffer->capacity = new_capacity;
-    new_buffer->strings = calloc(new_capacity, sizeof * new_buffer->strings);
-    if(!new_buffer->strings) { goto err0; }
-
+    if(new_capacity > new_buffer->capacity) {
+      new_buffer->capacity = new_capacity;
+      char * temp = realloc(new_buffer->strings, new_capacity * sizeof * new_buffer->strings);
+      if(!temp) { goto err0; }
+      new_buffer->strings = temp;
+    }
+    
     impl->current_buffer->next = new_buffer;
     impl->current_buffer = new_buffer;
     buffer = new_buffer;
@@ -535,7 +548,8 @@ const char * spooky_hash_move_string_to_strings(const spooky_hash_table * self, 
   buffer->len += n_len + 1;
 
   assert(n_len > 0);
-  strncpy(offset, s, n_len);
+  memcpy(offset, s, n_len);
+  offset[n_len] = '\0';
   *out_len = n_len;
 
   return offset;
