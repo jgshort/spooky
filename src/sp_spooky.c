@@ -57,7 +57,7 @@ int main(int argc, char **argv) {
   if(spooky_init_context(&context) != SP_SUCCESS) { goto err0; }
 
   const spooky_hash_table * hash = context.get_hash(&context);
-  const spooky_str * atom = NULL;
+  spooky_str * atom = NULL;
   if(hash->find(hash, "foo", strlen("foo"), &atom) != SP_SUCCESS) {
     fprintf(stdout, "'foo' NOT found, which is good\n");
   }
@@ -90,6 +90,17 @@ int main(int argc, char **argv) {
   } 
   fclose(wfp);
   fprintf(stdout, "Done. Added %lu words\n", count);
+
+  fseek(wfp, 0, SEEK_SET);
+  while((read = getline(&line, &len, wfp)) != -1) {
+    if(read > 1) {
+      line[read - 1] = '\0';
+      if(hash->find(hash, line, strlen(line), &atom) != SP_SUCCESS) { abort(); }
+      free(line), line = NULL;
+      len = 0;
+      count++;
+    }
+  }
 
   fprintf(stdout, "Finding \"foo\"\n");
   if(hash->find(hash, "foo", strlen("foo"), &atom) == SP_SUCCESS) {
