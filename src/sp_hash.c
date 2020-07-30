@@ -383,7 +383,6 @@ static spooky_str * spooky_hash_order_bucket_atoms(const spooky_hash_bucket * bu
       spooky_str * marker = left;
       while(marker >= bucket->atoms && right->hash < left->hash) {
         spooky_str_swap(&left, &right);
-        //fprintf(stdout, "(%lu -- %lu)", atom->hash, end->hash);
         marker--;
         left--;
         right--;

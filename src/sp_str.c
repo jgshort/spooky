@@ -41,31 +41,9 @@ void spooky_str_copy(spooky_str ** dest, const spooky_str * src) {
 }
 
 void spooky_str_swap(spooky_str ** left, spooky_str ** right) {
-#ifndef SPOOKY_STR_SWAP_MEMCPY
-  spooky_str temp = { 
-    .ordinal = (*left)->ordinal,
-    .len = (*left)->len,
-    .ref_count = (*left)->ref_count,
-    .hash = (*left)->hash,
-    .str = (*left)->str
-  };
-
-  (*left)->ordinal = (*right)->ordinal;
-  (*left)->len = (*right)->len;
-  (*left)->ref_count = (*right)->ref_count;
-  (*left)->hash = (*right)->hash;
-  (*left)->str = (*right)->str;
-
-  (*right)->ordinal = temp.ordinal;
-  (*right)->len = temp.len;
-  (*right)->ref_count = temp.ref_count;
-  (*right)->hash = temp.hash;
-  (*right)->str = temp.str;
-#else
-  memcpy(&temp, *left, sizeof temp);
-  memcpy(*left, *right, sizeof ** left);
-  memcpy(*right, &temp, sizeof ** right);
-#endif /* SPOOKY_STR_SWAP_MEMCPY */
+  spooky_str temp = **left;
+  **left = **right;
+  **right = temp;
 }
 
 /* See: http://www.cse.yorku.ca/~oz/hash.html */
