@@ -370,24 +370,6 @@ errno_t spooky_hash_ensure_internal(const spooky_hash_table * self, const char *
 }
 
 static spooky_str * spooky_hash_order_bucket_atoms(const spooky_hash_bucket * bucket, spooky_str * atom) {
-  //static int print_first = 0;
-  /*bool perform_shift = false;
-  size_t index = 0;
-  for(; index < bucket->atoms_limits.len; index++) {
-    // 4
-    //|1|2|3|4|5|
-    //       ^ 
-    const spooky_str * temp = bucket->atoms + index;
-    if(atom->hash > temp->hash) { 
-      perform_shift = true;
-      break;
-    }
-  }
-*/
-  //if(!print_first && print_first < 10) {
-  //  fprintf(stdout, "Insert '%s' with hash %lu\n", atom->str, atom->hash);
-  //}
-
   spooky_str temp = { 0 }, * t = &temp;
   const spooky_str * x = NULL;
   spooky_str_copy(&t, atom);
