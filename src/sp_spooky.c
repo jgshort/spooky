@@ -35,28 +35,9 @@ static errno_t spooky_command_parser(spooky_context * context, const spooky_cons
 int main(int argc, char **argv) {
   (void)argc;
   (void)argv;
-  
-  spooky_pack_tests();
-
-  int fd = 0;
-  fd = open("./test.spdb", O_CREAT | O_RDWR | O_EXCL, S_IRUSR | S_IWUSR);
-  if(fd < 0) {
-    if(errno == EEXIST) {
-      fd = open("./test.spdb", O_RDWR | O_EXCL, S_IRUSR | S_IWUSR);
-    }
-  }
-  FILE * fp = fdopen(fd, "wb+x");
-  
-  spooky_pack_create(fp);
-  fseek(fp, 0, SEEK_SET);
-  spooky_pack_verify(fp);
-
-  spooky_context context = { 0 };
-
-  const spooky_ex * ex = NULL;
-  if(spooky_init_context(&context) != SP_SUCCESS) { goto err0; }
-
-  const spooky_hash_table * hash = context.get_hash(&context);
+ 
+  const spooky_hash_table * hash = spooky_hash_table_acquire();
+  hash = hash->ctor(hash);
   spooky_str * atom = NULL;
   if(hash->find(hash, "foo", strlen("foo"), &atom) != SP_SUCCESS) {
     fprintf(stdout, "'foo' NOT found, which is good\n");
@@ -109,7 +90,29 @@ int main(int argc, char **argv) {
   fprintf(stdout, "Done.\n");
   fprintf(stdout, "STATS:\n%s\n", hash->print_stats(hash));
 
+  spooky_hash_table_release(hash);
+
   if(argv) { exit(0); }
+
+  spooky_pack_tests();
+
+  int fd = 0;
+  fd = open("./test.spdb", O_CREAT | O_RDWR | O_EXCL, S_IRUSR | S_IWUSR);
+  if(fd < 0) {
+    if(errno == EEXIST) {
+      fd = open("./test.spdb", O_RDWR | O_EXCL, S_IRUSR | S_IWUSR);
+    }
+  }
+  FILE * fp = fdopen(fd, "wb+x");
+  
+  spooky_pack_create(fp);
+  fseek(fp, 0, SEEK_SET);
+  spooky_pack_verify(fp);
+
+  spooky_context context = { 0 };
+
+  const spooky_ex * ex = NULL;
+  if(spooky_init_context(&context) != SP_SUCCESS) { goto err0; }
   if(spooky_test_resources(&context) != SP_SUCCESS) { goto err0; }
   if(spooky_loop(&context, &ex) != SP_SUCCESS) { goto err1; }
   if(spooky_quit_context(&context) != SP_SUCCESS) { goto err2; }

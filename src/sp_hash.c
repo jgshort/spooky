@@ -153,11 +153,20 @@ const spooky_hash_table * spooky_hash_table_cctor(const spooky_hash_table * self
   if(!impl->buckets) { abort(); }
 
   if(!buffers) {
-    impl->buffers = calloc(1, sizeof * impl->buffers);
-    impl->buffers->next = NULL;
-    impl->buffers->len = 0;
-    impl->buffers->capacity = SPOOKY_HASH_DEFAULT_STRING_ALLOC;
-    impl->buffers->strings = calloc(impl->buffers->capacity , sizeof * impl->buffers->strings);
+    static const size_t max_buffers = 5;
+    impl->buffers = calloc(max_buffers, sizeof * impl->buffers);
+    for(size_t i = 0; i < max_buffers; i++) {
+      spooky_string_buffer * buffer = &impl->buffers[i];
+      if(i < max_buffers - 1) {
+        buffer->next = &impl->buffers[i + 1];
+      } else {
+        buffer->next = NULL;
+      }
+
+      buffer->len = 0;
+      buffer->capacity = SPOOKY_HASH_DEFAULT_STRING_ALLOC;
+      buffer->strings = calloc(buffer->capacity , sizeof * buffer->strings);
+    }
     impl->current_buffer = impl->buffers;
   } else {
     impl->buffers = buffers;
@@ -195,11 +204,9 @@ void spooky_hash_clear_strings(const spooky_hash_table * self) {
 void spooky_hash_clear_buckets(const spooky_hash_table * self) {
   spooky_hash_table_impl * impl = self->impl;
 
-  for(size_t i = 0; i < impl->prime; i++) {
+  for(size_t i = 0; i < impl->buckets_limits.len; i++) {
     spooky_hash_bucket * bucket = &impl->buckets[i];
-    if(bucket->prime && bucket->atoms) {
-      free(bucket->atoms), bucket->atoms = NULL;
-    }
+    free(bucket->atoms), bucket->atoms = NULL;
   }
 
   impl->buckets_limits.len = impl->prime_index;
@@ -371,33 +378,22 @@ errno_t spooky_hash_ensure_internal(const spooky_hash_table * self, const char *
 }
 
 static spooky_str * spooky_hash_order_bucket_atoms(const spooky_hash_bucket * bucket, spooky_str * atom) {
-  spooky_str temp = { 0 }, * t = &temp;
-  spooky_str_copy(&t, atom);
-  assert(temp.str == atom->str && temp.len == atom->len && temp.ref_count == atom->ref_count && atom->ordinal == atom->ordinal);
-
   if(bucket->atoms_limits.len > 1) {
     if(atom->hash < bucket->atoms[bucket->atoms_limits.len - 2].hash) {
-#ifndef SPOOKY_HASH_USE_QSORT
       spooky_str * left = &bucket->atoms[bucket->atoms_limits.len - 2];
       spooky_str * right = &bucket->atoms[bucket->atoms_limits.len - 1];
-      spooky_str * marker = left;
-      while(marker >= bucket->atoms && right->hash < left->hash) {
-        spooky_str_swap(&left, &right);
-        marker--;
+      while(left >= bucket->atoms && right->hash < left->hash) {
+        if(atom == right) {
+          spooky_str_swap(&left, &right);
+          /* restore atom */
+          atom = left;
+        } else {
+          spooky_str_swap(&left, &right);
+        }
         left--;
         right--;
       }
-#else
-      qsort(bucket->atoms, bucket->atoms_limits.len, sizeof bucket->atoms[0], &spooky_str_hash_compare);
-#endif
-    } else {
-      return atom;
     }
-  }
-
-  errno_t res = spooky_hash_find_internal(bucket, t->str, t->len, t->hash, &atom);
-  if(res != SP_SUCCESS) {
-    abort();
   }
 
   return atom;
