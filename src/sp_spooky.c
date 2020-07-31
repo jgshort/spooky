@@ -49,37 +49,66 @@ int main(int argc, char **argv) {
     exit(1);
   }
 
-  char * line = NULL;
-  size_t len = 0;
-
   ssize_t read = 0;
   fprintf(stdout, "Ensuring words...\n");
   size_t count = 0;
   bool load_factor_printed = false;
-  for(int i = 0; i < 5; i++) {
+ 
+  struct str {
+    size_t len;
+    char * s;
+  };
+
+  size_t max_len = 5000;
+  struct str * array = calloc(max_len, sizeof * array);
+  if(!array) { abort(); }
+  
+  struct str * next = array;
+  struct str * end = array + max_len;
+  assert(next == array && end == array + max_len);
+  for(int i = 0; i < 1; i++) {
     fprintf(stdout, "Starting iteration %i...\n", i);
     fseek(wfp, 0, SEEK_SET);
-    while((read = getline(&line, &len, wfp)) != -1) {
+    while((read = getline(&(next->s), &(next->len), wfp)) != -1) {
+      assert(next->s && next->len > 0);
       if(read > 1) {
-        line[read - 1] = '\0';
-        if(hash->ensure(hash, line, (size_t)read - 1, NULL) != SP_SUCCESS) { abort(); }
-        free(line), line = NULL;
-        len = 0;
-        count++;
-      }
-      size_t capacity = hash->get_bucket_capacity(hash);
-      size_t bucket_len = hash->get_bucket_length(hash);
+        next->s[read - 1] = '\0';
+        assert(read > 0);
+        next->len = (size_t)(read - 1);
 
-      if(!load_factor_printed && hash->get_load_factor(hash) > 0.75 & bucket_len < capacity) {
-        fprintf(stdout, "Max load factor hit at %lu\n", count);
-        load_factor_printed = true;
+        if(next >= end - 1) {
+          fprintf(stdout, "Reallocating str array\n");
+          ptrdiff_t next_offset = next - array;
+          max_len *= 2;
+          struct str * temp = realloc(array, max_len * sizeof * array);
+          if(!temp) { abort(); }
+          array = temp;
+          next = array + next_offset;
+          end = array + max_len;
+        }
+        
+        next++;
+        count++;
       }
     }
     fprintf(stdout, "Done with %i\n", i);
   } 
   fclose(wfp);
   fprintf(stdout, "Done. Added %lu words\n", count);
+  fflush(stdout);
+  for(size_t i = 0; i < count; i++) {
+    struct str * line = &array[i];
+    if(hash->ensure_ref(hash, line->s, line->len - 1, NULL) != SP_SUCCESS) { abort(); }
 
+    size_t capacity = hash->get_bucket_capacity(hash);
+    size_t bucket_len = hash->get_bucket_length(hash);
+
+    if(!load_factor_printed && hash->get_load_factor(hash) > 0.75 && bucket_len < capacity) {
+      fprintf(stdout, "Max load factor hit at %lu\n", count);
+      load_factor_printed = true;
+    }
+  }
+/*
   fseek(wfp, 0, SEEK_SET);
   while((read = getline(&line, &len, wfp)) != -1) {
     if(read > 1) {
@@ -90,7 +119,7 @@ int main(int argc, char **argv) {
       count++;
     }
   }
-
+*/
   fprintf(stdout, "Finding \"foo\"\n");
   if(hash->find(hash, "foo", strlen("foo"), &atom) == SP_SUCCESS) {
     fprintf(stdout, "Found 'foo', added %i times\n", (int)atom->ref_count);  
@@ -100,6 +129,14 @@ int main(int argc, char **argv) {
   fprintf(stdout, "STATS:\n%s\n", stats);
   free(stats), stats = NULL;
   spooky_hash_table_release(hash);
+
+  next = array;
+  while(next < end) {
+     free(next->s), next->s = NULL;
+     next++;
+  }
+  free(array), array = NULL;
+
 
   if(argv) { exit(0); }
 
