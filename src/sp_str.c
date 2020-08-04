@@ -24,22 +24,20 @@ static const size_t SPOOKY_STR_MAX_STR_LEN = sizeof("Lorem ipsum dolor sit amet,
 
 /* Reference type:
  * typedef struct spooky_str {
+ *  size_t ordinal;
  *  size_t len;
  *  size_t ref_count;
  *  unsigned long hash;
  *  const char * str;
- *  spooky_str * next;
  * } spooky_str;
  */
 
 void spooky_str_copy(spooky_str ** dest, const spooky_str * src) {
-  **dest = *src;
-  /*(*dest)->len = src->len;
+  (*dest)->ordinal = src->ordinal;
+  (*dest)->len = src->len;
   (*dest)->ref_count = src->ref_count;
   (*dest)->hash = src->hash;
   (*dest)->str = src->str;
-  (*dest)->next = src->next;
-  (*dest)->prev = src->prev; */
 }
 
 void spooky_str_swap(spooky_str ** left, spooky_str ** right) {
@@ -98,7 +96,7 @@ unsigned long spooky_hash_str(const char * restrict s, size_t s_len) {
   return spooky_hash_str_internal(s, s_len);
 }
 
-errno_t spooky_str_ref(const char * s, size_t len, unsigned long hash, spooky_str * out_str) {
+errno_t spooky_str_ref(const char * s, size_t len, size_t ordinal, unsigned long hash, spooky_str * out_str) {
   assert(s && len > 0 && out_str);
   if(!s || len == 0 || !out_str) { goto err0; }
 
@@ -108,6 +106,7 @@ errno_t spooky_str_ref(const char * s, size_t len, unsigned long hash, spooky_st
   if(s_nlen != len) { goto err0; }
 
   out_str->hash = hash;
+  out_str->ordinal = ordinal;
   out_str->len = s_nlen;
   out_str->str = s;
 
@@ -117,6 +116,10 @@ errno_t spooky_str_ref(const char * s, size_t len, unsigned long hash, spooky_st
 
 err0:
   return SP_FAILURE;
+}
+
+unsigned long spooky_str_get_id(const spooky_str * self) {
+  return self->ordinal;
 }
 
 unsigned long spooky_str_get_hash(const spooky_str * self) {
