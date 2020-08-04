@@ -82,7 +82,6 @@ typedef struct spooky_array_limits {
 typedef struct spooky_hash_bucket {
   unsigned long prime;
   spooky_array_limits atoms_limits;
-  spooky_str * head;
   spooky_str * atoms;
 } spooky_hash_bucket;
 
@@ -263,20 +262,18 @@ static spooky_hash_bucket * spooky_hash_bucket_init(const spooky_hash_table * se
     bucket->atoms_limits.capacity = self->impl->atoms_alloc;
     bucket->atoms = calloc(bucket->atoms_limits.capacity, sizeof * bucket->atoms);
     if(!bucket->atoms) { abort(); }
-    bucket->head = bucket->atoms;
   }
 
   return bucket;
 }
 
 static spooky_hash_bucket * spooky_hash_bucket_ensure_atoms(spooky_hash_bucket * bucket) {
-  assert(bucket && bucket->atoms && bucket->head);
+  assert(bucket && bucket->atoms);
   if(bucket->atoms_limits.len + 1 > bucket->atoms_limits.capacity) {
     bucket->atoms_limits.capacity *= 2;
     spooky_str * temp_atoms = realloc(bucket->atoms, (sizeof * temp_atoms) * bucket->atoms_limits.capacity);
     if(!temp_atoms) { abort(); }
     bucket->atoms = temp_atoms;
-    bucket->head = bucket->atoms;
     bucket->atoms_limits.reallocs++;
   }
 
@@ -351,7 +348,7 @@ void spooky_hash_rebalance(const spooky_hash_table * self) {
       qsort(unsorted_bucket->atoms, unsorted_bucket->atoms_limits.len, sizeof unsorted_bucket->atoms[0], &spooky_str_hash_compare);
 
       spooky_str * start = unsorted_bucket->atoms;
-      spooky_str * prev = new_bucket->head;
+      spooky_str * prev = NULL;
       const spooky_str * end = unsorted_bucket->atoms + unsorted_bucket->atoms_limits.len;
       while(start < end) {
         if(start + 1 < end) {
