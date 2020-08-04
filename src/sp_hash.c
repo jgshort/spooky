@@ -102,7 +102,6 @@ typedef struct spooky_hash_table_impl {
 
 static errno_t spooky_hash_ensure_internal(const spooky_hash_table * self, const char * s, size_t s_len, spooky_str ** out_str, bool skip_s_cp, bool skip_rebalance) ;
 static const spooky_hash_table * spooky_hash_table_cctor(const spooky_hash_table * self, size_t prime_index, spooky_string_buffer * buffers, spooky_string_buffer * current_buffer);
-static errno_t spooky_hash_ensure_ref(const spooky_hash_table * self, const char * s, size_t s_len, spooky_str ** out_str);
 static errno_t spooky_hash_ensure(const spooky_hash_table * self, const char * s, size_t s_len, spooky_str ** out_str);
 static errno_t spooky_hash_find_internal(const spooky_hash_bucket * bucket, const char * s, size_t s_len, unsigned long hash, spooky_str ** atom);
 static errno_t spooky_hash_find(const spooky_hash_table * self, const char * s, size_t s_len, spooky_str ** atom);
@@ -135,7 +134,6 @@ const spooky_hash_table * spooky_hash_table_init(spooky_hash_table * self) {
   self->release = &spooky_hash_table_release;
 
   self->ensure = &spooky_hash_ensure;
-  self->ensure_ref = &spooky_hash_ensure_ref;
   self->find = &spooky_hash_find;
   self->print_stats = &spooky_hash_print_stats;
   self->get_load_factor = &spooky_hash_get_load_factor;
@@ -364,16 +362,8 @@ void spooky_hash_rebalance(const spooky_hash_table * self) {
   assert(self && self->impl);
 }
 
-errno_t spooky_hash_ensure_ref(const spooky_hash_table * self, const char * s, size_t s_len, spooky_str ** out_str) {
-  static const bool skip_s_cp = true;
-  static const bool skip_rebalance = false;
-  return spooky_hash_ensure_internal(self, s, s_len, out_str, skip_s_cp, skip_rebalance);
-}
-
 errno_t spooky_hash_ensure(const spooky_hash_table * self, const char * s, size_t s_len, spooky_str ** out_str) {
-  static const bool skip_s_cp = false;
-  static const bool skip_rebalance = false;
-  return spooky_hash_ensure_internal(self, s, s_len, out_str, skip_s_cp, skip_rebalance);
+  return spooky_hash_ensure_internal(self, s, s_len, out_str, false, false);
 }
 
 errno_t spooky_hash_ensure_internal(const spooky_hash_table * self, const char * s, size_t s_len, spooky_str ** out_str, bool skip_s_cp, bool skip_rebalance) {
