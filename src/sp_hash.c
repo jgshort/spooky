@@ -335,7 +335,6 @@ void spooky_hash_rebalance(const spooky_hash_table * self) {
             new_bucket->atoms_limits.len++;
 
             spooky_str_copy(&new_atom, old_atom);
-            new_atom->next = new_atom->prev = NULL; // we don't know the sort, yet
             old_atom++;
           }
         }
@@ -346,19 +345,6 @@ void spooky_hash_rebalance(const spooky_hash_table * self) {
     const spooky_hash_bucket * unsorted_bucket_end = self->impl->buckets + self->impl->buckets_limits.len;
     while(unsorted_bucket < unsorted_bucket_end) {
       qsort(unsorted_bucket->atoms, unsorted_bucket->atoms_limits.len, sizeof unsorted_bucket->atoms[0], &spooky_str_hash_compare);
-
-      spooky_str * start = unsorted_bucket->atoms;
-      spooky_str * prev = NULL;
-      const spooky_str * end = unsorted_bucket->atoms + unsorted_bucket->atoms_limits.len;
-      while(start < end) {
-        if(start + 1 < end) {
-          start->next = start + 1;
-          start->next->prev = start;
-        }
-        start->prev = prev;
-        prev = start;
-        start++;
-      }
       unsorted_bucket++;
     }
 
@@ -432,17 +418,23 @@ errno_t spooky_hash_ensure_internal(const spooky_hash_table * self, const char *
 
 static spooky_str * spooky_hash_order_bucket_atoms(const spooky_hash_bucket * bucket, spooky_str * atom) {
   if(bucket->atoms_limits.len > 1) {
-    //if(atom->hash < bucket->atoms[bucket->atoms_limits.len - 2].hash) {
+    if(atom->hash < bucket->atoms[bucket->atoms_limits.len - 2].hash) {
       spooky_str * left = &bucket->atoms[bucket->atoms_limits.len - 2];
       spooky_str * right = &bucket->atoms[bucket->atoms_limits.len - 1];
       while(left >= bucket->atoms && right->hash < left->hash) {
-        spooky_str_list_swap(left, right);
+        left->next = right;
+        right->prev = left;
+        if(atom == right) {
+          spooky_str_swap(&left, &right);
+          /* restore atom */
+          atom = left;
+        } else {
+          spooky_str_swap(&left, &right);
+        }
         left--;
         right--;
       }
-      bucket->atoms[0].prev = NULL;
-      bucket->atoms[bucket->atoms_limits.len - 1].next = NULL;
-    //}
+    }
   }
 
   return atom;
@@ -470,43 +462,6 @@ static spooky_str * spooky_hash_atom_alloc(const spooky_hash_table * self, spook
 }
 
 errno_t spooky_hash_binary_search(const spooky_str * atoms, size_t low, size_t n, unsigned long hash, size_t * out_index) {
-
-  register int64_t k = (int64_t)low + ((((int64_t)n - (int64_t)low) / 2));
-
-  const spooky_str * mid = atoms + k;
-  const spooky_str * start = atoms + low;
-  const spooky_str * end = atoms + n;
-  const spooky_str * next = mid;
-  if(n == 1) { 
-    if(start->hash == hash) {
-      *out_index = 0;
-      return SP_SUCCESS;
-    }
-  } else if(hash == mid->hash) {
-    *out_index = (size_t)k;
-    return SP_SUCCESS;
-  } else if(hash > mid->hash) {
-    // travel up?
-    while(next && next < end) {
-      if(next->hash == hash) {
-        *out_index = (size_t)(next - atoms);
-        return SP_SUCCESS;
-      }
-      next = next->next;
-    }
-  } else if(hash < mid->hash) {
-    //travel down?
-    while(next && next >= start) {
-      if(next->hash == hash) {
-        *out_index = (size_t)(next - atoms);
-        return SP_SUCCESS;
-      }
-      next = next->prev;
-    }
-  }
- 
-  return SP_FAILURE;
-  /* Binary Search Reference:
   assert(n > 0);
 
   register int64_t i = (int64_t)low;
@@ -525,8 +480,7 @@ errno_t spooky_hash_binary_search(const spooky_str * atoms, size_t low, size_t n
     } 
   }
 
-  return SP_FAILURE; 
-  */
+  return SP_FAILURE;
 }
 
 errno_t spooky_hash_find_internal(const spooky_hash_bucket * bucket, const char * s, size_t s_len, unsigned long hash, spooky_str ** out_atom) {

@@ -34,27 +34,18 @@ static const size_t SPOOKY_STR_MAX_STR_LEN = sizeof("Lorem ipsum dolor sit amet,
 
 void spooky_str_copy(spooky_str ** dest, const spooky_str * src) {
   **dest = *src;
+  /*(*dest)->len = src->len;
+  (*dest)->ref_count = src->ref_count;
+  (*dest)->hash = src->hash;
+  (*dest)->str = src->str;
+  (*dest)->next = src->next;
+  (*dest)->prev = src->prev; */
 }
 
 void spooky_str_swap(spooky_str ** left, spooky_str ** right) {
   spooky_str temp = **left;
   **left = **right;
   **right = temp;
-}
-
-void spooky_str_list_swap(spooky_str * left, spooky_str * right) {
-  struct spooky_str * temp = left->prev;
-  if(temp) {
-    temp->next = right;
-  }
-  right->prev = temp;
-
-  left->prev = right;
-  left->next = right->next;
-  right->next = left;
-  if(left->next != NULL) {
-    left->next->prev = left;
-  }
 }
 
 /* See: http://www.cse.yorku.ca/~oz/hash.html */

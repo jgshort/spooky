@@ -74,7 +74,6 @@ int main(int argc, char **argv) {
       assert(next->s && next->len > 0);
       if(read > 1) {
         next->s[read - 1] = '\0';
-        //next->len = read - 1;
         assert(read > 0);
         count++;
       }
@@ -99,8 +98,7 @@ int main(int argc, char **argv) {
   fflush(stdout);
   for(size_t i = 0; i < count; i++) {
     struct str * line = &array[i];
-    fprintf(stdout, "Ensuring '%s'\n", line->s);
-    if(hash->ensure(hash, line->s, line->len, NULL) != SP_SUCCESS) { abort(); }
+    if(hash->ensure_ref(hash, line->s, line->len - 1, NULL) != SP_SUCCESS) { abort(); }
 
     size_t capacity = hash->get_bucket_capacity(hash);
     size_t bucket_len = hash->get_bucket_length(hash);
