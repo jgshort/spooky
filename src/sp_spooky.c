@@ -31,10 +31,6 @@
 
 static errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex);
 static errno_t spooky_command_parser(spooky_context * context, const spooky_console * console, const spooky_log * log, const char * command) ;
-struct str {
-    size_t len;
-    char * s;
-  };
 
 int main(int argc, char **argv) {
   (void)argc;
@@ -58,11 +54,14 @@ int main(int argc, char **argv) {
   size_t count = 0;
   bool load_factor_printed = false;
  
-  
+  struct str {
+    size_t len;
+    char * s;
+  };
+
   size_t max_len = 5000;
   struct str * array = calloc(max_len, sizeof * array);
   if(!array) { abort(); }
-  memset(array, 0, max_len);
   
   struct str * next = array;
   struct str * end = array + max_len;
@@ -75,21 +74,22 @@ int main(int argc, char **argv) {
       if(read > 1) {
         next->s[read - 1] = '\0';
         assert(read > 0);
+        next->len = (size_t)(read - 1);
+
+        if(next >= end - 1) {
+          fprintf(stdout, "Reallocating str array\n");
+          ptrdiff_t next_offset = next - array;
+          max_len *= 2;
+          struct str * temp = realloc(array, max_len * sizeof * array);
+          if(!temp) { abort(); }
+          array = temp;
+          next = array + next_offset;
+          end = array + max_len;
+        }
+        
+        next++;
         count++;
       }
-
-      if(next >= end - 1) {
-        fprintf(stdout, "Reallocating str array\n");
-        ptrdiff_t next_offset = next - array;
-        max_len *= 2;
-        struct str * temp = realloc(array, max_len * sizeof * array);
-        if(!temp) { abort(); }
-        array = temp;
-        next = array + next_offset;
-        end = array + max_len;
-      }
-
-      next++;
     }
     fprintf(stdout, "Done with %i\n", i);
   } 
