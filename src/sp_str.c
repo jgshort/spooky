@@ -100,7 +100,7 @@ errno_t spooky_str_ref(const char * s, size_t len, size_t ordinal, unsigned long
   assert(s && len > 0 && out_str);
   if(!s || len == 0 || !out_str) { goto err0; }
 
-  /* fallback len verification */
+  // fallback len verification
   size_t s_nlen = len >= SPOOKY_STR_MAX_STR_LEN ? SPOOKY_STR_MAX_STR_LEN : len;
   assert(s_nlen == len);
   if(s_nlen != len) { goto err0; }

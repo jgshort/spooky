@@ -79,10 +79,17 @@ typedef struct spooky_array_limits {
   size_t reallocs;
 } spooky_array_limits;
 
+typedef struct spooky_hash_bucket_item spooky_hash_bucket_item;
+typedef struct spooky_hash_bucket_item {
+  spooky_str atom;
+  spooky_hash_bucket_item * next;
+  spooky_hash_bucket_item * prev;
+} spooky_hash_bucket_item;
+
 typedef struct spooky_hash_bucket {
   unsigned long prime;
-  spooky_array_limits atoms_limits;
-  spooky_str * atoms;
+  spooky_array_limits items_limits;
+  spooky_hash_bucket_item * items;
 } spooky_hash_bucket;
 
 typedef struct spooky_hash_table_impl {
@@ -220,7 +227,7 @@ void spooky_hash_clear_buckets(const spooky_hash_table * self) {
 
   for(size_t i = 0; i < impl->buckets_limits.len; i++) {
     spooky_hash_bucket * bucket = &impl->buckets[i];
-    free(bucket->atoms), bucket->atoms = NULL;
+    free(bucket->items), bucket->items = NULL;
   }
 
   impl->buckets_limits.len = impl->prime_index;
@@ -256,23 +263,23 @@ static spooky_hash_bucket * spooky_hash_bucket_init(const spooky_hash_table * se
   assert(index <= self->impl->prime && index <= self->impl->buckets_limits.len);
   if(!bucket->prime) {
     bucket->prime = spooky_hash_primes[index];
-    bucket->atoms_limits.len = 0;
-    bucket->atoms_limits.capacity = self->impl->atoms_alloc;
-    bucket->atoms = calloc(bucket->atoms_limits.capacity, sizeof * bucket->atoms);
-    if(!bucket->atoms) { abort(); }
+    bucket->items_limits.len = 0;
+    bucket->items_limits.capacity = self->impl->atoms_alloc;
+    bucket->items = calloc(bucket->items_limits.capacity, sizeof * bucket->items);
+    if(!bucket->items) { abort(); }
   }
 
   return bucket;
 }
 
 static spooky_hash_bucket * spooky_hash_bucket_ensure_atoms(spooky_hash_bucket * bucket) {
-  assert(bucket && bucket->atoms);
-  if(bucket->atoms_limits.len + 1 > bucket->atoms_limits.capacity) {
-    bucket->atoms_limits.capacity *= 2;
-    spooky_str * temp_atoms = realloc(bucket->atoms, (sizeof * temp_atoms) * bucket->atoms_limits.capacity);
-    if(!temp_atoms) { abort(); }
-    bucket->atoms = temp_atoms;
-    bucket->atoms_limits.reallocs++;
+  assert(bucket && bucket->items);
+  if(bucket->items_limits.len + 1 > bucket->items_limits.capacity) {
+    bucket->items_limits.capacity *= 2;
+    spooky_hash_bucket_item * temp_items = realloc(bucket->items, (sizeof * temp_items) * bucket->items_limits.capacity);
+    if(!temp_items) { abort(); }
+    bucket->items = temp_items;
+    bucket->items_limits.reallocs++;
   }
 
   return bucket;
@@ -292,6 +299,14 @@ size_t spooky_hash_get_bucket_capacity(const spooky_hash_table * self) {
 
 size_t spooky_hash_get_key_count(const spooky_hash_table * self) {
   return self->impl->string_count;
+}
+
+static int spooky_hash_bucket_item_compare(const void * a, const void * b) {
+  const spooky_hash_bucket_item * l = (const spooky_hash_bucket_item  *)a;
+  const spooky_hash_bucket_item * r = (const spooky_hash_bucket_item  *)b;
+  if(l->atom.hash < r->atom.hash) return -1;
+  if(l->atom.hash > r->atom.hash) return 1;
+  return 0;
 }
 
 void spooky_hash_rebalance(const spooky_hash_table * self) {
@@ -316,24 +331,24 @@ void spooky_hash_rebalance(const spooky_hash_table * self) {
       const spooky_hash_bucket * old_bucket_end = old_buckets + old_buckets_len;
 
       while(old_bucket < old_bucket_end) {
-        if(old_bucket->atoms_limits.len > 0) {
-          spooky_str * old_atom = old_bucket->atoms;
-          const spooky_str * old_atom_end = old_bucket->atoms + old_bucket->atoms_limits.len;
+        if(old_bucket->items_limits.len > 0) {
+          spooky_hash_bucket_item * old_item = old_bucket->items;
+          const spooky_hash_bucket_item * old_item_end = old_bucket->items + old_bucket->items_limits.len;
 
-          unsigned long hash = old_atom->hash;
+          unsigned long hash = old_item->atom.hash;
           unsigned long index = spooky_hash_get_index(self, hash);
 
           spooky_hash_bucket * new_bucket = spooky_hash_bucket_init(self, index);
 
-          while(old_atom < old_atom_end) {
+          while(old_item < old_item_end) {
             /* not already added */
             new_bucket = spooky_hash_bucket_ensure_atoms(new_bucket);
 
-            spooky_str * new_atom = new_bucket->atoms + new_bucket->atoms_limits.len;
-            new_bucket->atoms_limits.len++;
+            spooky_hash_bucket_item * new_item = new_bucket->items + new_bucket->items_limits.len;
+            new_bucket->items_limits.len++;
 
-            spooky_str_copy(&new_atom, old_atom);
-            old_atom++;
+            new_item->atom = old_item->atom;
+            old_item++;
           }
         }
         old_bucket++;
@@ -342,7 +357,7 @@ void spooky_hash_rebalance(const spooky_hash_table * self) {
     spooky_hash_bucket * unsorted_bucket = self->impl->buckets;
     const spooky_hash_bucket * unsorted_bucket_end = self->impl->buckets + self->impl->buckets_limits.len;
     while(unsorted_bucket < unsorted_bucket_end) {
-      qsort(unsorted_bucket->atoms, unsorted_bucket->atoms_limits.len, sizeof unsorted_bucket->atoms[0], &spooky_str_hash_compare);
+      qsort(unsorted_bucket->items, unsorted_bucket->items_limits.len, sizeof unsorted_bucket->items[0], &spooky_hash_bucket_item_compare);
       unsorted_bucket++;
     }
 
@@ -351,7 +366,7 @@ void spooky_hash_rebalance(const spooky_hash_table * self) {
       spooky_hash_bucket * old_bucket = old_buckets;
       const spooky_hash_bucket * old_bucket_end = old_buckets + old_buckets_len;
       while(old_bucket < old_bucket_end) {
-        free(old_bucket->atoms), old_bucket->atoms = NULL;
+        free(old_bucket->items), old_bucket->items = NULL;
         old_bucket++;
       }
       free(old_buckets), old_buckets = NULL; 
@@ -407,17 +422,21 @@ errno_t spooky_hash_ensure_internal(const spooky_hash_table * self, const char *
 }
 
 static spooky_str * spooky_hash_order_bucket_atoms(const spooky_hash_bucket * bucket, spooky_str * atom) {
-  if(bucket->atoms_limits.len > 1) {
-    if(atom->hash < bucket->atoms[bucket->atoms_limits.len - 2].hash) {
-      spooky_str * left = &bucket->atoms[bucket->atoms_limits.len - 2];
-      spooky_str * right = &bucket->atoms[bucket->atoms_limits.len - 1];
-      while(left >= bucket->atoms && right->hash < left->hash) {
-        if(atom == right) {
-          spooky_str_swap(&left, &right);
+  if(bucket->items_limits.len > 1) {
+    if(atom->hash < bucket->items[bucket->items_limits.len - 2].atom.hash) {
+      spooky_hash_bucket_item * left = &bucket->items[bucket->items_limits.len - 2];
+      spooky_hash_bucket_item * right = &bucket->items[bucket->items_limits.len - 1];
+      while(left >= bucket->items && right->atom.hash < left->atom.hash) {
+        if(atom == &(right->atom)) {
+          spooky_str temp = left->atom;
+          left->atom = right->atom;
+          right->atom = temp;
           /* restore atom */
-          atom = left;
+          atom = &(left->atom);
         } else {
-          spooky_str_swap(&left, &right);
+          spooky_str temp = left->atom;
+          left->atom = right->atom;
+          right->atom = temp;
         }
         left--;
         right--;
@@ -431,7 +450,7 @@ static spooky_str * spooky_hash_order_bucket_atoms(const spooky_hash_bucket * bu
 static spooky_str * spooky_hash_atom_alloc(const spooky_hash_table * self, spooky_hash_bucket * bucket, const char * s, size_t s_len, unsigned long hash, size_t * out_len, bool skip_s_cp) {
   assert(self && bucket && bucket->prime);
 
-  spooky_str * atom = &bucket->atoms[bucket->atoms_limits.len];
+  spooky_str * atom = &bucket->items[bucket->items_limits.len].atom;
   const char * s_cp = s;
 
   /* skip copy of s if we're rebalancing; our string pointers already point to our internal buffer */
@@ -441,22 +460,22 @@ static spooky_str * spooky_hash_atom_alloc(const spooky_hash_table * self, spook
     *out_len = s_len;
   }
 
-  spooky_str_ref(s_cp, s_len, bucket->atoms_limits.len, hash, atom);
+  spooky_str_ref(s_cp, s_len, bucket->items_limits.len, hash, atom);
   spooky_str_inc_ref_count(atom);
-  bucket->atoms_limits.len++;
+  bucket->items_limits.len++;
   atom = spooky_hash_order_bucket_atoms(bucket, atom);
 
   return atom;
 }
 
-errno_t spooky_hash_binary_search(const spooky_str * atoms, size_t low, size_t n, unsigned long hash, size_t * out_index) {
+errno_t spooky_hash_binary_search(const spooky_hash_bucket_item * items, size_t low, size_t n, unsigned long hash, size_t * out_index) {
   assert(n > 0);
 
   register int64_t i = (int64_t)low;
   register int64_t j = (int64_t)n - 1;
   while(i <= j) {
     register int64_t k = i + ((j - i) / 2);
-    register unsigned long a_hash = atoms[k].hash;
+    register unsigned long a_hash = items[k].atom.hash;
     if(a_hash < hash) {
       i = k + 1;
     } else if(a_hash > hash) {
@@ -474,22 +493,22 @@ errno_t spooky_hash_binary_search(const spooky_str * atoms, size_t low, size_t n
 errno_t spooky_hash_find_internal(const spooky_hash_bucket * bucket, const char * s, size_t s_len, unsigned long hash, spooky_str ** out_atom) {
   if(out_atom) { *out_atom = NULL; }
   if(!bucket || !bucket->prime) { return SP_FAILURE; }
-  if(bucket->atoms_limits.len == 0) { return SP_FAILURE; }
+  if(bucket->items_limits.len == 0) { return SP_FAILURE; }
 
   size_t index = 0;
-  if(spooky_hash_binary_search(bucket->atoms, 0, bucket->atoms_limits.len, hash, &index) == SP_SUCCESS) {
-    register spooky_str * atom = &(bucket->atoms[index]);
-    const spooky_str * end = bucket->atoms + bucket->atoms_limits.len;
-    while(atom < end) {
-      if(hash < atom->hash) { break; }
-      if(hash == atom->hash) {
-        register const char * str = atom->str;
-        if(s_len == atom->len && (str == s || strncmp(str, s, SPOOKY_MAX_STRING_LEN) == 0)) {
-          if(out_atom) { *out_atom = atom; }
+  if(spooky_hash_binary_search(bucket->items, 0, bucket->items_limits.len, hash, &index) == SP_SUCCESS) {
+    spooky_hash_bucket_item * item = bucket->items + index;
+    const spooky_hash_bucket_item * end = bucket->items + bucket->items_limits.len;
+    while(item < end) {
+      if(hash < item->atom.hash) { break; }
+      if(hash == item->atom.hash) {
+        register const char * str = item->atom.str;
+        if(s_len == item->atom.len && (str == s || strncmp(str, s, SPOOKY_MAX_STRING_LEN) == 0)) {
+          if(out_atom) { *out_atom = &(item->atom); }
           return SP_SUCCESS;
         }
       }
-      atom++;
+      item++;
     }
   }
   return SP_FAILURE;
@@ -579,20 +598,20 @@ char * spooky_hash_print_stats(const spooky_hash_table * self) {
   out += snprintf(out, max_buf_len - (size_t)(out - result), "Total buffer size: %lu\n", buffer_total_len);
   int collisions = 0;
   int reallocs = 0;
-  int max_atoms = 0;
+  int max_items = 0;
 
-  size_t total_atoms = 0;
+  size_t total_items = 0;
   for(size_t i = 0; i < impl->buckets_limits.len; i++) {
     const spooky_hash_bucket * bucket = &impl->buckets[i];
-    total_atoms += bucket->atoms_limits.len;
+    total_items += bucket->items_limits.len;
     if(bucket->prime) {
-      max_atoms = (int)bucket->atoms_limits.len > max_atoms ? (int)bucket->atoms_limits.len : max_atoms;
-      if(bucket->atoms_limits.len > 1) {
-        if(bucket->atoms_limits.reallocs > 0) { reallocs++; };
-        for(size_t x = 0; x < bucket->atoms_limits.len; x++) {
-          const spooky_str * outer = &bucket->atoms[x];
-          for(size_t y = 0; y < bucket->atoms_limits.len; y++) {
-            const spooky_str * inner = &bucket->atoms[y];
+      max_items = (int)bucket->items_limits.len > max_items ? (int)bucket->items_limits.len : max_items;
+      if(bucket->items_limits.len > 1) {
+        if(bucket->items_limits.reallocs > 0) { reallocs++; };
+        for(size_t x = 0; x < bucket->items_limits.len; x++) {
+          const spooky_str * outer = &bucket->items[x].atom;
+          for(size_t y = 0; y < bucket->items_limits.len; y++) {
+            const spooky_str * inner = &bucket->items[y].atom;
             if(outer != inner && outer->hash == inner->hash) {
               collisions++;
               out += snprintf(out, max_buf_len - (size_t)(out - result), "Hash Collisions!\n");
@@ -605,10 +624,10 @@ char * spooky_hash_print_stats(const spooky_hash_table * self) {
     }
   }
 
-  out += snprintf(out, max_buf_len - (size_t)(out - result), "Average distribution: %f\n", (double)total_atoms / (double)impl->buckets_limits.len);
+  out += snprintf(out, max_buf_len - (size_t)(out - result), "Average distribution: %f\n", (double)total_items / (double)impl->buckets_limits.len);
   out += snprintf(out, max_buf_len - (size_t)(out - result), "Total chain reallocations: %i\n", reallocs);
   out += snprintf(out, max_buf_len - (size_t)(out - result), "Total key collisions: %i\n", collisions / 2);
-  out += snprintf(out, max_buf_len - (size_t)(out - result), "Max bucket chain count: %i\n", max_atoms);
+  out += snprintf(out, max_buf_len - (size_t)(out - result), "Max bucket chain count: %i\n", max_items);
   out += snprintf(out, max_buf_len - (size_t)(out - result), "Unique keys: %i\n", (int)impl->string_count);
 
   return result;
