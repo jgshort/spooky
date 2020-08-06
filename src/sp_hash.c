@@ -358,8 +358,35 @@ void spooky_hash_rebalance(const spooky_hash_table * self) {
     const spooky_hash_bucket * unsorted_bucket_end = self->impl->buckets + self->impl->buckets_limits.len;
     while(unsorted_bucket < unsorted_bucket_end) {
       qsort(unsorted_bucket->items, unsorted_bucket->items_limits.len, sizeof unsorted_bucket->items[0], &spooky_hash_bucket_item_compare);
+      for(size_t i = 0; i < unsorted_bucket->items_limits.len; i++) {
+        spooky_hash_bucket_item * left = unsorted_bucket->items + i;
+        spooky_hash_bucket_item * right = NULL;
+        if(i <= unsorted_bucket->items_limits.len - 2) { 
+          right = unsorted_bucket->items + i + 1;
+          left->next = right;
+          right->prev = left;
+        }
+        if(i == 0) { left->prev = NULL; }
+        if(i == unsorted_bucket->items_limits.len - 1) { 
+          left->next = NULL;
+        }
+      }
       unsorted_bucket++;
     }
+
+    /*DIAGNOSTICS:
+    * unsorted_bucket = self->impl->buckets;
+    * while(unsorted_bucket < unsorted_bucket_end) {
+    *   if(unsorted_bucket->prime == 1337987929) {
+    *     fprintf(stdout, "bucket %lu\n", unsorted_bucket->prime);
+    *     for(size_t i = 0; i < unsorted_bucket->items_limits.len; i++) {
+    *       spooky_hash_bucket_item * item = unsorted_bucket->items + i;
+    *       fprintf(stdout, "(%lu) ME: %p, PREV: %p, NEXT: %p\n", item->atom.hash, (void*)item, (void*)item->prev, (void*)item->next);
+    *     }
+    *   }
+    *   unsorted_bucket++;
+    * }
+    */ 
 
     {
       // release the old hash table, but not the string buffers which are owned by new self->impl:
@@ -373,6 +400,7 @@ void spooky_hash_rebalance(const spooky_hash_table * self) {
     }
     free(old_impl), old_impl = NULL;
   }
+
 
   assert(self && self->impl);
 }
