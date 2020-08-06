@@ -460,7 +460,7 @@ static spooky_str * spooky_hash_atom_alloc(const spooky_hash_table * self, spook
     *out_len = s_len;
   }
 
-  spooky_str_ref(s_cp, s_len, bucket->items_limits.len, hash, atom);
+  spooky_str_ref(s_cp, s_len, hash, atom);
   spooky_str_inc_ref_count(atom);
   bucket->items_limits.len++;
   atom = spooky_hash_order_bucket_atoms(bucket, atom);
@@ -615,8 +615,8 @@ char * spooky_hash_print_stats(const spooky_hash_table * self) {
             if(outer != inner && outer->hash == inner->hash) {
               collisions++;
               out += snprintf(out, max_buf_len - (size_t)(out - result), "Hash Collisions!\n");
-              out += snprintf(out, max_buf_len - (size_t)(out - result), "    X: '%s': len: %lu, hash: %lu, ordinal: %lu\n", outer->str, outer->len, outer->hash, outer->ordinal);
-              out += snprintf(out, max_buf_len - (size_t)(out - result), "    Y: '%s': len: %lu, hash: %lu, ordinal: %lu\n", inner->str, inner->len, inner->hash, inner->ordinal);
+              out += snprintf(out, max_buf_len - (size_t)(out - result), "    X: '%s': len: %lu, hash: %lu\n", outer->str, outer->len, outer->hash);
+              out += snprintf(out, max_buf_len - (size_t)(out - result), "    Y: '%s': len: %lu, hash: %lu\n", inner->str, inner->len, inner->hash);
             }
           }
         }
