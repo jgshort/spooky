@@ -270,6 +270,7 @@ static spooky_hash_bucket * spooky_hash_bucket_init(const spooky_hash_table * se
     bucket->items_limits.capacity = self->impl->atoms_alloc;
     bucket->items = calloc(bucket->items_limits.capacity, sizeof * bucket->items);
     if(!bucket->items) { abort(); }
+    bucket->root = bucket->items;
   }
 
   return bucket;
@@ -291,17 +292,18 @@ static spooky_hash_bucket * spooky_hash_bucket_check_and_realloc(spooky_hash_buc
 
 static spooky_hash_bucket_item * spooky_hash_bucket_get_next_item(spooky_hash_bucket * bucket) {
   bucket = spooky_hash_bucket_check_and_realloc(bucket);
-  spooky_hash_bucket_item * item= bucket->items + bucket->items_limits.len;
+  spooky_hash_bucket_item * item = bucket->items + bucket->items_limits.len;
   bucket->items_limits.len++;
+  memset(item, 0, sizeof * item);
   assert(item);
   return item;
 }
 
-static void spooky_hash_bucket_insert_item(spooky_hash_bucket * bucket, spooky_hash_bucket_item * node, spooky_hash_bucket_item * item) {
+static void spooky_hash_bucket_insert_item(spooky_hash_bucket_item * node, spooky_hash_bucket_item * item) {
   if(item->atom.hash > node->atom.hash) {
     // insert to the right
     if(node->next) { 
-      spooky_hash_bucket_insert_item(bucket, node->next, item);
+      spooky_hash_bucket_insert_item(node->next, item);
     } else {
       node->next = item;
     }
@@ -309,7 +311,7 @@ static void spooky_hash_bucket_insert_item(spooky_hash_bucket * bucket, spooky_h
   else if(item->atom.hash < node->atom.hash) {
     // insert to the left
     if(node->prev) { 
-      spooky_hash_bucket_insert_item(bucket, node->prev, item);
+      spooky_hash_bucket_insert_item(node->prev, item);
     } else {
       node->prev = item;
     }
@@ -399,7 +401,8 @@ void spooky_hash_rebalance(const spooky_hash_table * self) {
             
             spooky_hash_bucket_item * new_item = spooky_hash_bucket_get_next_item(new_bucket);
             new_item->atom = old_item->atom;
-            spooky_hash_bucket_insert_item(new_bucket, new_bucket->root, new_item);
+            assert(new_item->atom.str);
+            spooky_hash_bucket_insert_item(new_bucket->root, new_item);
             old_item++;
           }
         }
@@ -480,6 +483,7 @@ errno_t spooky_hash_ensure_internal(const spooky_hash_table * self, const char *
   if(bucket->prime) {
     /* check if it already exists */
     spooky_str * found = NULL;
+    assert(bucket->root);
     if(spooky_hash_find_internal(bucket, s, s_len, hash, &found) == SP_SUCCESS) {
       if(found) { spooky_str_inc_ref_count((spooky_str *)(uintptr_t)found); }
       if(out_str) { *out_str = found; }
@@ -544,8 +548,9 @@ static spooky_str * spooky_hash_atom_alloc(const spooky_hash_table * self, spook
 
   spooky_str_ref(s_cp, s_len, hash, atom);
   spooky_str_inc_ref_count(atom);
-  
-  spooky_hash_bucket_insert_item(bucket, bucket->root, next);
+ 
+  assert(bucket->root && next->atom.str);
+  spooky_hash_bucket_insert_item(bucket->root, next);
 
   return atom;
 }
@@ -572,17 +577,26 @@ errno_t spooky_hash_binary_search(const spooky_hash_bucket_item * items, size_t 
   return SP_FAILURE;
 }
 
+errno_t spooky_hash_bucket_item_tree_search(spooky_hash_bucket_item * node, unsigned long hash, spooky_hash_bucket_item ** out_item) {
+  if(!node) { return SP_FAILURE; }
+  if(out_item) { *out_item = NULL; }
+  if(node->atom.hash == hash) { if(out_item) { *out_item = node; } return SP_SUCCESS; }
+  else if(node->atom.hash > hash) { return spooky_hash_bucket_item_tree_search(node->next, hash, out_item); }
+  else if(node->atom.hash < hash) { return spooky_hash_bucket_item_tree_search(node->prev, hash, out_item); }
+  else { return SP_FAILURE; }
+}
+
+
 errno_t spooky_hash_find_internal(const spooky_hash_bucket * bucket, const char * s, size_t s_len, unsigned long hash, spooky_str ** out_atom) {
   if(out_atom) { *out_atom = NULL; }
   if(!bucket || !bucket->prime) { return SP_FAILURE; }
   if(bucket->items_limits.len == 0) { return SP_FAILURE; }
 
-  size_t index = 0;
-  if(spooky_hash_binary_search(bucket->items, 0, bucket->items_limits.len, hash, &index) == SP_SUCCESS) {
-    spooky_hash_bucket_item * item = bucket->items + index;
-    const spooky_hash_bucket_item * end = bucket->items + bucket->items_limits.len;
-    while(item < end) {
-      if(hash < item->atom.hash) { break; }
+  spooky_hash_bucket_item * item = NULL;
+  assert(bucket->root);
+  if(spooky_hash_bucket_item_tree_search(bucket->root, hash, &item) == SP_SUCCESS) {
+    if(!item->siblings) {
+      /* no siblings, check leaf */
       if(hash == item->atom.hash) {
         register const char * str = item->atom.str;
         if(s_len == item->atom.len && (str == s || strncmp(str, s, SPOOKY_MAX_STRING_LEN) == 0)) {
@@ -590,7 +604,21 @@ errno_t spooky_hash_find_internal(const spooky_hash_bucket * bucket, const char 
           return SP_SUCCESS;
         }
       }
-      item++;
+    } else if(item->siblings_limits.len > 0) {
+      /* iterate siblings */
+      spooky_hash_bucket_item ** start = item->siblings;
+      spooky_hash_bucket_item ** end = item->siblings + item->siblings_limits.len;
+      while(start < end) {
+        item = *start;
+        if(hash == item->atom.hash) {
+          register const char * str = item->atom.str;
+          if(s_len == item->atom.len && (str == s || strncmp(str, s, SPOOKY_MAX_STRING_LEN) == 0)) {
+            if(out_atom) { *out_atom = &(item->atom); }
+            return SP_SUCCESS;
+          }
+        }
+        start++;
+      }
     }
   }
   return SP_FAILURE;
