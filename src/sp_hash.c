@@ -455,16 +455,12 @@ static spooky_str * spooky_hash_order_bucket_atoms(const spooky_hash_bucket * bu
       spooky_hash_bucket_item * left = &bucket->items[bucket->items_limits.len - 2];
       spooky_hash_bucket_item * right = &bucket->items[bucket->items_limits.len - 1];
       while(left >= bucket->items && right->atom.hash < left->atom.hash) {
+        spooky_str temp = left->atom;
+        left->atom = right->atom;
+        right->atom = temp;
         if(atom == &(right->atom)) {
-          spooky_str temp = left->atom;
-          left->atom = right->atom;
-          right->atom = temp;
           /* restore atom */
           atom = &(left->atom);
-        } else {
-          spooky_str temp = left->atom;
-          left->atom = right->atom;
-          right->atom = temp;
         }
         left--;
         right--;
