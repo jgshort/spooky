@@ -84,8 +84,8 @@ typedef struct spooky_hash_bucket_item {
   spooky_str atom;
   spooky_array_limits siblings_limits;
   spooky_hash_bucket_item ** siblings;
-  spooky_hash_bucket_item * next;
-  spooky_hash_bucket_item * prev;
+  spooky_hash_bucket_item * right;
+  spooky_hash_bucket_item * left;
 } spooky_hash_bucket_item;
 
 typedef struct spooky_hash_bucket {
@@ -302,38 +302,44 @@ static spooky_hash_bucket_item * spooky_hash_bucket_get_next_item(spooky_hash_bu
 static void spooky_hash_bucket_insert_item(spooky_hash_bucket_item * node, spooky_hash_bucket_item * item) {
   if(item->atom.hash > node->atom.hash) {
     // insert to the right
-    if(node->next) { 
-      spooky_hash_bucket_insert_item(node->next, item);
+    if(node->right) { 
+      spooky_hash_bucket_insert_item(node->right, item);
     } else {
-      node->next = item;
+      node->right = item;
     }
   }
   else if(item->atom.hash < node->atom.hash) {
     // insert to the left
-    if(node->prev) { 
-      spooky_hash_bucket_insert_item(node->prev, item);
+    if(node->left) { 
+      spooky_hash_bucket_insert_item(node->left, item);
     } else {
-      node->prev = item;
+      node->left = item;
     }
   }
   else {
-    if(node->siblings_limits.len == 0) {
-      // no siblings, alloc one:
+    if(!node->atom.str && node->atom.hash == 0) {
+      node->atom = item->atom;
       node->siblings_limits.len = 0;
-      node->siblings_limits.capacity = 16;
-      node->siblings = calloc(item->siblings_limits.capacity, sizeof * item->siblings);
-      if(!node->siblings) { abort(); }
-    } else if(node->siblings_limits.len + 1 > node->siblings_limits.capacity) {
-      // siblings overflow, realloc:
-      node->siblings_limits.capacity *= 2;
-      spooky_hash_bucket_item ** temp = realloc(node->siblings, node->siblings_limits.capacity * sizeof * temp);
-      if(!temp) {  abort(); }
-      node->siblings = temp;
+      node->siblings = NULL;
+    } else {
+      if(node->siblings_limits.len == 0) {
+        // no siblings, alloc one:
+        node->siblings_limits.len = 0;
+        node->siblings_limits.capacity = 16;
+        node->siblings = calloc(item->siblings_limits.capacity, sizeof * item->siblings);
+        if(!node->siblings) { abort(); }
+      } else if(node->siblings_limits.len + 1 > node->siblings_limits.capacity) {
+        // siblings overflow, realloc:
+        node->siblings_limits.capacity *= 2;
+        spooky_hash_bucket_item ** temp = realloc(node->siblings, node->siblings_limits.capacity * sizeof * temp);
+        if(!temp) {  abort(); }
+        node->siblings = temp;
+      }
+      // set next sibling:
+      spooky_hash_bucket_item ** sibling = node->siblings + node->siblings_limits.len;
+      *sibling = item;
+      node->siblings_limits.len++;
     }
-    // set next sibling:
-    spooky_hash_bucket_item ** sibling = node->siblings + node->siblings_limits.len;
-    *sibling = item;
-    node->siblings_limits.len++;
   }
 }
 
@@ -535,8 +541,8 @@ static spooky_str * spooky_hash_atom_alloc(const spooky_hash_table * self, spook
 //static void spooky_hash_bucket_insert_item(spooky_hash_bucket * bucket, spooky_hash_bucket_item * node, spooky_hash_bucket_item * item) 
             
 
-  spooky_hash_bucket_item * next = spooky_hash_bucket_get_next_item(bucket);
-  spooky_str * atom = &(next->atom);
+  spooky_hash_bucket_item * item = spooky_hash_bucket_get_next_item(bucket);
+  spooky_str * atom = &(item->atom);
   const char * s_cp = s;
 
   /* skip copy of s if we're rebalancing; our string pointers already point to our internal buffer */
@@ -549,43 +555,23 @@ static spooky_str * spooky_hash_atom_alloc(const spooky_hash_table * self, spook
   spooky_str_ref(s_cp, s_len, hash, atom);
   spooky_str_inc_ref_count(atom);
  
-  assert(bucket->root && next->atom.str);
-  spooky_hash_bucket_insert_item(bucket->root, next);
+  assert(bucket->root && item->atom.str);
+  spooky_hash_bucket_insert_item(bucket->root, item);
 
   return atom;
 }
 
-errno_t spooky_hash_binary_search(const spooky_hash_bucket_item * items, size_t low, size_t n, unsigned long hash, size_t * out_index) {
-  assert(n > 0);
-
-  register int64_t i = (int64_t)low;
-  register int64_t j = (int64_t)n - 1;
-  while(i <= j) {
-    register int64_t k = i + ((j - i) / 2);
-    register unsigned long a_hash = items[k].atom.hash;
-    if(a_hash < hash) {
-      i = k + 1;
-    } else if(a_hash > hash) {
-      j = k - 1; 
-    } else {
-      assert(k >= 0 && k < (int64_t)n);
-      *out_index = (size_t)k;
-      return SP_SUCCESS;
-    } 
-  }
-
-  return SP_FAILURE;
-}
-
 errno_t spooky_hash_bucket_item_tree_search(spooky_hash_bucket_item * node, unsigned long hash, spooky_hash_bucket_item ** out_item) {
-  if(!node) { return SP_FAILURE; }
   if(out_item) { *out_item = NULL; }
-  if(node->atom.hash == hash) { if(out_item) { *out_item = node; } return SP_SUCCESS; }
-  else if(node->atom.hash > hash) { return spooky_hash_bucket_item_tree_search(node->next, hash, out_item); }
-  else if(node->atom.hash < hash) { return spooky_hash_bucket_item_tree_search(node->prev, hash, out_item); }
+  if(!node) { return SP_FAILURE; }
+  if(node->atom.hash == hash) { 
+    if(out_item) { *out_item = node; }
+    return SP_SUCCESS;
+  }
+  else if(hash > node->atom.hash) { return spooky_hash_bucket_item_tree_search(node->right, hash, out_item); }
+  else if(hash < node->atom.hash) { return spooky_hash_bucket_item_tree_search(node->left, hash, out_item); }
   else { return SP_FAILURE; }
 }
-
 
 errno_t spooky_hash_find_internal(const spooky_hash_bucket * bucket, const char * s, size_t s_len, unsigned long hash, spooky_str ** out_atom) {
   if(out_atom) { *out_atom = NULL; }
