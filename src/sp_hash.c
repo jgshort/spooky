@@ -82,6 +82,8 @@ typedef struct spooky_array_limits {
 typedef struct spooky_hash_bucket_item spooky_hash_bucket_item;
 typedef struct spooky_hash_bucket_item {
   spooky_str atom;
+  spooky_array_limits siblings_limits;
+  spooky_hash_bucket_item ** siblings;
   spooky_hash_bucket_item * next;
   spooky_hash_bucket_item * prev;
 } spooky_hash_bucket_item;
@@ -286,6 +288,52 @@ static spooky_hash_bucket * spooky_hash_bucket_check_and_realloc(spooky_hash_buc
   return bucket;
 }
 
+static spooky_hash_bucket_item * spooky_hash_bucket_get_next_item(spooky_hash_bucket * bucket) {
+  bucket = spooky_hash_bucket_check_and_realloc(bucket);
+  spooky_hash_bucket_item * item= bucket->items + bucket->items_limits.len;
+  bucket->items_limits.len++;
+  assert(item);
+  return item;
+}
+
+static void spooky_hash_bucket_insert_item(spooky_hash_bucket * bucket, spooky_hash_bucket_item * node, spooky_hash_bucket_item * item) {
+  if(item->atom.hash > node->atom.hash) {
+    // insert to the right
+    if(node->next) { 
+      spooky_hash_bucket_insert_item(bucket, node->next, item);
+    } else {
+      node->next = item;
+    }
+  }
+  else if(item->atom.hash < node->atom.hash) {
+    // insert to the left
+    if(node->prev) { 
+      spooky_hash_bucket_insert_item(bucket, node->prev, item);
+    } else {
+      node->prev = item;
+    }
+  }
+  else {
+    if(node->siblings_limits.len == 0) {
+      // no siblings, alloc one:
+      node->siblings_limits.len = 0;
+      node->siblings_limits.capacity = 16;
+      node->siblings = calloc(item->siblings_limits.capacity, sizeof * item->siblings);
+      if(!node->siblings) { abort(); }
+    } else if(node->siblings_limits.len + 1 > node->siblings_limits.capacity) {
+      // siblings overflow, realloc:
+      node->siblings_limits.capacity *= 2;
+      spooky_hash_bucket_item ** temp = realloc(node->siblings, node->siblings_limits.capacity * sizeof * temp);
+      if(!temp) {  abort(); }
+      node->siblings = temp;
+    }
+    // set next sibling:
+    spooky_hash_bucket_item ** sibling = node->siblings + node->siblings_limits.len;
+    *sibling = item;
+    node->siblings_limits.len++;
+  }
+}
+
 double spooky_hash_get_load_factor(const spooky_hash_table * self) {
   return (double)self->impl->string_count / (double)self->impl->buckets_limits.len;
 }
@@ -301,7 +349,7 @@ size_t spooky_hash_get_bucket_capacity(const spooky_hash_table * self) {
 size_t spooky_hash_get_key_count(const spooky_hash_table * self) {
   return self->impl->string_count;
 }
-
+/*
 static int spooky_hash_bucket_item_compare(const void * a, const void * b) {
   const spooky_hash_bucket_item * l = (const spooky_hash_bucket_item  *)a;
   const spooky_hash_bucket_item * r = (const spooky_hash_bucket_item  *)b;
@@ -309,7 +357,7 @@ static int spooky_hash_bucket_item_compare(const void * a, const void * b) {
   if(l->atom.hash > r->atom.hash) return 1;
   return 0;
 }
-
+*/
 void spooky_hash_rebalance(const spooky_hash_table * self) {
   const spooky_hash_table * old_self = self;
   spooky_hash_table_impl * old_impl = old_self->impl;
@@ -344,20 +392,24 @@ void spooky_hash_rebalance(const spooky_hash_table * self) {
           while(old_item < old_item_end) {
             /* not already added */
             new_bucket = spooky_hash_bucket_check_and_realloc(new_bucket);
-
-            spooky_hash_bucket_item * new_item = new_bucket->items + new_bucket->items_limits.len;
-            new_bucket->items_limits.len++;
-
+           
+            //static spooky_hash_bucket_item * spooky_hash_bucket_get_next_item(spooky_hash_bucket * bucket)
+            //static void spooky_hash_bucket_insert_item(spooky_hash_bucket * bucket, spooky_hash_bucket_item * node, spooky_hash_bucket_item * item) 
+            
+            spooky_hash_bucket_item * new_item = spooky_hash_bucket_get_next_item(new_bucket);
             new_item->atom = old_item->atom;
+            spooky_hash_bucket_insert_item(new_bucket, new_bucket->root, new_item);
             old_item++;
           }
         }
         old_bucket++;
       }
     }
+/*
     spooky_hash_bucket * unsorted_bucket = self->impl->buckets;
     const spooky_hash_bucket * unsorted_bucket_end = self->impl->buckets + self->impl->buckets_limits.len;
     while(unsorted_bucket < unsorted_bucket_end) {
+
       qsort(unsorted_bucket->items, unsorted_bucket->items_limits.len, sizeof unsorted_bucket->items[0], &spooky_hash_bucket_item_compare);
       for(size_t i = 0; i < unsorted_bucket->items_limits.len; i++) {
         spooky_hash_bucket_item * left = unsorted_bucket->items + i;
@@ -373,7 +425,7 @@ void spooky_hash_rebalance(const spooky_hash_table * self) {
       unsorted_bucket->root = unsorted_bucket->items;
       unsorted_bucket++;
     }
-
+*/
     /*DIAGNOSTICS:
     * unsorted_bucket = self->impl->buckets;
     * while(unsorted_bucket < unsorted_bucket_end) {
