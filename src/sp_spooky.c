@@ -70,7 +70,7 @@ int main(int argc, char **argv) {
       size_t capacity = hash->get_bucket_capacity(hash);
       size_t bucket_len = hash->get_bucket_length(hash);
 
-      if(!load_factor_printed && hash->get_load_factor(hash) > 0.75 & bucket_len < capacity) {
+      if(!load_factor_printed && hash->get_load_factor(hash) > 0.75 && bucket_len < capacity) {
         fprintf(stdout, "Max load factor hit at %lu\n", count);
         load_factor_printed = true;
       }
