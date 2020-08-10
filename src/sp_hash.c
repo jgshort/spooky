@@ -89,7 +89,7 @@ typedef struct spooky_hash_bucket_item {
 } spooky_hash_bucket_item;
 
 typedef struct spooky_hash_bucket {
-  unsigned long prime;
+  uint64_t prime;
   spooky_array_limits items_limits;
   spooky_hash_bucket_item * root;
   spooky_hash_bucket_item * items;
@@ -122,7 +122,7 @@ static char * spooky_hash_print_stats(const spooky_hash_table * self);
 static spooky_str * spooky_hash_atom_alloc(const spooky_hash_table * self, spooky_hash_bucket * bucket, const char * s, size_t s_len, unsigned long hash, size_t * out_len, bool skip_s_cp);
 //static spooky_str * spooky_hash_order_bucket_items(const spooky_hash_bucket * bucket, spooky_str * atom);
 static double spooky_hash_get_load_factor(const spooky_hash_table * self);
-
+static inline unsigned long spooky_hash_get_index(const spooky_hash_table * self, unsigned long hash);
 static size_t spooky_hash_get_bucket_length(const spooky_hash_table * self);
 static size_t spooky_hash_get_bucket_capacity(const spooky_hash_table * self);
 static size_t spooky_hash_get_key_count(const spooky_hash_table * self);
@@ -170,6 +170,7 @@ const spooky_hash_table * spooky_hash_table_cctor(const spooky_hash_table * self
   impl->prime = spooky_hash_primes[impl->prime_index];
   impl->buckets_limits.capacity = (sizeof spooky_hash_primes / sizeof spooky_hash_primes[0]);
   impl->buckets_limits.len = impl->prime_index;
+  //fprintf(stdout, "Buckets: (%lu, %lu); prime %lu\n", impl->buckets_limits.capacity, impl->buckets_limits.len, spooky_hash_primes[impl->prime_index]);
   impl->buckets = calloc(impl->buckets_limits.capacity, sizeof * impl->buckets);
   if(!impl->buckets) { abort(); }
 
@@ -255,7 +256,7 @@ void spooky_hash_table_release(const spooky_hash_table * self) {
 }
 
 static inline unsigned long spooky_hash_get_index(const spooky_hash_table * self, unsigned long hash) {
-  return (hash % spooky_hash_primes[self->impl->prime_index]) % (self->impl->prime_index);
+  return (hash % spooky_hash_primes[self->impl->prime_index]) % self->impl->prime_index;
 }
 
 static spooky_hash_bucket * spooky_hash_bucket_init(const spooky_hash_table * self, unsigned long index) {
@@ -491,7 +492,6 @@ errno_t spooky_hash_ensure_internal(const spooky_hash_table * self, const char *
     spooky_str * found = NULL;
     assert(bucket->root);
     if(spooky_hash_find_internal(bucket, s, s_len, hash, &found) == SP_SUCCESS) {
-      if(found) { spooky_str_inc_ref_count((spooky_str *)(uintptr_t)found); }
       if(out_str) { *out_str = found; }
       return SP_SUCCESS; 
     }
@@ -553,7 +553,6 @@ static spooky_str * spooky_hash_atom_alloc(const spooky_hash_table * self, spook
   }
 
   spooky_str_ref(s_cp, s_len, hash, atom);
-  spooky_str_inc_ref_count(atom);
  
   assert(bucket->root && item->atom.str);
   spooky_hash_bucket_insert_item(bucket->root, item);
@@ -711,8 +710,8 @@ char * spooky_hash_print_stats(const spooky_hash_table * self) {
             if(outer != inner && outer->hash == inner->hash) {
               collisions++;
               out += snprintf(out, max_buf_len - (size_t)(out - result), "Hash Collisions!\n");
-              out += snprintf(out, max_buf_len - (size_t)(out - result), "    X: '%s': len: %lu, hash: %lu\n", outer->str, outer->len, outer->hash);
-              out += snprintf(out, max_buf_len - (size_t)(out - result), "    Y: '%s': len: %lu, hash: %lu\n", inner->str, inner->len, inner->hash);
+              out += snprintf(out, max_buf_len - (size_t)(out - result), "    X: '%s'\n", outer->str); //: len: %lu, hash: %lu\n", outer->str, outer->len, outer->hash);
+              out += snprintf(out, max_buf_len - (size_t)(out - result), "    Y: '%s'\n", inner->str); //: len: %lu, hash: %lu\n", inner->str, inner->len, inner->hash);
             }
           }
         }
@@ -720,6 +719,13 @@ char * spooky_hash_print_stats(const spooky_hash_table * self) {
     }
   }
 
+  for(size_t i = 0; i < impl->buckets_limits.len; i++) {
+    const spooky_hash_bucket * bucket = &impl->buckets[i];
+    fprintf(stdout, "Bucket %lu: ", i);
+    int x = bucket->items_limits.len % 80;
+    for(int j = 0; j < x; j++) { fprintf(stdout, "#"); }
+    fprintf(stdout, "\n");
+  }
   out += snprintf(out, max_buf_len - (size_t)(out - result), "Average distribution: %f\n", (double)total_items / (double)impl->buckets_limits.len);
   out += snprintf(out, max_buf_len - (size_t)(out - result), "Total chain reallocations: %i\n", reallocs);
   out += snprintf(out, max_buf_len - (size_t)(out - result), "Total key collisions: %i\n", collisions / 2);

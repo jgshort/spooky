@@ -9,8 +9,7 @@ extern "C" {
 
 typedef struct spooky_str {
   size_t len;
-  size_t ref_count;
-  unsigned long hash;
+  uint64_t hash;
   const char * str;
 } spooky_str;
 
@@ -20,14 +19,11 @@ void spooky_str_quit();
 void spooky_str_copy(spooky_str ** /* dest */, const spooky_str * /* src */);
 void spooky_str_swap(spooky_str ** /* left */, spooky_str ** /* right */);
 
-unsigned long spooky_hash_str(const char * restrict /* s */, size_t /* s_len */);
-errno_t spooky_str_ref(const char * /* s */, size_t /* len */, unsigned long /* hash */, spooky_str * /* out_str */);
+uint64_t spooky_hash_str(const char * restrict /* s */, size_t /* s_len */);
+errno_t spooky_str_ref(const char * /* s */, size_t /* len */, uint64_t /* hash */, spooky_str * /* out_str */);
 
-unsigned long spooky_str_get_hash(const spooky_str * /* self */);
+uint64_t spooky_str_get_hash(const spooky_str * /* self */);
 const char * spooky_str_get_str(const spooky_str * /* self */);
-size_t spooky_str_get_ref_count(const spooky_str * /* self */);
-void spooky_str_inc_ref_count(spooky_str * /* self */);
-void spooky_str_dec_ref_count(spooky_str * /* self */);
 
 errno_t spooky_str_isspace(int /* c */, bool * /* out_space */);
 errno_t spooky_str_trim(const char * /* str */, size_t /* str_len */, size_t /* n_max */, char ** /* out_str */, size_t * /* out_str_len */);

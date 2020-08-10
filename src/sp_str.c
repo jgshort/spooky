@@ -43,15 +43,15 @@ void spooky_str_swap(spooky_str ** left, spooky_str ** right) {
 
 /* See: http://www.cse.yorku.ca/~oz/hash.html */
 #define SPOOKY_HASH_USE_SDBM
-inline static unsigned long spooky_hash_str_internal(const char * restrict s, size_t s_len) {
-  register unsigned long hash;
+inline static uint64_t spooky_hash_str_internal(const char * restrict s, size_t s_len) {
+  register uint64_t hash;
 #ifdef SPOOKY_HASH_USE_SDBM
   /* use SDBM algorithm: */
 
-# define HASH_DEF hash = (((unsigned long)*(s++)) + /* good: 65599; better: */ 65587 * hash)
+# define HASH_DEF hash = (((uint64_t)*(s++)) + /* good: 65599; better: */ 65587 * hash)
   hash = 0;
   if (s_len > 0) {
-		register unsigned long loop = (s_len + 8 - 1) >> 3;
+		register uint64_t loop = (s_len + 8 - 1) >> 3;
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wswitch-default"
 #pragma GCC diagnostic push
@@ -81,17 +81,17 @@ inline static unsigned long spooky_hash_str_internal(const char * restrict s, si
   register char c = '\0';
 
   while((c = *(s++))) {
-    hash = ((hash << 5) + hash) + (unsigned long)c; /* hash * 33 + c */
+    hash = ((hash << 5) + hash) + (uint64_t)c; /* hash * 33 + c */
   }
 #endif /* SPOOKY_HASH_USE_SDBM */
   return hash;
 }
 
-unsigned long spooky_hash_str(const char * restrict s, size_t s_len) {
+uint64_t spooky_hash_str(const char * restrict s, size_t s_len) {
   return spooky_hash_str_internal(s, s_len);
 }
 
-errno_t spooky_str_ref(const char * s, size_t len, unsigned long hash, spooky_str * out_str) {
+errno_t spooky_str_ref(const char * s, size_t len, uint64_t hash, spooky_str * out_str) {
   assert(s && len > 0 && out_str);
   if(!s || len == 0 || !out_str) { goto err0; }
 
@@ -112,24 +112,12 @@ err0:
   return SP_FAILURE;
 }
 
-unsigned long spooky_str_get_hash(const spooky_str * self) {
+uint64_t spooky_str_get_hash(const spooky_str * self) {
   return self->hash;
 }
 
 const char * spooky_str_get_str(const spooky_str * self) {
   return self->str;
-}
-
-size_t spooky_str_get_ref_count(const spooky_str * self) {
-  return self->ref_count;
-}
-
-void spooky_str_inc_ref_count(spooky_str * self) {
-  self->ref_count++;
-}
-
-void spooky_str_dec_ref_count(spooky_str * self) {
-  self->ref_count--;
 }
 
 errno_t spooky_str_isspace(int c, bool * out_space) {

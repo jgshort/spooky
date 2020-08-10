@@ -93,7 +93,7 @@ int main(int argc, char **argv) {
 
   fprintf(stdout, "Finding \"foo\"\n");
   if(hash->find(hash, "foo", strlen("foo"), &atom) == SP_SUCCESS) {
-    fprintf(stdout, "Found 'foo', added %i times\n", (int)atom->ref_count);  
+    fprintf(stdout, "Found 'foo'.\n");
   }
   fprintf(stdout, "Done.\n");
   char * stats = hash->print_stats(hash);
