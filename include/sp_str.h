@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+#include <stdbool.h>
+
 #include "sp_error.h"
 
 typedef struct spooky_str {

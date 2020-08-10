@@ -3,6 +3,7 @@ spooky_SOURCES = \
 								 sp_math.c \
 								 sp_error.c \
 								 sp_str.c \
+								 sp_pool.c \
 								 sp_hash.c \
 								 sp_pak.c \
 								 sp_db.c \
