@@ -17,6 +17,7 @@
 
 #include "sp_error.h"
 #include "sp_str.h"
+#include "sp_limits.h"
 
 #define SPOOKY_STR_BUFFER_CAPACITY_DEFAULT 32768 
 
@@ -215,4 +216,26 @@ int spooky_str_hash_compare(const void * a, const void * b) {
   return 0;
 }
 
+
+int spooky_str_compare(const spooky_str * left, const spooky_str * right) {
+  if(!left && !right) { return 0; }
+  if(!left) { return -1; }
+  if(!right) { return 1; }
+
+  if(left->len < right->len) { return -1; }
+  else if(left->len > right->len) { return 1; }
+  if(left->hash < right->hash) { return -1; }
+  else if(left->hash > right->hash) { return 1; }
+
+  if(!(left->str) && !(right->str)) { return 0; }
+  if(!(left->str)) { return -1; }
+  if(!(right->str)) { return 1; }
+
+  size_t max_len = left->len < right->len ? left->len : right->len;
+  if(max_len > SPOOKY_MAX_STRING_LEN) { max_len = SPOOKY_MAX_STRING_LEN; }
+
+  if(left->len == right->len && left->hash == right->hash && strncmp(left->str, right->str, max_len) == 0) { return 0; }
+
+  return 1;
+}
 
