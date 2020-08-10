@@ -18,8 +18,9 @@ void spooky_str_quit();
 
 void spooky_str_copy(spooky_str ** /* dest */, const spooky_str * /* src */);
 void spooky_str_swap(spooky_str ** /* left */, spooky_str ** /* right */);
-
 uint64_t spooky_hash_str(const char * restrict /* s */, size_t /* s_len */);
+
+errno_t spooky_str_new(const char * /* s */, size_t /* len */, spooky_str * /* out_str */);
 errno_t spooky_str_ref(const char * /* s */, size_t /* len */, uint64_t /* hash */, spooky_str * /* out_str */);
 
 uint64_t spooky_str_get_hash(const spooky_str * /* self */);

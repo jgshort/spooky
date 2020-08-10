@@ -92,6 +92,25 @@ uint64_t spooky_hash_str(const char * restrict s, size_t s_len) {
   return spooky_hash_str_internal(s, s_len);
 }
 
+errno_t spooky_str_new(const char * s, size_t len, spooky_str * out_str) {
+  assert(s && len > 0 && out_str);
+
+  size_t s_nlen = len >= SPOOKY_STR_MAX_STR_LEN ? SPOOKY_STR_MAX_STR_LEN : len;
+  assert(s_nlen == len);
+  if(s_nlen != len) { goto err0; }
+
+  out_str->hash = spooky_hash_str_internal(s, s_nlen);
+  out_str->len = s_nlen;
+  out_str->str = s;
+
+  assert(out_str->str);
+
+  return SP_SUCCESS;
+
+err0:
+  return SP_FAILURE;
+}
+
 errno_t spooky_str_ref(const char * s, size_t len, uint64_t hash, spooky_str * out_str) {
   assert(s && len > 0 && out_str);
   if(!s || len == 0 || !out_str) { goto err0; }
