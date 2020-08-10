@@ -544,7 +544,6 @@ errno_t spooky_hash_find(const spooky_hash_table * self, const char * s, size_t 
   register uint64_t hash = spooky_hash_str(s, s_len);
   register uint64_t index = spooky_hash_get_index(self, hash);
   assert(index < impl->prime);
-  fprintf(stdout, "%lu\n", index);
   spooky_hash_bucket * bucket = &impl->buckets[index];
   return spooky_hash_find_internal(bucket, s, s_len, hash, key); 
 }
