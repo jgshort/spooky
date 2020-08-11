@@ -11,6 +11,7 @@
 #include <zlib.h>
 #include <sodium.h>
 
+#include "sp_limits.h"
 #include "sp_error.h"
 #include "sp_pak.h"
 #include "sp_math.h"
@@ -207,7 +208,7 @@ static bool spooky_read_uint64(FILE * fp, uint64_t * value);
 static bool spooky_read_int64(FILE * fp, int64_t * value);
 static bool spooky_read_bool(FILE * fp, bool * value);
 /* static bool spooky_read_float(FILE * fp, float * value); */
-/* static bool spooky_read_string(FILE * fp, char ** value); */
+static bool spooky_read_string(FILE * fp, char ** value, size_t * value_len);
 /* static bool spooky_read_string(FILE * fp, char ** value, size_t * fixed_width); */
 static bool spooky_read_spooky_pack_string(FILE * fp, spooky_pack_string * string);
 /* static bool spooky_read_index_entry(FILE * fp, spooky_pack_index_entry * entry); */
@@ -413,6 +414,27 @@ err0:
 #undef SET_BINARY_MODE 
 }
 
+static bool spooky_read_string(FILE * fp, char ** value, size_t * value_len) {
+  assert(fp && value && value_len);
+
+  uint64_t len = 0;
+  if(!spooky_read_uint64(fp, &len)) { return false; }
+  assert(len < SIZE_MAX);
+  assert(len < SPOOKY_MAX_STRING_LEN);
+  if(len >= SPOOKY_MAX_STRING_LEN) { abort(); }
+
+  *value = NULL;
+  *value_len = (size_t)len;
+  if(len > 0) { 
+    *value = calloc(len, sizeof ** value);
+    assert(*value);
+    if(!*value) { abort(); }
+    if(!spooky_read_raw(fp, len, value)) { return false; }
+  }
+
+  return true;
+}
+
 static bool spooky_read_file(FILE * fp, FILE ** value) {
   assert(fp);
   (void)value;
@@ -428,9 +450,65 @@ static bool spooky_read_file(FILE * fp, FILE ** value) {
 
   spooky_pack_item_type type = spit_unspecified;
   /* write the type (bin-file) to the stream: */
-  spooky_read_item_type(fp, &type);
+  if(!spooky_read_item_type(fp, &type)) { return false; }
   assert(type == spit_bin_file);
-  return false;
+  if(type != spit_bin_file) { return false; }
+
+  uint64_t uncompressed_len = 0, compressed_len = 0;
+
+  if(!spooky_read_uint64(fp, &uncompressed_len)) { return false; }
+  if(!spooky_read_uint64(fp, &compressed_len)) { return false; }
+
+  unsigned char compressed_hash[crypto_generichash_BYTES] = { 0 };
+  unsigned char uncompressed_hash[crypto_generichash_BYTES] = { 0 };
+
+  /* READ COMPRESSED CONTENT HASH */
+  if(!spooky_read_raw(fp, sizeof compressed_hash / sizeof compressed_hash[0], &compressed_hash)) { return false; };
+  
+  /* READ UNCOMPRESSED CONTENT HASH */
+  if(!spooky_read_raw(fp, sizeof uncompressed_hash / sizeof uncompressed_hash[0], &uncompressed_hash)) { return false; }
+
+  /* READ FILE PATH */
+  char * file_path = NULL;
+  size_t file_path_len = 0;
+  if(!spooky_read_string(fp, &file_path, &file_path_len)) { return false; }
+
+  /* READ KEY */
+  char * key = NULL;
+  size_t key_len = 0;
+  if(!spooky_read_string(fp, &key, &key_len)) { return false; }
+
+  /* READ CONTENT */
+  char * compressed_data = calloc(compressed_len, sizeof * compressed_data);
+  if(!compressed_data) { abort(); }
+
+  if(!spooky_read_raw(fp, compressed_len, compressed_data)) {
+    free(compressed_data), compressed_data = NULL;
+    return false;
+  }
+
+  char * uncompressed_data = calloc(uncompressed_len, sizeof * uncompressed_data);
+  if(!uncompressed_data) { 
+    free(compressed_data), compressed_data = NULL;
+    abort();
+  }
+
+  FILE * deflated_fp = fmemopen(compressed_data, compressed_len, "r");
+  {
+    FILE * inflated_fp = fmemopen(uncompressed_data, uncompressed_len, "r+");
+    size_t inflated_buf_len = 0;
+    
+    spooky_inflate_file(deflated_fp, inflated_fp, &inflated_buf_len);
+
+    assert(inflated_buf_len == uncompressed_len);
+
+    fclose(inflated_fp);
+  } 
+  fclose(deflated_fp);
+
+  free(compressed_data), compressed_data = NULL;
+  free(uncompressed_data), uncompressed_data = NULL;
+  return true;
 }
 
 static bool spooky_write_file(const char * file_path, const char * key, FILE * fp, uint64_t * content_len) {
@@ -627,7 +705,11 @@ static bool spooky_read_bool(FILE * fp, bool * value) {
 static bool spooky_write_string(const char * value, FILE * fp, uint64_t * content_len) {
   static const char * empty = "";
   static const char nullstr = '\0';
- 
+
+  /* String Format:
+   * - Len (size_t)
+   * - String (null-terminated)
+   */
   int expected = 0;
   size_t res = 0, len = 0;
   if(value) {
