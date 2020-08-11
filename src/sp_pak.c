@@ -9,6 +9,7 @@
 #include <assert.h>
 #include <memory.h>
 #include <zlib.h>
+#include <sodium.h>
 
 #include "sp_error.h"
 #include "sp_pak.h"
@@ -174,7 +175,7 @@ typedef struct spooky_pack_file {
 /* Writers */
 static bool spooky_write_raw(void * value, size_t len, FILE * fp);
 static bool spooky_write_item_type(spooky_pack_item_type type, FILE * fp, uint64_t * content_len);
-static bool spooky_write_file(const char * file_path, FILE * fp, uint64_t * content_len);
+static bool spooky_write_file(const char * file_path, const char * key, FILE * fp, uint64_t * content_len);
 static bool spooky_write_char(char value, FILE * fp, uint64_t * content_len);
 static bool spooky_write_uint8(uint8_t value, FILE * fp, uint64_t * content_len);
 static bool spooky_write_int8(int8_t value, FILE * fp, uint64_t * content_len);
@@ -194,6 +195,7 @@ static bool spooky_write_spooky_pack_item(const spooky_pack_item * item, FILE * 
 static bool spooky_write_version(spooky_pack_version version, FILE * fp, uint64_t * content_len);
 
 /* Readers */
+static bool spooky_read_item_type(FILE * fp, spooky_pack_item_type * item_type);
 static bool spooky_read_raw(FILE * fp, size_t len, void * buf);
 static bool spooky_read_uint8(FILE * fp, uint8_t * value);
 static bool spooky_read_int8(FILE * fp, int8_t * value);
@@ -239,21 +241,99 @@ static bool spooky_read_raw(FILE * fp, size_t len, void * buf) {
 static bool spooky_write_item_type(spooky_pack_item_type type, FILE * fp, uint64_t * content_len) {
 	assert(fp != NULL);
   assert(type > spit_unspecified && type < spit_eof);
-  assert(type > 0 && type < UINT16_MAX);
-  return spooky_write_uint16((uint16_t)type, fp, content_len);
+  assert(type > 0);
+  return spooky_write_uint64((uint64_t)type, fp, content_len);
 }
-/*
+
 static bool spooky_read_item_type(FILE * fp, spooky_pack_item_type * type) {
-  uint16_t value = 0;
-  bool res = spooky_read_uint16(fp, &value);
+  uint64_t value = 0;
+  bool res = spooky_read_uint64(fp, &value);
   assert(res);
-  assert(value > 0 && value < UINT16_MAX);
+  assert(value > 0 && value < UINT64_MAX);
   assert(value > spit_unspecified && value < spit_eof);
   *type = (spooky_pack_item_type)value;
   return res;
 }
-*/
 
+int spooky_inflate_file(FILE * source, FILE * dest, size_t * dest_len) {
+//errno_t spooky_inflate_file(FILE * source, FILE * dest, size_t * dest_len) {
+  /* From: http://www.zlib.net/zlib_how.html */
+  /* Decompress from file source to file dest until stream ends or EOF.
+     inf() returns Z_OK on success, Z_MEM_ERROR if memory could not be
+     allocated for processing, Z_DATA_ERROR if the deflate data is
+     invalid or incomplete, Z_VERSION_ERROR if the version of zlib.h and
+     the version of the library linked do not match, or Z_ERRNO if there
+     is an error reading or writing the files. */
+
+#define CHUNK 16384
+
+  int ret = 0;
+  unsigned have = 0;
+  unsigned char in[CHUNK] = { 0 };
+  unsigned char out[CHUNK] = { 0 };
+
+  /* allocate inflate state */
+  z_stream strm = {
+    .zalloc = Z_NULL,
+    .zfree = Z_NULL,
+    .opaque = Z_NULL,
+    .avail_in = 0,
+    .next_in = Z_NULL
+  };
+  
+  ret = inflateInit(&strm);
+  if(ret != Z_OK) { return ret; }
+
+  /* decompress until deflate stream ends or end of file */
+  size_t extracted = 0;
+  do {
+    unsigned long read = fread(in, 1, CHUNK, source);
+    assert(read <= UINT_MAX);
+    if(read > UINT_MAX) { inflateEnd(&strm); return Z_ERRNO; }
+
+    strm.avail_in = (unsigned int)read; 
+    if(ferror(source)) {
+      inflateEnd(&strm);
+      return Z_ERRNO;
+    }
+
+    if(strm.avail_in == 0) { break; }
+    
+    strm.next_in = in;
+    /* run inflate() on input until output buffer not full */
+    do {
+      strm.avail_out = CHUNK;
+      strm.next_out = out;
+      ret = inflate(&strm, Z_NO_FLUSH);
+      assert(ret != Z_STREAM_ERROR);  /* state not clobbered */
+      switch(ret) {
+        case Z_NEED_DICT:
+          ret = Z_DATA_ERROR;     /* and fall through */
+        case Z_DATA_ERROR:
+        case Z_MEM_ERROR:
+          inflateEnd(&strm);
+          return ret;
+        default:
+          break;
+      }
+      have = CHUNK - strm.avail_out;
+      if(fwrite(out, 1, have, dest) != have || ferror(dest)) {
+        inflateEnd(&strm);
+        return Z_ERRNO;
+      }
+      extracted += have;
+    } while(strm.avail_out == 0);
+
+    /* done when inflate() says it's done */
+  } while(ret != Z_STREAM_END);
+ 
+  if(dest_len) { *dest_len = extracted; }
+
+  /* clean up and return */
+  inflateEnd(&strm);
+  return ret == Z_STREAM_END ? Z_OK : Z_DATA_ERROR;
+#undef CHUNK
+}
 
 errno_t spooky_deflate_file(FILE * source, FILE * dest, size_t * dest_len) {
 /* From: http://www.zlib.net/zlib_how.html */
@@ -333,10 +413,31 @@ err0:
 #undef SET_BINARY_MODE 
 }
 
-static bool spooky_write_file(const char * file_path, FILE * fp, uint64_t * content_len) {
+static bool spooky_read_file(FILE * fp, FILE ** value) {
+  assert(fp);
+  (void)value;
+  /* READ TYPE: (assert spit_bin_file)
+   * READ UNCOMPRESSED LEN (uint64_t)
+   * READ COMPRESSED LEN (uint64_t)
+   * READ COMPRESSED CONTENT HASH
+   * READ UNCOMPRESSED CONTENT HASH
+   * READ FILE PATH
+   * READ KEY
+   * READ CONTENT
+   */
+
+  spooky_pack_item_type type = spit_unspecified;
+  /* write the type (bin-file) to the stream: */
+  spooky_read_item_type(fp, &type);
+  assert(type == spit_bin_file);
+  return false;
+}
+
+static bool spooky_write_file(const char * file_path, const char * key, FILE * fp, uint64_t * content_len) {
+(void)spooky_read_file;
   assert(file_path != NULL);
   assert(fp != NULL);
-
+  
   char * inflated_buf = NULL, * deflated_buf = NULL;
   FILE * src_file = fopen(file_path, "rb");
   if(src_file != NULL) {
@@ -354,12 +455,6 @@ static bool spooky_write_file(const char * file_path, FILE * fp, uint64_t * cont
       if(ferror(src_file) != 0) {
         abort();
       } else {
-        spooky_pack_item_type type = spit_bin_file;
-        /* write the type (bin-file) to the stream: */
-        spooky_write_item_type(type, fp, content_len);
-        /* write the file path to the stream: */
-        spooky_write_string(file_path, fp, content_len);
-
         {
           FILE * inflated_fp = fmemopen(inflated_buf, new_len, "r");
           {
@@ -368,9 +463,52 @@ static bool spooky_write_file(const char * file_path, FILE * fp, uint64_t * cont
            
             /* compress the file: */
             spooky_deflate_file(inflated_fp, deflated_fp, &deflated_buf_len);
+
+            /* File format: 
+             * - Type (spit_bin_file)
+             * - Uncompressed len (uint64_t)
+             * - Compressed len (uint64_t)
+             * - Uncompressed content hash
+             * - Compresed content hash
+             * - Path (string)
+             * - Key (string)
+             * - Content
+             */
+
+            /* TYPE: */
+            spooky_pack_item_type type = spit_bin_file;
+            /* write the type (bin-file) to the stream: */
+            spooky_write_item_type(type, fp, content_len);
+
+            /* UNCOMPRESSED SIZE: */
+            /* write the uncompressed file size to the stream */
+            spooky_write_int64(inflated_buf_len, fp, content_len);
+
+            /* COMPRESSED SIZE: */
             /* write the compressed file length to the stream: */
             spooky_write_uint64(deflated_buf_len, fp, content_len);
-            /* write the compressed file to the stream: */
+
+            unsigned char hash[crypto_generichash_BYTES] = { 0 };
+
+            /* UNCOMPRESSED HASH: */
+            crypto_generichash(hash, sizeof hash / sizeof hash[0], (const unsigned char *)(uintptr_t)inflated_buf, (size_t)inflated_buf_len, NULL, 0);
+            spooky_write_raw(&hash, sizeof hash / sizeof hash[0], fp);
+            (*content_len) += sizeof hash / sizeof hash[0];
+            
+            memset(&hash, 0, sizeof hash / sizeof hash[0]);
+
+            /* COMPRESSED HASH: */
+            crypto_generichash(hash, sizeof hash, (const unsigned char *)(uintptr_t)deflated_buf, (size_t)deflated_buf_len, NULL, 0);
+            spooky_write_raw(&hash, sizeof hash / sizeof hash[0], fp);
+            (*content_len) += sizeof hash / sizeof hash[0];
+           
+            /* FILE PATH: */
+            spooky_write_string(file_path, fp, content_len);
+           
+            /* KEY: */
+            spooky_write_string(key, fp, content_len);
+
+            /* CONTENT */
             spooky_write_raw(deflated_buf, deflated_buf_len, fp);
 
             if(content_len != NULL) { *content_len += deflated_buf_len; }
@@ -829,18 +967,25 @@ bool spooky_pack_create(FILE * fp) {
 
   bool ret = false;
   if(fp) {
+    /* Header */
     fwrite(&spf.header, sizeof(unsigned char), sizeof spf.header, fp);
+    /* Version */
     spooky_write_version(spf.version, fp, NULL);
+    /* Content length */
     spooky_write_uint64(spf.content_len, fp, NULL);
 
-    spooky_write_file("res/fonts/SIL Open Font License.txt", fp, &spf.content_len);
-    spooky_write_file("res/fonts/PrintChar21.ttf", fp, &spf.content_len);
+    /* Content */
+    spooky_write_file("res/fonts/PRNumber3.ttf", "foo", fp, &spf.content_len);
+    spooky_write_file("res/fonts/PrintChar21.ttf", "bar", fp, &spf.content_len);
+    spooky_write_file("res/fonts/DejaVuSansMono.ttf", "baz",  fp, &spf.content_len);
+    spooky_write_file("res/fonts/SIL Open Font License.txt", "buz", fp, &spf.content_len);
 
+    /* Update Content Length */
     fseek(fp, 0, SEEK_SET);
     fseek(fp, sizeof spf.header + sizeof spf.version, SEEK_SET);
-    
     spooky_write_uint64(spf.content_len, fp, NULL);
 
+    /* Footer */
     fseek(fp, 0, SEEK_END);
     fwrite(F, sizeof(unsigned char), sizeof FOOTER, fp);
     ret = true;
