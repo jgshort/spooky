@@ -36,73 +36,6 @@ int main(int argc, char **argv) {
   (void)argc;
   (void)argv;
  
-  const spooky_hash_table * hash = spooky_hash_table_acquire();
-  hash = hash->ctor(hash);
-  spooky_str * atom = NULL;
-  if(hash->find(hash, "foo", strlen("foo"), &atom) != SP_SUCCESS) {
-    fprintf(stdout, "'foo' NOT found, which is good\n");
-  }
-
-  FILE *wfp = fopen("words.txt", "r");
-  if(wfp == NULL) {
-    perror("Unable to open file!");
-    exit(1);
-  }
-
-  char * line = NULL;
-  size_t len = 0;
-
-  ssize_t read = 0;
-  fprintf(stdout, "Ensuring words...\n");
-  size_t count = 0;
-  bool load_factor_printed = false;
-  for(int i = 0; i < 5; i++) {
-    fprintf(stdout, "Starting iteration %i...\n", i);
-    fseek(wfp, 0, SEEK_SET);
-    while((read = getline(&line, &len, wfp)) != -1) {
-      if(read > 1) {
-        line[read - 1] = '\0';
-        if(hash->ensure(hash, line, (size_t)read - 1, NULL) != SP_SUCCESS) { abort(); }
-        free(line), line = NULL;
-        len = 0;
-        count++;
-      }
-      size_t capacity = hash->get_bucket_capacity(hash);
-      size_t bucket_len = hash->get_bucket_length(hash);
-
-      if(!load_factor_printed && hash->get_load_factor(hash) > 0.75 && bucket_len < capacity) {
-        fprintf(stdout, "Max load factor hit at %lu\n", count);
-        load_factor_printed = true;
-      }
-    }
-    fprintf(stdout, "Done with %i\n", i);
-  } 
-  fclose(wfp);
-  fprintf(stdout, "Done. Added %lu words\n", count);
-
-  fseek(wfp, 0, SEEK_SET);
-  while((read = getline(&line, &len, wfp)) != -1) {
-    if(read > 1) {
-      line[read - 1] = '\0';
-      if(hash->find(hash, line, strlen(line), &atom) != SP_SUCCESS) { abort(); }
-      free(line), line = NULL;
-      len = 0;
-      count++;
-    }
-  }
-
-  fprintf(stdout, "Finding \"foo\"\n");
-  if(hash->find(hash, "foo", strlen("foo"), &atom) == SP_SUCCESS) {
-    fprintf(stdout, "Found 'foo'.\n");
-  }
-  fprintf(stdout, "Done.\n");
-  char * stats = hash->print_stats(hash);
-  fprintf(stdout, "STATS:\n%s\n", stats);
-  free(stats), stats = NULL;
-  spooky_hash_table_release(hash);
-
-  if(argv) { exit(0); }
-
   spooky_pack_tests();
 
   int fd = 0;
@@ -478,9 +411,6 @@ end_of_running_loop: ;
   spooky_log_release(log);
   spooky_wm_release(wm);
   
-  hash->print_stats(hash);
-  spooky_hash_table_release(hash);
-
   return SP_SUCCESS;
 
 err1:
@@ -551,11 +481,6 @@ errno_t spooky_command_parser(spooky_context * context, const spooky_console * c
         , log->get_entries_count(log)
     );   
 #endif
-    const spooky_hash_table * hash = context->get_hash(context);
-    char * hash_stats = hash->print_stats(hash);
-    assert(strnlen(hash_stats, 4096) < 4096);
-    out += snprintf(out, 4096 - (size_t)(out - info), "%s\n", hash_stats);
-    free(hash_stats), hash_stats = NULL;
     console->push_str(console, info);
   } else if(strncmp(command, "log", sizeof("log")) == 0) {
     log->dump(log, console);

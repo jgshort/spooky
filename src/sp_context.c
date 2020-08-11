@@ -18,10 +18,10 @@
 #include "sp_help.h"
 #include "sp_time.h"
 
-#define MAX_FONT_LEN 1
+#define MAX_FONT_LEN 86 
 static const size_t max_font_len = MAX_FONT_LEN;
 static size_t spooky_font_sizes[MAX_FONT_LEN] = { 
-  0/*, 0, 0, 0,
+  0, 0, 0, 0,
   4, 0, 0, 0,
   8,
   9,
@@ -36,7 +36,7 @@ static size_t spooky_font_sizes[MAX_FONT_LEN] = {
   48, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   60, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   72, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  84, 0 */
+  84, 0
 };
 #undef MAX_FONT_LEN
 
