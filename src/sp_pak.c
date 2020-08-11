@@ -310,8 +310,10 @@ int spooky_inflate_file(FILE * source, FILE * dest, size_t * dest_len) {
       switch(ret) {
         case Z_NEED_DICT:
           ret = Z_DATA_ERROR;     /* and fall through */
+          goto next; 
         case Z_DATA_ERROR:
         case Z_MEM_ERROR:
+next:
           inflateEnd(&strm);
           return ret;
         default:
@@ -510,10 +512,10 @@ static bool spooky_read_file(FILE * fp, char ** buf, size_t * buf_len) {
     size_t inflated_buf_len = 0;
     
     spooky_inflate_file(deflated_fp, inflated_fp, &inflated_buf_len);
-
     assert(inflated_buf_len == decompressed_len);
 
     char * out_buf = calloc(decompressed_len, sizeof * out_buf);
+    if(!out_buf) { abort(); }
     memmove(out_buf, decompressed_data, decompressed_len);
   
     crypto_generichash(read_decompressed_hash, sizeof read_decompressed_hash / sizeof read_decompressed_hash[0], (const unsigned char *)(uintptr_t)out_buf, (size_t)decompressed_len, NULL, 0);
