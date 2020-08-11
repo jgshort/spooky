@@ -235,26 +235,34 @@ int spooky_str_hash_compare(const void * a, const void * b) {
   return 0;
 }
 
-
 int spooky_str_compare(const spooky_str * left, const spooky_str * right) {
-  if(!left && !right) { return 0; }
   if(!left) { return -1; }
   if(!right) { return 1; }
 
-  if(left->len < right->len) { return -1; }
-  else if(left->len > right->len) { return 1; }
-  if(left->hash < right->hash) { return -1; }
-  else if(left->hash > right->hash) { return 1; }
-
-  if(!(left->str) && !(right->str)) { return 0; }
   if(!(left->str)) { return -1; }
   if(!(right->str)) { return 1; }
 
-  size_t max_len = left->len < right->len ? left->len : right->len;
+  size_t left_len = left->len, right_len = right->len;
+  if(left_len - right_len != 0) {
+    assert(left_len < INT_MAX && right_len < INT_MAX);
+    if(left_len < INT_MAX && right_len < INT_MAX) {
+      return (int)(left_len) - (int)(right_len);
+    } else {
+      int64_t len_diff = (int64_t)(left_len) - (int64_t)(right_len);
+      if(len_diff < 0) { return -1; }
+      else if(len_diff > 0) { return 1; }
+      else { fprintf(stderr, "Sign error on len comparison.\n"); abort(); }
+    }
+  }
+
+  uint64_t left_hash = left->hash, right_hash = right->hash;
+  if(left_hash > right_hash) { return -1; }
+  if(left_hash < right_hash) { return 1; }
+
+  size_t max_len = left_len < right_len ? left_len : right_len;
   if(max_len > SPOOKY_MAX_STRING_LEN) { max_len = SPOOKY_MAX_STRING_LEN; }
-
-  if(left->len == right->len && left->hash == right->hash && strncmp(left->str, right->str, max_len) == 0) { return 0; }
-
-  return 1;
+  
+  int diff = strncmp(left->str, right->str, max_len);
+  return diff;
 }
 

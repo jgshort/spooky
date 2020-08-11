@@ -442,10 +442,8 @@ errno_t spooky_hash_ensure_internal(const spooky_hash_table * self, const char *
 
   if(bucket->prime) {
     /* check if it already exists */
-    //spooky_str * found = NULL;
     assert(bucket->root);
     if(spooky_hash_find_internal(bucket, s, s_len, hash, out_str) == SP_SUCCESS) {
-      //if(out_str) { *out_str = found; }
       return SP_SUCCESS; 
     }
 
@@ -487,7 +485,7 @@ static spooky_str * spooky_hash_key_alloc(const spooky_hash_table * self, spooky
   return key;
 }
 
-errno_t spooky_hash_bucket_item_tree_search(spooky_hash_bucket_item * node, uint64_t hash, spooky_hash_bucket_item ** out_item) {
+static inline errno_t spooky_hash_bucket_item_tree_search(spooky_hash_bucket_item * node, uint64_t hash, spooky_hash_bucket_item ** out_item) {
   if(out_item) { *out_item = NULL; }
   if(!node) { return SP_FAILURE; }
   if(node->key.hash == hash) { 
@@ -498,28 +496,27 @@ errno_t spooky_hash_bucket_item_tree_search(spooky_hash_bucket_item * node, uint
   else if(hash < node->key.hash) { return spooky_hash_bucket_item_tree_search(node->left, hash, out_item); }
   else { return SP_FAILURE; }
 }
-/*
-errno_t spooky_hash_compare(uint64_t hash, const spooky_str * str) {
-  if(hash == str->hash) {
-    register const char * s = str->str;
-    if(s_len == str->len && (str == s || strncmp(str, s, SPOOKY_MAX_STRING_LEN) == 0)) {
-      if(out_key) { *out_key = &(item->key); }
-      return SP_SUCCESS;
-    }
-  }
-}*/
+
 errno_t spooky_hash_find_internal(const spooky_hash_bucket * bucket, const char * s, size_t s_len, uint64_t hash, spooky_str ** out_key) {
   if(out_key) { *out_key = NULL; }
   if(!bucket || !bucket->prime) { return SP_FAILURE; }
   if(bucket->items_limits.len == 0) { return SP_FAILURE; }
-(void)s;
-  spooky_hash_bucket_item * item = NULL;
+  
   assert(bucket->root);
+  
+  spooky_str needle = {
+    .str = s,
+    .len = s_len,
+    .hash = hash
+  };
+  
+  spooky_hash_bucket_item * item = NULL;
   if(spooky_hash_bucket_item_tree_search(bucket->root, hash, &item) == SP_SUCCESS) {
     if(!item->siblings) {
       /* no siblings, check leaf */
-      if(hash == item->key.hash && s_len == item->key.len) {
-        if(out_key) { *out_key = &(item->key); }
+      spooky_str * key = &(item->key);
+      if(spooky_str_compare(key, &needle) == 0) {
+        if(out_key) { *out_key = key; }
         return SP_SUCCESS;
       }
     } else if(item->siblings_limits.len > 0) {
@@ -528,8 +525,9 @@ errno_t spooky_hash_find_internal(const spooky_hash_bucket * bucket, const char 
       spooky_hash_bucket_item ** end = item->siblings + item->siblings_limits.len;
       while(start < end) {
         item = *start;
-        if(hash == item->key.hash && s_len == item->key.len) {
-          if(out_key) { *out_key = &(item->key); }
+        spooky_str * key = &(item->key);
+        if(spooky_str_compare(key, &needle) == 0) {
+          if(out_key) { *out_key = key; }
           return SP_SUCCESS;
         }
         start++;
@@ -541,8 +539,8 @@ errno_t spooky_hash_find_internal(const spooky_hash_bucket * bucket, const char 
 
 errno_t spooky_hash_find(const spooky_hash_table * self, const char * s, size_t s_len, spooky_str ** key) {
   spooky_hash_table_impl * impl = self->impl;
-  register uint64_t hash = spooky_hash_str(s, s_len);
-  register uint64_t index = spooky_hash_get_index(self, hash);
+  uint64_t hash = spooky_hash_str(s, s_len);
+  uint64_t index = spooky_hash_get_index(self, hash);
   assert(index < impl->prime);
   spooky_hash_bucket * bucket = &impl->buckets[index];
   return spooky_hash_find_internal(bucket, s, s_len, hash, key); 
