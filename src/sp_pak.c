@@ -404,7 +404,7 @@ errno_t spooky_deflate_file(FILE * source, FILE * dest, size_t * dest_len) {
   /* clean up and return */
   deflateEnd(&strm);
   if(dest_len) { *dest_len = written; }
-  fprintf(stdout, "Deflated len: %i\n", (int)written);
+  
   return Z_OK;
 
 err0:
@@ -429,15 +429,15 @@ static bool spooky_read_string(FILE * fp, char ** value, size_t * value_len) {
     *value = calloc(len, sizeof ** value);
     assert(*value);
     if(!*value) { abort(); }
-    if(!spooky_read_raw(fp, len, value)) { return false; }
+    if(!spooky_read_raw(fp, len + 1 /* NULL terminator */, *value)) { return false; }
   }
 
   return true;
 }
 
-static bool spooky_read_file(FILE * fp, FILE ** value) {
+static bool spooky_read_file(FILE * fp, char ** buf, size_t * buf_len) {
   assert(fp);
-  (void)value;
+  
   /* READ TYPE: (assert spit_bin_file)
    * READ UNCOMPRESSED LEN (uint64_t)
    * READ COMPRESSED LEN (uint64_t)
@@ -454,20 +454,20 @@ static bool spooky_read_file(FILE * fp, FILE ** value) {
   assert(type == spit_bin_file);
   if(type != spit_bin_file) { return false; }
 
-  uint64_t uncompressed_len = 0, compressed_len = 0;
+  uint64_t decompressed_len = 0, compressed_len = 0;
 
-  if(!spooky_read_uint64(fp, &uncompressed_len)) { return false; }
+  if(!spooky_read_uint64(fp, &decompressed_len)) { return false; }
   if(!spooky_read_uint64(fp, &compressed_len)) { return false; }
 
   unsigned char compressed_hash[crypto_generichash_BYTES] = { 0 };
-  unsigned char uncompressed_hash[crypto_generichash_BYTES] = { 0 };
+  unsigned char decompressed_hash[crypto_generichash_BYTES] = { 0 };
+ 
+  /* READ UNCOMPRESSED CONTENT HASH */
+  if(!spooky_read_raw(fp, sizeof decompressed_hash / sizeof decompressed_hash[0], &decompressed_hash)) { return false; }
 
   /* READ COMPRESSED CONTENT HASH */
   if(!spooky_read_raw(fp, sizeof compressed_hash / sizeof compressed_hash[0], &compressed_hash)) { return false; };
-  
-  /* READ UNCOMPRESSED CONTENT HASH */
-  if(!spooky_read_raw(fp, sizeof uncompressed_hash / sizeof uncompressed_hash[0], &uncompressed_hash)) { return false; }
-
+ 
   /* READ FILE PATH */
   char * file_path = NULL;
   size_t file_path_len = 0;
@@ -486,28 +486,66 @@ static bool spooky_read_file(FILE * fp, FILE ** value) {
     free(compressed_data), compressed_data = NULL;
     return false;
   }
+  
+  unsigned char read_compressed_hash[crypto_generichash_BYTES] = { 0 };
+  crypto_generichash(read_compressed_hash, sizeof read_compressed_hash / sizeof read_compressed_hash[0], (const unsigned char *)(uintptr_t)compressed_data, (size_t)compressed_len, NULL, 0);
 
-  char * uncompressed_data = calloc(uncompressed_len, sizeof * uncompressed_data);
-  if(!uncompressed_data) { 
+  for(size_t i = 0; i < sizeof read_compressed_hash / sizeof read_compressed_hash[0]; i++) {
+    if(read_compressed_hash[i] != compressed_hash[i]) { 
+      fprintf(stderr, "Failed to verify compressed content hash.\n");
+      return false;
+    }
+  }
+
+  char * decompressed_data = calloc(decompressed_len, sizeof * decompressed_data);
+  if(!decompressed_data) { 
     free(compressed_data), compressed_data = NULL;
     abort();
   }
 
+  unsigned char read_decompressed_hash[crypto_generichash_BYTES] = { 0 };
   FILE * deflated_fp = fmemopen(compressed_data, compressed_len, "r");
   {
-    FILE * inflated_fp = fmemopen(uncompressed_data, uncompressed_len, "r+");
+    FILE * inflated_fp = fmemopen(decompressed_data, decompressed_len, "r+");
     size_t inflated_buf_len = 0;
     
     spooky_inflate_file(deflated_fp, inflated_fp, &inflated_buf_len);
 
-    assert(inflated_buf_len == uncompressed_len);
+    assert(inflated_buf_len == decompressed_len);
+
+    char * out_buf = calloc(decompressed_len, sizeof * out_buf);
+    memmove(out_buf, decompressed_data, decompressed_len);
+  
+    crypto_generichash(read_decompressed_hash, sizeof read_decompressed_hash / sizeof read_decompressed_hash[0], (const unsigned char *)(uintptr_t)out_buf, (size_t)decompressed_len, NULL, 0);
+
+    for(size_t i = 0; i < sizeof read_decompressed_hash / sizeof read_decompressed_hash[0]; i++) {
+      if(read_decompressed_hash[i] != decompressed_hash[i]) {
+        fprintf(stderr, "Failed to verify decompressed content hash.\n");
+        return false;
+      }
+    }
+
+    *buf = out_buf;
+    *buf_len = decompressed_len;
 
     fclose(inflated_fp);
+    free(decompressed_data), decompressed_data = NULL;
   } 
   fclose(deflated_fp);
 
   free(compressed_data), compressed_data = NULL;
-  free(uncompressed_data), uncompressed_data = NULL;
+  free(decompressed_data), decompressed_data = NULL;
+/* DIAGNOSTIC INFORMATION:
+  fprintf(stdout, "'%s': '%s' (%lu - %lu):\nCompressed Hash: ", file_path, key, (size_t)compressed_len, (size_t)decompressed_len);
+  for(size_t i = 0; i < sizeof compressed_hash / sizeof compressed_hash[0]; i++) { fprintf(stdout, "%x", compressed_hash[i]); }
+  fprintf(stdout, "\n Read Compressed Hash: ");
+  for(size_t i = 0; i < sizeof read_compressed_hash / sizeof read_compressed_hash[0]; i++) { fprintf(stdout, "%x", read_compressed_hash[i]); }
+  fprintf(stdout, "\n Decompressed Hash: ");
+  for(size_t i = 0; i < sizeof decompressed_hash / sizeof decompressed_hash[0]; i++) { fprintf(stdout, "%x", decompressed_hash[i]); }
+  fprintf(stdout, "\n Read Decompressed Hash: ");
+  for(size_t i = 0; i < sizeof read_decompressed_hash / sizeof read_decompressed_hash[0]; i++) { fprintf(stdout, "%x", read_decompressed_hash[i]); }
+  fprintf(stdout, "\n");
+*/
   return true;
 }
 
@@ -559,8 +597,8 @@ static bool spooky_write_file(const char * file_path, const char * key, FILE * f
             spooky_write_item_type(type, fp, content_len);
 
             /* UNCOMPRESSED SIZE: */
-            /* write the uncompressed file size to the stream */
-            spooky_write_int64(inflated_buf_len, fp, content_len);
+            /* write the decompressed (inflated) file size to the stream */
+            spooky_write_uint64(new_len, fp, content_len);
 
             /* COMPRESSED SIZE: */
             /* write the compressed file length to the stream: */
@@ -1015,12 +1053,10 @@ static bool spooky_read_footer(FILE * fp) {
   unsigned char footer[FOOTER_LEN] = { 0 };
 
   size_t r = fread(&footer, sizeof(unsigned char), FOOTER_LEN, fp);
-  fprintf(stdout, "\nR: %i\n", (int)r);
   fflush(stdout);
   
   assert(r == (sizeof footer) * 1);
   
-  fprintf(stdout, "\nf: '%s', F: '%s'\n", footer, FOOTER);
   fflush(stdout);
   
   bool eq = strncmp((const char *)footer, (const char *)FOOTER, sizeof FOOTER) == 0;
@@ -1056,6 +1092,10 @@ bool spooky_pack_create(FILE * fp) {
     /* Content length */
     spooky_write_uint64(spf.content_len, fp, NULL);
 
+    unsigned char content_hash[crypto_generichash_BYTES] = { 0 };
+    /* placeholder for content hash */
+    spooky_write_raw(&content_hash, sizeof content_hash / sizeof content_hash[0], fp);
+    
     /* Content */
     spooky_write_file("res/fonts/PRNumber3.ttf", "foo", fp, &spf.content_len);
     spooky_write_file("res/fonts/PrintChar21.ttf", "bar", fp, &spf.content_len);
@@ -1066,6 +1106,32 @@ bool spooky_pack_create(FILE * fp) {
     fseek(fp, 0, SEEK_SET);
     fseek(fp, sizeof spf.header + sizeof spf.version, SEEK_SET);
     spooky_write_uint64(spf.content_len, fp, NULL);
+   
+    fseek(fp, 0, SEEK_SET);
+    fseek(fp, sizeof spf.header + sizeof spf.version + sizeof spf.content_len + (sizeof content_hash / sizeof content_hash[0]), SEEK_SET);
+
+    { /* generate content hash */
+      char * buf = calloc(spf.content_len, sizeof * buf);
+      if(!buf) { abort(); }
+      
+      size_t hir = fread(buf, sizeof * buf, spf.content_len, fp);
+      assert(hir);
+      if(!(hir > 0 && ferror(fp) == 0)) { abort(); }
+
+      crypto_generichash(content_hash, sizeof content_hash / sizeof content_hash[0], (const unsigned char *)(uintptr_t)buf, (size_t)spf.content_len, NULL, 0);
+      //fprintf(stdout, "Content hash: ");
+      //for(size_t i = 0; i <  sizeof content_hash / sizeof content_hash[0]; i++) {
+      //  fprintf(stdout, "%x", content_hash[i]);
+      //}
+      //fprintf(stdout, "\n");
+      free(buf), buf = NULL;
+
+      fseek(fp, 0, SEEK_SET);
+      fseek(fp, sizeof spf.header + sizeof spf.version + sizeof spf.content_len, SEEK_SET);
+
+      /* write actual content hash in above hash placeholder */
+      spooky_write_raw(&content_hash, sizeof content_hash / sizeof content_hash[0], fp);
+    } 
 
     /* Footer */
     fseek(fp, 0, SEEK_END);
@@ -1086,18 +1152,62 @@ void spooky_pack_verify(FILE * fp) {
 
   uint64_t content_len = 0;
 
+  unsigned char content_hash[crypto_generichash_BYTES] = { 0 };
+  unsigned char read_content_hash[crypto_generichash_BYTES] = { 0 };
+
   if(fp) {
     if(!spooky_read_header(fp)) goto err0;
     if(!spooky_read_version(fp, &version)) goto err1;
     if(!spooky_read_uint64(fp, &content_len)) goto err2;
+    if(!spooky_read_raw(fp, sizeof content_hash / sizeof content_hash[0], &content_hash)) goto err2;  
     
     assert(content_len > 0);
-    
-    fseek(fp, (long)((sizeof HEADER + sizeof version + sizeof(uint64_t) + content_len)), SEEK_SET);
+  
+    fseek(fp, 0, SEEK_SET);
+    fseek(fp, sizeof HEADER + sizeof version + sizeof content_len + (sizeof content_hash / sizeof content_hash[0]), SEEK_SET);
+
+    { 
+      /* generate read content hash */
+      char * buf = calloc(content_len, sizeof * buf);
+      if(!buf) { abort(); }
+      
+      size_t hir = fread(buf, sizeof * buf, content_len, fp);
+      assert(hir);
+
+      if(!(hir > 0 && ferror(fp) == 0)) { abort(); }
+
+      crypto_generichash(read_content_hash, sizeof read_content_hash / sizeof read_content_hash[0], (const unsigned char *)(uintptr_t)buf, (size_t)content_len, NULL, 0);
+
+      free(buf), buf = NULL;
+    }
+
+    for(size_t i = 0; i <  sizeof content_hash / sizeof content_hash[0]; i++) {
+      if(content_hash[i] != read_content_hash[i]) {
+        fprintf(stderr, "Unable to validate resource content. This is a fatal error :(\n");
+        abort();
+      }
+    }
+
+    fseek(fp, 0, SEEK_SET);
+    fseek(fp, sizeof HEADER + sizeof version + sizeof content_len + (sizeof content_hash / sizeof content_hash[0]), SEEK_SET);
+
+    char * data = NULL;
+    size_t data_len = 0;
+
+    /* TODO: Remove. Test file read: */
+    if(!spooky_read_file(fp, &data, &data_len)) goto err2;
+
+    fseek(fp, (long)((sizeof HEADER + sizeof version + sizeof(uint64_t) + (sizeof content_hash / sizeof content_hash[0]) + content_len)), SEEK_SET);
     if(!spooky_read_footer(fp)) goto err3;
   }
+
   assert(content_len > 0);
-  fprintf(stdout, "\nValid SPOOKY! database v%hu.%hu.%hu.%hu\n", version.major, version.minor, version.revision, version.subrevision);
+  fprintf(stdout, "\nValid SPOOKY! database v%hu.%hu.%hu.%hu: ", version.major, version.minor, version.revision, version.subrevision);
+
+  for(size_t i = 0; i <  sizeof content_hash / sizeof content_hash[0]; i++) {
+    fprintf(stdout, "%x", content_hash[i]);
+  }
+  fprintf(stdout, "\n");
   goto done;
 
 err0:
