@@ -584,7 +584,7 @@ static bool spooky_write_file(const char * file_path, const char * key, FILE * f
 
             /* File format: 
              * - Type (spit_bin_file)
-             * - Uncompressed len (uint64_t)
+             * - Decompressed len (uint64_t)
              * - Compressed len (uint64_t)
              * - Uncompressed content hash
              * - Compresed content hash
@@ -609,16 +609,16 @@ static bool spooky_write_file(const char * file_path, const char * key, FILE * f
             unsigned char hash[crypto_generichash_BYTES] = { 0 };
 
             /* UNCOMPRESSED HASH: */
-            crypto_generichash(hash, sizeof hash / sizeof hash[0], (const unsigned char *)(uintptr_t)inflated_buf, (size_t)new_len, NULL, 0);
-            spooky_write_raw(&hash, sizeof hash / sizeof hash[0], fp);
-            if(content_len != NULL) { (*content_len) += sizeof hash / sizeof hash[0]; }
+            crypto_generichash(hash, sizeof hash, (const unsigned char *)(uintptr_t)inflated_buf, (size_t)new_len, NULL, 0);
+            spooky_write_raw(&hash, sizeof hash, fp);
+            if(content_len != NULL) { (*content_len) += sizeof hash; }
             
-            memset(&hash, 0, sizeof hash / sizeof hash[0]);
+            memset(&hash, 0, sizeof hash);
 
             /* COMPRESSED HASH: */
             crypto_generichash(hash, sizeof hash, (const unsigned char *)(uintptr_t)deflated_buf, (size_t)deflated_buf_len, NULL, 0);
-            spooky_write_raw(&hash, sizeof hash / sizeof hash[0], fp);
-            if(content_len != NULL) { (*content_len) += sizeof hash / sizeof hash[0]; }
+            spooky_write_raw(&hash, sizeof hash, fp);
+            if(content_len != NULL) { (*content_len) += sizeof hash; }
            
             /* FILE PATH: */
             spooky_write_string(file_path, fp, content_len);
@@ -628,7 +628,9 @@ static bool spooky_write_file(const char * file_path, const char * key, FILE * f
 
             /* CONTENT */
             spooky_write_raw(deflated_buf, deflated_buf_len, fp);
-            if(content_len != NULL) { *content_len += deflated_buf_len; }
+            unsigned char zero = 0;
+            spooky_write_raw(&zero, sizeof zero, fp);
+            if(content_len != NULL) { *content_len += deflated_buf_len + 1; }
             fclose(deflated_fp);
           }
           fclose(inflated_fp);
