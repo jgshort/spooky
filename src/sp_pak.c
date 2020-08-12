@@ -631,6 +631,12 @@ static bool spooky_write_file(const char * file_path, const char * key, FILE * f
             /* KEY: */
             spooky_write_string(key, fp, content_len);
 
+            fprintf(stdout, "Added [%s@%s] (%lu, %lu)\n", key, file_path, (size_t)new_len, (size_t)deflated_buf_len);
+            fprintf(stdout, "  Hash: ");
+            spooky_pak_dump_hash(stdout, hash, crypto_generichash_BYTES);
+            fprintf(stdout, "\n");
+            fflush(stdout);
+
             /* CONTENT */
             spooky_write_raw(deflated_buf, deflated_buf_len, fp);
 
