@@ -302,13 +302,15 @@ int spooky_inflate_file(FILE * source, FILE * dest, size_t * dest_len) {
     }
 
     if(strm.avail_in == 0) { break; }
-    
+   
+    int flush = 0;
     strm.next_in = in;
+    flush = feof(source) ? Z_FINISH : Z_NO_FLUSH;
     /* run inflate() on input until output buffer not full */
     do {
       strm.avail_out = CHUNK;
       strm.next_out = out;
-      ret = inflate(&strm, Z_NO_FLUSH);
+      ret = inflate(&strm, flush);
       fprintf(stdout, "Inflate: %i\n", ret);
       assert(ret != Z_STREAM_ERROR);  /* state not clobbered */
       switch(ret) {
@@ -356,11 +358,10 @@ errno_t spooky_deflate_file(FILE * source, FILE * dest, size_t * dest_len) {
   unsigned char out[CHUNK] = { 0 };
 
   /* allocate deflate state */
-  z_stream strm = {
-    .zalloc = Z_NULL,
-    .zfree = Z_NULL,
-    .opaque = Z_NULL
-  };
+  z_stream strm = { 0 };
+  strm.zalloc = Z_NULL;
+  strm.zfree = Z_NULL;
+  strm.opaque = Z_NULL;
   
   int ret = deflateInit(&strm, level);
   if (ret != Z_OK) { return ret; }
