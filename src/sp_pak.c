@@ -508,7 +508,7 @@ static bool spooky_read_file(FILE * fp, char ** buf, size_t * buf_len) {
     size_t inflated_buf_len = 0;
     
     if(spooky_inflate_file(deflated_fp, inflated_fp, &inflated_buf_len) != Z_OK) { 
-      fprintf(stderr, "Failed to inflate [%s] at '%s' (%lu, %lu) <", key, file_path, compressed_len, decompressed_len);
+      fprintf(stderr, "Failed to inflate [%s] at '%s' (%lu, %lu) <", key, file_path, (size_t)compressed_len, (size_t)decompressed_len);
       spooky_pak_dump_hash(stderr, compressed_hash, sizeof compressed_hash);
       fprintf(stderr, ">\n");
       fflush(stderr);
@@ -556,7 +556,6 @@ static bool spooky_read_file(FILE * fp, char ** buf, size_t * buf_len) {
 }
 
 static bool spooky_write_file(const char * file_path, const char * key, FILE * fp, uint64_t * content_len) {
-(void)spooky_read_file;
   assert(file_path != NULL);
   assert(fp != NULL);
   
@@ -578,10 +577,10 @@ static bool spooky_write_file(const char * file_path, const char * key, FILE * f
         abort();
       } else {
         {
-          FILE * inflated_fp = fmemopen(inflated_buf, new_len, "r");
+          FILE * inflated_fp = fmemopen(inflated_buf, new_len, "rb");
           SPOOKY_SET_BINARY_MODE(inflated_fp);
           {
-            FILE * deflated_fp = fmemopen(deflated_buf, new_len, "r+");
+            FILE * deflated_fp = fmemopen(deflated_buf, new_len, "rb+");
             SPOOKY_SET_BINARY_MODE(deflated_fp);
             size_t deflated_buf_len = 0;
            
@@ -617,14 +616,14 @@ static bool spooky_write_file(const char * file_path, const char * key, FILE * f
             /* UNCOMPRESSED HASH: */
             crypto_generichash(hash, sizeof hash, (const unsigned char *)(uintptr_t)inflated_buf, (size_t)new_len, NULL, 0);
             spooky_write_raw(&hash, sizeof hash, fp);
-            if(content_len != NULL) { (*content_len) += sizeof hash; }
+            if(content_len != NULL) { (*content_len) += crypto_generichash_BYTES; }
             
             memset(&hash, 0, sizeof hash);
 
             /* COMPRESSED HASH: */
             crypto_generichash(hash, sizeof hash, deflated_buf, (size_t)deflated_buf_len, NULL, 0);
             spooky_write_raw(&hash, sizeof hash, fp);
-            if(content_len != NULL) { (*content_len) += sizeof hash; }
+            if(content_len != NULL) { (*content_len) += crypto_generichash_BYTES; }
            
             /* FILE PATH: */
             spooky_write_string(file_path, fp, content_len);
@@ -1234,7 +1233,7 @@ done:
 static void spooky_write_char_tests() {
 	unsigned char buf[MAX_TEST_STACK_BUFFER_SZ] = { 0 };
 
-  FILE * fp = fmemopen(buf, sizeof(unsigned char) * 2, "r+");
+  FILE * fp = fmemopen(buf, sizeof(unsigned char) * 2, "rb+");
   assert(fp);
  
   uint64_t content_len = 0;
@@ -1253,7 +1252,7 @@ static void spooky_write_char_tests() {
 static void spooky_write_uint8_tests() {
   unsigned char buf[MAX_TEST_STACK_BUFFER_SZ] = { 0 };
 
-  FILE * fp = fmemopen(buf, sizeof(uint8_t), "r+");
+  FILE * fp = fmemopen(buf, sizeof(uint8_t), "rb+");
   assert(fp);
  
   uint64_t content_len = 0;
@@ -1270,7 +1269,7 @@ static void spooky_write_uint8_tests() {
 static void spooky_write_int8_tests() {
   char buf[MAX_TEST_STACK_BUFFER_SZ] = { 0 };
 
-  FILE * fp = fmemopen(buf, sizeof(int8_t), "r+");
+  FILE * fp = fmemopen(buf, sizeof(int8_t), "rb+");
   assert(fp);
  
   uint64_t content_len = 0;
@@ -1287,7 +1286,7 @@ static void spooky_write_int8_tests() {
 static void spooky_write_uint16_tests() {
   char buf[MAX_TEST_STACK_BUFFER_SZ] = { 0 };
 
-  FILE * fp = fmemopen(buf, sizeof(uint16_t), "r+");
+  FILE * fp = fmemopen(buf, sizeof(uint16_t), "rb+");
   assert(fp);
  
   uint64_t content_len = 0;
@@ -1305,7 +1304,7 @@ static void spooky_write_uint16_tests() {
 static void spooky_write_int16_tests() {
   char buf[MAX_TEST_STACK_BUFFER_SZ] = { 0 };
 
-  FILE * fp = fmemopen(buf, sizeof(int16_t), "r+");
+  FILE * fp = fmemopen(buf, sizeof(int16_t), "rb+");
   assert(fp);
  
   uint64_t content_len = 0;
@@ -1323,7 +1322,7 @@ static void spooky_write_int16_tests() {
 static void spooky_write_uint32_tests() {
   char buf[MAX_TEST_STACK_BUFFER_SZ] = { 0 };
 
-  FILE * fp = fmemopen(buf, sizeof(uint32_t), "r+");
+  FILE * fp = fmemopen(buf, sizeof(uint32_t), "rb+");
   assert(fp);
  
   uint64_t content_len = 0;
@@ -1343,7 +1342,7 @@ static void spooky_write_uint32_tests() {
 static void spooky_write_int32_tests() {
   char buf[MAX_TEST_STACK_BUFFER_SZ] = { 0 };
 
-  FILE * fp = fmemopen(buf, sizeof(int32_t), "r+");
+  FILE * fp = fmemopen(buf, sizeof(int32_t), "rb+");
   assert(fp);
  
   uint64_t content_len = 0;
@@ -1363,7 +1362,7 @@ static void spooky_write_int32_tests() {
 static void spooky_write_uint64_tests() {
   unsigned char buf[MAX_TEST_STACK_BUFFER_SZ] = { 0 };
 
-  FILE * fp = fmemopen(buf, sizeof(uint64_t), "r+");
+  FILE * fp = fmemopen(buf, sizeof(uint64_t), "rb+");
   assert(fp);
  
   uint64_t content_len = 0;
@@ -1387,7 +1386,7 @@ static void spooky_write_uint64_tests() {
 static void spooky_write_int64_tests() {
   char buf[MAX_TEST_STACK_BUFFER_SZ] = { 0 };
 
-  FILE * fp = fmemopen(buf, sizeof(int64_t), "r+");
+  FILE * fp = fmemopen(buf, sizeof(int64_t), "rb+");
   assert(fp);
  
   uint64_t content_len = 0;
@@ -1412,7 +1411,7 @@ static void spooky_write_string_tests() {
   static const char hello_world[] = "Hello, world!";
   
   char buf[MAX_TEST_STACK_BUFFER_SZ] = { 0 };
-  FILE * fp = fmemopen(buf, MAX_TEST_STACK_BUFFER_SZ, "r+");
+  FILE * fp = fmemopen(buf, MAX_TEST_STACK_BUFFER_SZ, "rb+");
   assert(fp);
  
   uint64_t content_len = 0;
@@ -1442,7 +1441,7 @@ static void spooky_write_string_empty_tests() {
   static const char * empty = (const char *)"";
   
   char buf[MAX_TEST_STACK_BUFFER_SZ] = { 0 };
-  FILE * fp = fmemopen(buf, MAX_TEST_STACK_BUFFER_SZ, "r+");
+  FILE * fp = fmemopen(buf, MAX_TEST_STACK_BUFFER_SZ, "rb+");
   assert(fp);
   
   uint64_t content_len = 0;
@@ -1469,7 +1468,7 @@ static void spooky_write_fixed_width_string_tests() {
   static const char * hello_world = (const char *)"Hello, world!";
   
   char buf[MAX_TEST_STACK_BUFFER_SZ] = { 0 };
-  FILE * fp = fmemopen(buf, MAX_TEST_STACK_BUFFER_SZ, "r+");
+  FILE * fp = fmemopen(buf, MAX_TEST_STACK_BUFFER_SZ, "rb+");
   assert(fp);
  
   uint64_t content_len = 0;
@@ -1497,7 +1496,7 @@ static void spooky_write_fixed_width_string_tests() {
 
 static void spooky_write_bool_tests() {
   uint32_t buf = 0;
-  FILE * fp = fmemopen(&buf, sizeof buf, "r+");
+  FILE * fp = fmemopen(&buf, sizeof buf, "rb+");
   assert(fp);
 
   uint64_t content_len = 0;
@@ -1508,7 +1507,7 @@ static void spooky_write_bool_tests() {
   assert(buf == 0x11111111);
   assert(content_len == sizeof(uint32_t));
 
-  fp = fmemopen(&buf, sizeof buf, "r+");
+  fp = fmemopen(&buf, sizeof buf, "rb+");
   assert(fp);
 
   content_len = 0;
@@ -1522,7 +1521,7 @@ static void spooky_write_bool_tests() {
 
 static void spooky_read_bool_tests() {
   uint32_t buf = 0x11111111;
-  FILE * fp = fmemopen(&buf, sizeof buf, "r");
+  FILE * fp = fmemopen(&buf, sizeof buf, "rb");
   assert(fp);
 
   bool b;
@@ -1536,7 +1535,7 @@ static void spooky_read_bool_tests() {
 static void spooky_write_float_tests() {
   const float expected = 10.0f / 7.0f;
   char buf[MAX_TEST_STACK_BUFFER_SZ] = { 0 };
-  FILE * fp = fmemopen(buf, MAX_TEST_STACK_BUFFER_SZ, "r+");
+  FILE * fp = fmemopen(buf, MAX_TEST_STACK_BUFFER_SZ, "rb+");
   assert(fp);
  
   uint64_t content_len = 0;
@@ -1557,7 +1556,7 @@ static void spooky_read_uint8_tests() {
   const uint8_t expected = 0xd0;
 
   uint8_t buf = 0xd0;
-  FILE * fp = fmemopen(&buf, sizeof buf, "r");
+  FILE * fp = fmemopen(&buf, sizeof buf, "rb");
   
   uint8_t result;
   bool ret = spooky_read_uint8(fp, &result);
@@ -1572,7 +1571,7 @@ void spooky_read_int8_tests() {
   const uint8_t expected = 0x70;
 
   int8_t buf = 0x70;
-  FILE * fp = fmemopen(&buf, sizeof buf, "r");
+  FILE * fp = fmemopen(&buf, sizeof buf, "rb");
   
   int8_t result;
   bool ret = spooky_read_int8(fp, &result);
@@ -1588,7 +1587,7 @@ static void spooky_read_uint16_tests() {
 
   /* uint16_ts stored in little endian; flip the bits */
   char buf[2] = { 0x0c, 0x0d };
-  FILE * fp = fmemopen(&buf, 2, "r");
+  FILE * fp = fmemopen(&buf, 2, "rb");
   
   uint16_t result;
   bool ret = spooky_read_uint16(fp, &result);
@@ -1603,7 +1602,7 @@ static void spooky_read_int16_tests() {
 
   /* int16_ts stored in little endian; flip the bits */
   char buf[2] = { 0x0c, 0x0d };
-  FILE * fp = fmemopen(&buf, 2, "r");
+  FILE * fp = fmemopen(&buf, 2, "rb");
   
   int16_t result;
   bool ret = spooky_read_int16(fp, &result);
@@ -1618,7 +1617,7 @@ static void spooky_read_uint32_tests() {
 
   /* uint16_ts stored in little endian; flip the bits */
   char buf[sizeof(uint32_t)] = { 0x0a, 0x0b, 0x0c, 0x0d };
-  FILE * fp = fmemopen(&buf, sizeof(uint32_t), "r");
+  FILE * fp = fmemopen(&buf, sizeof(uint32_t), "rb");
   
   uint32_t result;
   bool ret = spooky_read_uint32(fp, &result);
@@ -1633,7 +1632,7 @@ static void spooky_read_int32_tests() {
 
   /* uint16_ts stored in little endian; flip the bits */
   char buf[sizeof(int32_t)] = { 0x0a, 0x0b, 0x0c, 0x0d };
-  FILE * fp = fmemopen(&buf, sizeof buf, "r");
+  FILE * fp = fmemopen(&buf, sizeof buf, "rb");
   
   int32_t result;
   bool ret = spooky_read_int32(fp, &result);
@@ -1648,7 +1647,7 @@ static void spooky_read_uint64_tests() {
 
   /* uint16_ts stored in little endian; flip the bits */
   unsigned char buf[sizeof(uint64_t)] = { 0x66, 0x77, 0x88, 0x99, 0x0a, 0x0b, 0x0c, 0x0d };
-  FILE * fp = fmemopen(&buf, sizeof(uint64_t), "r");
+  FILE * fp = fmemopen(&buf, sizeof(uint64_t), "rb");
   
   uint64_t result;
   bool ret = spooky_read_uint64(fp, &result);
@@ -1663,7 +1662,7 @@ static void spooky_read_int64_tests() {
 
   /* stored in little endian; flip the bits */
   unsigned char buf[sizeof(int64_t)] = { 0xcc, 0xdd, 0xee, 0xff, 0x0a, 0x0b, 0x0c, 0x0d };
-  FILE * fp = fmemopen(&buf, sizeof buf, "r");
+  FILE * fp = fmemopen(&buf, sizeof buf, "rb");
   
   int64_t result;
   bool ret = spooky_read_int64(fp, &result);
@@ -1694,7 +1693,7 @@ void spooky_write_index_entry_tests()  {
 	};
 
   char buf[MAX_TEST_STACK_BUFFER_SZ] = { 0 };
-  FILE * fp = fmemopen(buf, MAX_TEST_STACK_BUFFER_SZ, "r+");
+  FILE * fp = fmemopen(buf, MAX_TEST_STACK_BUFFER_SZ, "rb+");
   assert(fp);
  
   uint64_t content_len = 0;
@@ -1734,7 +1733,7 @@ void spooky_write_index_entry_tests()  {
 
 static void spooky_write_spooky_pack_item_tests() {
   char buf[MAX_TEST_STACK_BUFFER_SZ] = { 0 };
-  FILE * fp = fmemopen(buf, MAX_TEST_STACK_BUFFER_SZ, "r+");
+  FILE * fp = fmemopen(buf, MAX_TEST_STACK_BUFFER_SZ, "rb+");
 
 	spooky_pack_item item = {
 		.type = spit_string
@@ -1752,7 +1751,7 @@ static void spooky_write_spooky_pack_item_tests() {
 
 static void spooky_read_spooky_pack_item_tests() {
   char buf[MAX_TEST_STACK_BUFFER_SZ] = { 0 };
-  FILE * fp = fmemopen(buf, MAX_TEST_STACK_BUFFER_SZ, "r+");
+  FILE * fp = fmemopen(buf, MAX_TEST_STACK_BUFFER_SZ, "rb+");
 
 	spooky_pack_item item = {
 		.type = spit_string
