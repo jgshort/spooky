@@ -43,6 +43,24 @@ const uint16_t SPOOKY_PACK_SUBREVISION_VERSION = 0;
 #define SPOOKY_HEADER_LEN 16
 #define SPOOKY_FOOTER_LEN 16
 
+/* From: http://www.zlib.net/zlib_how.html */
+/* This is an ugly hack required to avoid corruption of the input and output
+ * data on Windows/MS-DOS systems. Without this, those systems would assume
+ * that the input and output files are text, and try to convert the end-of-line
+ * characters from one standard to another. That would corrupt binary data, and
+ * in particular would render the compressed data unusable. This sets the input
+ * and output to binary which suppresses the end-of-line conversions.
+ * SET_BINARY_MODE() will be used later on stdin and stdout, at the beginning
+ * of main():
+*/
+#if defined(MSDOS) || defined(OS2) || defined(WIN32) || defined(__CYGWIN__)
+#include <fcntl.h>
+#include <io.h>
+#define SPOOKY_SET_BINARY_MODE(file) { setmode(fileno((file)), O_BINARY) }
+#else
+#define SPOOKY_SET_BINARY_MODE(file)
+#endif /* >> if defined(MSDOS) || ... */
+
 static const size_t MAX_PACK_STRING_LEN = 4096;
 static const unsigned char SPOOKY_PUMPKIN[4] = { 0xf0, 0x9f, 0x8e, 0x83 };
 
@@ -248,32 +266,10 @@ int spooky_inflate_file(FILE * source, FILE * dest, size_t * dest_len) {
    the version of the library linked do not match, or Z_ERRNO if there
    is an error reading or writing the files. */
 
-/* From: http://www.zlib.net/zlib_how.html */
-/* This is an ugly hack required to avoid corruption of the input and output
- * data on Windows/MS-DOS systems. Without this, those systems would assume
- * that the input and output files are text, and try to convert the end-of-line
- * characters from one standard to another. That would corrupt binary data, and
- * in particular would render the compressed data unusable. This sets the input
- * and output to binary which suppresses the end-of-line conversions.
- * SET_BINARY_MODE() will be used later on stdin and stdout, at the beginning
- * of main():
-*/
-#if defined(MSDOS) || defined(OS2) || defined(WIN32) || defined(__CYGWIN__)
-
-#include <fcntl.h>
-#include <io.h>
-#define SET_BINARY_MODE(file) { setmode(fileno((file)), O_BINARY) }
-
-#else
-
-#define SET_BINARY_MODE(file)
-
-#endif /* >> if defined(MSDOS) || ... */
-
 #define CHUNK 16384
 
   int ret = 0;
-  unsigned have = 0;
+  unsigned long have = 0;
   unsigned char in[CHUNK] = { 0 };
   unsigned char out[CHUNK] = { 0 };
 
@@ -313,24 +309,24 @@ int spooky_inflate_file(FILE * source, FILE * dest, size_t * dest_len) {
       strm.avail_out = CHUNK;
       strm.next_out = out;
       ret = inflate(&strm, Z_NO_FLUSH);
+      fprintf(stdout, "Inflate: %i\n", ret);
       assert(ret != Z_STREAM_ERROR);  /* state not clobbered */
       switch(ret) {
         case Z_NEED_DICT:
-          ret = Z_DATA_ERROR;     /* and fall through */
-          goto next; 
         case Z_DATA_ERROR:
         case Z_MEM_ERROR:
-next:
           inflateEnd(&strm);
+          if(ret == Z_NEED_DICT) { ret = Z_DATA_ERROR; }
           if(ret == Z_MEM_ERROR) { fprintf(stderr, "Inflate memory error.\n"); }
           if(ret == Z_DATA_ERROR) { fprintf(stderr, "Inflate data read.\n"); }
           return ret;
         default:
           break;
       }
+      fprintf(stdout, "AVAIL OUT: %lu, WRITTEN: %lu\n", (size_t)strm.avail_out, (size_t)written);
       have = CHUNK - strm.avail_out;
       size_t extracted = 0;
-      if((extracted = fwrite(out, 1, have, dest)) != have || ferror(dest)) {
+      if((extracted = fwrite(out, sizeof out[0], have, dest)) != have || ferror(dest)) {
         inflateEnd(&strm);
         fprintf(stdout, "here NO: have: %lu written: (%lu) extracted: [%lu]\n", (unsigned long)have, written, extracted);
         return Z_ERRNO;
@@ -341,38 +337,18 @@ next:
     /* done when inflate() says it's done */
   } while(ret != Z_STREAM_END);
 
-  if(dest_len) { *dest_len = written; }
+  if(dest_len) {
+    fprintf(stdout, "TOTAL INFLATED: %lu\n", written);
+    *dest_len = written;
+  }
 
   /* clean up and return */
   inflateEnd(&strm);
   return ret == Z_STREAM_END ? Z_OK : Z_DATA_ERROR;
 #undef CHUNK
-#undef SET_BINARY_MODE 
 }
 
 errno_t spooky_deflate_file(FILE * source, FILE * dest, size_t * dest_len) {
-/* From: http://www.zlib.net/zlib_how.html */
-/* This is an ugly hack required to avoid corruption of the input and output
- * data on Windows/MS-DOS systems. Without this, those systems would assume
- * that the input and output files are text, and try to convert the end-of-line
- * characters from one standard to another. That would corrupt binary data, and
- * in particular would render the compressed data unusable. This sets the input
- * and output to binary which suppresses the end-of-line conversions.
- * SET_BINARY_MODE() will be used later on stdin and stdout, at the beginning
- * of main():
-*/
-#if defined(MSDOS) || defined(OS2) || defined(WIN32) || defined(__CYGWIN__)
-
-#include <fcntl.h>
-#include <io.h>
-#define SET_BINARY_MODE(file) { setmode(fileno((file)), O_BINARY) }
-
-#else
-
-#define SET_BINARY_MODE(file)
-
-#endif /* >> if defined(MSDOS) || ... */
-
 #define CHUNK 16384
 
   const int level = Z_DEFAULT_COMPRESSION;
@@ -497,13 +473,14 @@ static bool spooky_read_file(FILE * fp, char ** buf, size_t * buf_len) {
   if(!spooky_read_string(fp, &key, &key_len)) { return false; }
 
   /* READ CONTENT */
-  char * compressed_data = calloc(compressed_len, sizeof * compressed_data);
+  char * compressed_data = calloc(compressed_len + 1, sizeof * compressed_data);
   if(!compressed_data) { abort(); }
 
   if(!spooky_read_raw(fp, compressed_len, compressed_data)) {
     free(compressed_data), compressed_data = NULL;
     return false;
   }
+  compressed_data[compressed_len] = '\0';
   
   unsigned char read_compressed_hash[crypto_generichash_BYTES] = { 0 };
   crypto_generichash(read_compressed_hash, sizeof read_compressed_hash / sizeof read_compressed_hash[0], (const unsigned char *)(uintptr_t)compressed_data, (size_t)compressed_len, NULL, 0);
@@ -515,16 +492,19 @@ static bool spooky_read_file(FILE * fp, char ** buf, size_t * buf_len) {
     }
   }
 
-  char * decompressed_data = calloc(decompressed_len, sizeof * decompressed_data);
+  char * decompressed_data = calloc(decompressed_len + 1, sizeof * decompressed_data);
   if(!decompressed_data) { 
     free(compressed_data), compressed_data = NULL;
     abort();
   }
 
   unsigned char read_decompressed_hash[crypto_generichash_BYTES] = { 0 };
-  FILE * deflated_fp = fmemopen(compressed_data, compressed_len, "r");
+  FILE * deflated_fp = fmemopen(compressed_data, compressed_len + 1, "rb");
+  SPOOKY_SET_BINARY_MODE(deflated_fp);
+
   {
-    FILE * inflated_fp = fmemopen(decompressed_data, decompressed_len, "r+");
+    FILE * inflated_fp = fmemopen(decompressed_data, decompressed_len + 1, "rb+");
+    SPOOKY_SET_BINARY_MODE(inflated_fp);
     size_t inflated_buf_len = 0;
     
     if(spooky_inflate_file(deflated_fp, inflated_fp, &inflated_buf_len) != Z_OK) { abort(); }
@@ -592,8 +572,10 @@ static bool spooky_write_file(const char * file_path, const char * key, FILE * f
       } else {
         {
           FILE * inflated_fp = fmemopen(inflated_buf, new_len, "r");
+          SPOOKY_SET_BINARY_MODE(inflated_fp);
           {
             FILE * deflated_fp = fmemopen(deflated_buf, new_len, "r+");
+            SPOOKY_SET_BINARY_MODE(deflated_fp);
             size_t deflated_buf_len = 0;
            
             /* compress the file: */
