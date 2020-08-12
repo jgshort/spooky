@@ -240,16 +240,15 @@ static bool spooky_read_item_type(FILE * fp, spooky_pack_item_type * type) {
 }
 
 int spooky_inflate_file(FILE * source, FILE * dest, size_t * dest_len) {
-//errno_t spooky_inflate_file(FILE * source, FILE * dest, size_t * dest_len) {
-  /* From: http://www.zlib.net/zlib_how.html */
-  /* Decompress from file source to file dest until stream ends or EOF.
-     inf() returns Z_OK on success, Z_MEM_ERROR if memory could not be
-     allocated for processing, Z_DATA_ERROR if the deflate data is
-     invalid or incomplete, Z_VERSION_ERROR if the version of zlib.h and
-     the version of the library linked do not match, or Z_ERRNO if there
-     is an error reading or writing the files. */
+/* From: http://www.zlib.net/zlib_how.html */
+/* Decompress from file source to file dest until stream ends or EOF.
+   inf() returns Z_OK on success, Z_MEM_ERROR if memory could not be
+   allocated for processing, Z_DATA_ERROR if the deflate data is
+   invalid or incomplete, Z_VERSION_ERROR if the version of zlib.h and
+   the version of the library linked do not match, or Z_ERRNO if there
+   is an error reading or writing the files. */
 
-  /* From: http://www.zlib.net/zlib_how.html */
+/* From: http://www.zlib.net/zlib_how.html */
 /* This is an ugly hack required to avoid corruption of the input and output
  * data on Windows/MS-DOS systems. Without this, those systems would assume
  * that the input and output files are text, and try to convert the end-of-line
@@ -295,7 +294,10 @@ int spooky_inflate_file(FILE * source, FILE * dest, size_t * dest_len) {
   do {
     unsigned long read = fread(in, 1, CHUNK, source);
     assert(read <= UINT_MAX);
-    if(read > UINT_MAX) { inflateEnd(&strm); return Z_ERRNO; }
+    if(read > UINT_MAX) {
+      inflateEnd(&strm);
+      return Z_ERRNO;
+    }
 
     strm.avail_in = (unsigned int)read; 
     if(ferror(source)) {
@@ -320,13 +322,17 @@ int spooky_inflate_file(FILE * source, FILE * dest, size_t * dest_len) {
         case Z_MEM_ERROR:
 next:
           inflateEnd(&strm);
+          if(ret == Z_MEM_ERROR) { fprintf(stderr, "Inflate memory error.\n"); }
+          if(ret == Z_DATA_ERROR) { fprintf(stderr, "Inflate data read.\n"); }
           return ret;
         default:
           break;
       }
       have = CHUNK - strm.avail_out;
-      if(fwrite(out, 1, have, dest) != have || ferror(dest)) {
+      size_t written = 0;
+      if((written = fwrite(out, 1, have, dest)) != have || ferror(dest)) {
         inflateEnd(&strm);
+        fprintf(stdout, "here NO: have: %lu written: (%lu) extracted: [%lu]\n", (unsigned long)have, written, extracted);
         return Z_ERRNO;
       }
       extracted += have;
@@ -334,7 +340,7 @@ next:
 
     /* done when inflate() says it's done */
   } while(ret != Z_STREAM_END);
- 
+
   if(dest_len) { *dest_len = extracted; }
 
   /* clean up and return */
@@ -402,7 +408,10 @@ errno_t spooky_deflate_file(FILE * source, FILE * dest, size_t * dest_len) {
       ret = deflate(&strm, flush);
       assert(ret != Z_STREAM_ERROR);
       have = CHUNK - strm.avail_out;
-      if(fwrite(out, 1, have, dest) != have || ferror(dest)) { goto err0; }
+      if(fwrite(out, 1, have, dest) != have || ferror(dest)) { 
+        fprintf(stderr, "Deflate file write error.\n");
+        goto err0;
+      }
       written += have;
     } while(strm.avail_out == 0);
     assert(strm.avail_in == 0);
@@ -467,6 +476,7 @@ static bool spooky_read_file(FILE * fp, char ** buf, size_t * buf_len) {
   if(!spooky_read_uint64(fp, &decompressed_len)) { return false; }
   if(!spooky_read_uint64(fp, &compressed_len)) { return false; }
 
+  fprintf(stdout, "Decompressed: %lu, compressed: %lu\n", (unsigned long) decompressed_len, compressed_len);
   unsigned char compressed_hash[crypto_generichash_BYTES] = { 0 };
   unsigned char decompressed_hash[crypto_generichash_BYTES] = { 0 };
  
@@ -517,7 +527,7 @@ static bool spooky_read_file(FILE * fp, char ** buf, size_t * buf_len) {
     FILE * inflated_fp = fmemopen(decompressed_data, decompressed_len, "r+");
     size_t inflated_buf_len = 0;
     
-    spooky_inflate_file(deflated_fp, inflated_fp, &inflated_buf_len);
+    if(spooky_inflate_file(deflated_fp, inflated_fp, &inflated_buf_len) != Z_OK) { abort(); }
     assert(inflated_buf_len == decompressed_len);
 
     char * out_buf = calloc(decompressed_len, sizeof * out_buf);
@@ -570,8 +580,8 @@ static bool spooky_write_file(const char * file_path, const char * key, FILE * f
       if(inflated_buf_len == -1) { abort(); }
       assert(inflated_buf_len < LONG_MAX);
 
-      inflated_buf = calloc(1, (size_t)inflated_buf_len);
-      deflated_buf = calloc(1, (size_t)inflated_buf_len);
+      inflated_buf = calloc((size_t)inflated_buf_len, sizeof * inflated_buf);
+      deflated_buf = calloc((size_t)inflated_buf_len, sizeof * deflated_buf);
 
       if(fseek(src_file, 0L, SEEK_SET) != 0) { abort(); }
 
@@ -586,7 +596,7 @@ static bool spooky_write_file(const char * file_path, const char * key, FILE * f
             size_t deflated_buf_len = 0;
            
             /* compress the file: */
-            spooky_deflate_file(inflated_fp, deflated_fp, &deflated_buf_len);
+            if(spooky_deflate_file(inflated_fp, deflated_fp, &deflated_buf_len) != Z_OK) { abort(); };
 
             /* File format: 
              * - Type (spit_bin_file)
@@ -615,16 +625,16 @@ static bool spooky_write_file(const char * file_path, const char * key, FILE * f
             unsigned char hash[crypto_generichash_BYTES] = { 0 };
 
             /* UNCOMPRESSED HASH: */
-            crypto_generichash(hash, sizeof hash / sizeof hash[0], (const unsigned char *)(uintptr_t)inflated_buf, (size_t)inflated_buf_len, NULL, 0);
+            crypto_generichash(hash, sizeof hash / sizeof hash[0], (const unsigned char *)(uintptr_t)inflated_buf, (size_t)new_len, NULL, 0);
             spooky_write_raw(&hash, sizeof hash / sizeof hash[0], fp);
-            (*content_len) += sizeof hash / sizeof hash[0];
+            if(content_len != NULL) { (*content_len) += sizeof hash / sizeof hash[0]; }
             
             memset(&hash, 0, sizeof hash / sizeof hash[0]);
 
             /* COMPRESSED HASH: */
             crypto_generichash(hash, sizeof hash, (const unsigned char *)(uintptr_t)deflated_buf, (size_t)deflated_buf_len, NULL, 0);
             spooky_write_raw(&hash, sizeof hash / sizeof hash[0], fp);
-            (*content_len) += sizeof hash / sizeof hash[0];
+            if(content_len != NULL) { (*content_len) += sizeof hash / sizeof hash[0]; }
            
             /* FILE PATH: */
             spooky_write_string(file_path, fp, content_len);
@@ -634,7 +644,6 @@ static bool spooky_write_file(const char * file_path, const char * key, FILE * f
 
             /* CONTENT */
             spooky_write_raw(deflated_buf, deflated_buf_len, fp);
-
             if(content_len != NULL) { *content_len += deflated_buf_len; }
             fclose(deflated_fp);
           }
