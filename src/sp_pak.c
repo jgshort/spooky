@@ -290,7 +290,7 @@ int spooky_inflate_file(FILE * source, FILE * dest, size_t * dest_len) {
   if(ret != Z_OK) { return ret; }
 
   /* decompress until deflate stream ends or end of file */
-  size_t extracted = 0;
+  size_t written = 0;
   do {
     unsigned long read = fread(in, 1, CHUNK, source);
     assert(read <= UINT_MAX);
@@ -329,19 +329,19 @@ next:
           break;
       }
       have = CHUNK - strm.avail_out;
-      size_t written = 0;
-      if((written = fwrite(out, 1, have, dest)) != have || ferror(dest)) {
+      size_t extracted = 0;
+      if((extracted = fwrite(out, 1, have, dest)) != have || ferror(dest)) {
         inflateEnd(&strm);
         fprintf(stdout, "here NO: have: %lu written: (%lu) extracted: [%lu]\n", (unsigned long)have, written, extracted);
         return Z_ERRNO;
       }
-      extracted += have;
+      written += extracted;
     } while(strm.avail_out == 0);
 
     /* done when inflate() says it's done */
   } while(ret != Z_STREAM_END);
 
-  if(dest_len) { *dest_len = extracted; }
+  if(dest_len) { *dest_len = written; }
 
   /* clean up and return */
   inflateEnd(&strm);
@@ -476,7 +476,7 @@ static bool spooky_read_file(FILE * fp, char ** buf, size_t * buf_len) {
   if(!spooky_read_uint64(fp, &decompressed_len)) { return false; }
   if(!spooky_read_uint64(fp, &compressed_len)) { return false; }
 
-  fprintf(stdout, "Decompressed: %lu, compressed: %lu\n", (unsigned long) decompressed_len, compressed_len);
+  fprintf(stdout, "Decompressed: %lu, compressed: %lu\n", (size_t) decompressed_len, (size_t)compressed_len);
   unsigned char compressed_hash[crypto_generichash_BYTES] = { 0 };
   unsigned char decompressed_hash[crypto_generichash_BYTES] = { 0 };
  
@@ -528,6 +528,7 @@ static bool spooky_read_file(FILE * fp, char ** buf, size_t * buf_len) {
     size_t inflated_buf_len = 0;
     
     if(spooky_inflate_file(deflated_fp, inflated_fp, &inflated_buf_len) != Z_OK) { abort(); }
+    fprintf(stdout, "%lu, %lu\n", (size_t)inflated_buf_len, (size_t)decompressed_len);
     assert(inflated_buf_len == decompressed_len);
 
     char * out_buf = calloc(decompressed_len, sizeof * out_buf);
