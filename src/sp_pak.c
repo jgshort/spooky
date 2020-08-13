@@ -72,24 +72,18 @@ static const uint64_t SPOOKY_ITEM_MAGIC = 0x00706b6e616e6d65;
 static errno_t spooky_deflate_file(FILE * source, FILE * dest, size_t * dest_len);
 
 static void spooky_pak_dump_hash(FILE * fp, const unsigned char * c, size_t len) {
+  assert(fp && c && len > 0);
   for(size_t i = 0; i < len; i++) {
     fprintf(fp, "%x", c[i]);
   }
 }
 
-typedef enum spooky_pack_item_type {
+typedef enum spooky_pack_item_type /* unsigned char */ {
   spit_unspecified = 0,
   spit_null = 1,
 /**/ spit_bool = 2,
 
-/* Needed?
-  spit_char = 11,
-  spit_uchar = 12,
-  spit_wchar = 13,
-  spit_wuchar = 14,
-*/
-
-/**/ spit_byte = 10, // char 
+/**/ spit_byte = 10, /* char  */
 /**/ spit_uint8 = 20,
 /**/ spit_uint16 = 21,
 /**/ spit_uint32 = 22,
@@ -103,17 +97,6 @@ typedef enum spooky_pack_item_type {
 /**/ spit_string = 40,
   spit_array = 41,
 
-  spit_pack = 50,
-  spit_manifest = 51,
-  
-  spit_metadata = 60,
-
-  spit_library = 70,
-  spit_media = 71,
-  spit_text = 72,
-  spit_dictionary = 73,
-  spit_code = 74,
-/**/spit_index = 75,
   spit_bin_file = 76,
 
   spit_signature = 80,
@@ -127,25 +110,8 @@ typedef enum spooky_pack_item_type {
 
 /**/ spit_raw = 128,
 
-  spit_reserved0 = 256,
-  spit_reserved1 = 512,
-  spit_reserved2 = 1024,
-  spit_reserved3 = 2048,
-  spit_reserved4 = 4096,
-     
-  spit_eof = 8192 
+  spit_eof = UCHAR_MAX 
 } spooky_pack_item_type;
-
-typedef struct spooky_pack_item {
-	spooky_pack_item_type type;
-} spooky_pack_item;
-
-typedef struct spooky_pack_string {
-	spooky_pack_item item;
-  char padding[4]; /* not portable */
-  char * value;
-  uint64_t len;
-} spooky_pack_string;
 
 typedef struct spooky_pack_version {
   uint16_t major;
@@ -153,25 +119,6 @@ typedef struct spooky_pack_version {
   uint16_t revision;
   uint16_t subrevision;
 } spooky_pack_version;
-
-typedef struct spooky_pack_index_entry {
-	spooky_pack_version version;
-	
-	uint32_t type; /*spooky_pack_item_type*/ 
-
-  char padding0[4]; /* not portable */
-	spooky_pack_string * name;
-	
-	uint64_t offset;
-	uint32_t len;
-  char padding1[4]; /*not portable*/
-} spooky_pack_index_entry;
-
-typedef struct spooky_pack_index {
-  uint64_t name_len;
-  char * name;
-  uint64_t offset;
-} spooky_pack_index;
 
 typedef struct spooky_pack_file {
   unsigned char header[SPOOKY_HEADER_LEN];
@@ -197,9 +144,6 @@ static bool spooky_write_bool(bool value, FILE * fp, uint64_t * content_len);
 static bool spooky_write_float(float value, FILE * fp, uint64_t * content_len);
 static bool spooky_write_string(const char * value, FILE * fp, uint64_t * content_len);
 static bool spooky_write_fixed_width_string(const char * value, size_t fixed_width, FILE * fp, uint64_t * content_len);
-static bool spooky_write_spooky_pack_string(const spooky_pack_string * string, FILE * fp, uint64_t * content_len);
-static bool spooky_write_index_entry(const spooky_pack_index_entry * entry, FILE * fp, uint64_t * content_len);
-static bool spooky_write_spooky_pack_item(const spooky_pack_item * item, FILE * fp, uint64_t * content_len);
 static bool spooky_write_version(spooky_pack_version version, FILE * fp, uint64_t * content_len);
 
 /* Readers */
@@ -216,10 +160,6 @@ static bool spooky_read_int64(FILE * fp, int64_t * value);
 static bool spooky_read_bool(FILE * fp, bool * value);
 /* static bool spooky_read_float(FILE * fp, float * value); */
 static bool spooky_read_string(FILE * fp, char ** value, size_t * value_len);
-/* static bool spooky_read_string(FILE * fp, char ** value, size_t * fixed_width); */
-static bool spooky_read_spooky_pack_string(FILE * fp, spooky_pack_string * string);
-/* static bool spooky_read_index_entry(FILE * fp, spooky_pack_index_entry * entry); */
-static bool spooky_read_spooky_pack_item(FILE * fp, spooky_pack_item * item);
 static bool spooky_read_header(FILE * fp);
 static bool spooky_read_version(FILE * fp, spooky_pack_version *version);
 static bool spooky_read_footer(FILE * fp);
@@ -248,17 +188,18 @@ static bool spooky_read_raw(FILE * fp, size_t len, void * buf) {
 
 static bool spooky_write_item_type(spooky_pack_item_type type, FILE * fp, uint64_t * content_len) {
 	assert(fp != NULL);
-  assert(type > spit_unspecified && type < spit_eof);
-  assert(type > 0);
-  return spooky_write_uint64((uint64_t)type, fp, content_len);
+  assert(type >= spit_unspecified && type <= spit_eof);
+  assert(type >= 0 && type <= UCHAR_MAX);
+  assert(type >= 0);
+  return spooky_write_uint8((unsigned char)type, fp, content_len);
 }
 
 static bool spooky_read_item_type(FILE * fp, spooky_pack_item_type * type) {
-  uint64_t value = 0;
-  bool res = spooky_read_uint64(fp, &value);
+  unsigned char value = 0;
+  bool res = spooky_read_uint8(fp, &value);
   assert(res);
-  assert(value > 0 && value < UINT64_MAX);
-  assert(value > spit_unspecified && value < spit_eof);
+  assert(value >= 0 && value <= UCHAR_MAX);
+  assert(value >= spit_unspecified && value <= spit_eof);
   *type = (spooky_pack_item_type)value;
   return res;
 }
@@ -837,73 +778,6 @@ err0:
   return false;
 }
 
-static bool spooky_write_spooky_pack_item(const spooky_pack_item * item, FILE * fp, uint64_t * content_len) {
-	return spooky_write_uint32(item->type, fp, content_len);
-}
-
-static bool spooky_read_spooky_pack_item(FILE * fp, spooky_pack_item * item) {
-  if(feof(fp) != 0) return false;
-
-  assert(item);
-
-	bool res = false;
-  item->type = spit_unspecified;
-	if(!(res = spooky_read_uint32(fp, &(item->type)))) goto err0;
-  return ferror(fp) == 0;
-
-err0:
-  return false;
-}
-
-static bool spooky_write_spooky_pack_string(const spooky_pack_string * string, FILE * fp, uint64_t * content_len) {
-	spooky_pack_item item = {
-		.type = spit_string
-	};
-
-	if(!spooky_write_spooky_pack_item(&item, fp, content_len)) { return false; }
-	if(!spooky_write_string(string->value, fp, content_len)) { return false; }
-
-  return true;
-}
-
-static bool spooky_read_spooky_pack_string(FILE * fp, spooky_pack_string * string) {
-  if(feof(fp) != 0) return false;
-
-	bool res = false;
-	uint64_t len = 0;
-	char * buf = NULL;
-	uint8_t nullstr = '\0';
-
-  assert(string);
-
-	if(!(res = spooky_read_spooky_pack_item(fp, (spooky_pack_item*)string))) goto err0;
-
-  string->len = 0;
-  string->value = NULL;
-
-	if(!(res = spooky_read_uint64(fp, &len))) goto err0;
-
-	buf = malloc(len * sizeof(char) + 1);
-  if(!buf) return false;
-
-	if(!(res = spooky_read_raw(fp, sizeof(char) * len, buf))) goto err1;
-  buf[len] = '\0';
-
-	if(!(res = spooky_read_uint8(fp, &nullstr))) goto err1;
-
-	string->len = len;
-	string->value = buf;
-
-  return ferror(fp) == 0;
-
-err0:
-  return false;
-
-err1:
-  free(buf), buf = NULL;
-  return false;
-}
-
 static bool spooky_write_float(float value, FILE * fp, uint64_t * content_len) {
 #define BUF_MAX 256 
   char buf[BUF_MAX] = { 0 };
@@ -1050,16 +924,6 @@ static bool spooky_write_version(spooky_pack_version version, FILE * fp, uint64_
     if(!spooky_write_uint16(version.subrevision, fp, content_len)) return false;
 
     return true;
-}
-
-static bool spooky_write_index_entry(const spooky_pack_index_entry * entry, FILE * fp, uint64_t * content_len) {
-	if(!spooky_write_version(entry->version, fp, content_len)) return false;
-	if(!spooky_write_uint32(entry->type, fp, content_len)) return false;
-	if(!spooky_write_spooky_pack_string(entry->name, fp, content_len)) return false;
-	if(!spooky_write_uint64(entry->offset, fp, content_len)) return false;
-	if(!spooky_write_uint32(entry->len, fp, content_len)) return false;
-
-  return true;
 }
 
 static bool spooky_read_footer(FILE * fp) {
@@ -1679,102 +1543,6 @@ static void spooky_read_int64_tests() {
   assert(expected == result);
 }
 
-void spooky_write_index_entry_tests()  {
-  spooky_pack_string s = {
-		.len = strlen("abcdef"),
-		.value = strdup("abcdef")
-	};
-
-	spooky_pack_index_entry entry = {
-		.version = {
-			.major = 1,
-			.minor = 2,
-			.revision = 3,
-			.subrevision = 4
-		},
-		.type = 5,
-		.name = &s,
-		.offset = 7,
-		.len = 8 
-	};
-
-  char buf[MAX_TEST_STACK_BUFFER_SZ] = { 0 };
-  FILE * fp = fmemopen(buf, MAX_TEST_STACK_BUFFER_SZ, "rb+");
-  assert(fp);
- 
-  uint64_t content_len = 0;
-	spooky_write_index_entry(&entry, fp, &content_len);
-	assert(fflush(fp) == 0);
-	fseek(fp, 0, SEEK_SET);
-
-	uint16_t major, minor, revision, subrevision;
-
-	bool res;
-	res = spooky_read_uint16(fp, &major);
-	assert(res && major == 1);
-	res = spooky_read_uint16(fp, &minor);
-	assert(res && minor == 2);
-	res = spooky_read_uint16(fp, &revision);
-	assert(res && revision == 3);
-	res = spooky_read_uint16(fp, &subrevision);
-	assert(res && subrevision == 4);
-	
-	uint32_t type;
-	res = spooky_read_uint32(fp, &type);
-	assert(res && type == 5);
-
-	spooky_pack_string string;
-	res = spooky_read_spooky_pack_string(fp, &string);
-	assert(res);
-	assert(string.len == 6);
-
-	assert(strncmp(s.value, string.value, 6) == 0);
-
-	free(string.value), string.value = NULL;
-  free(s.value), s.value = NULL;
-	assert(res);
-  assert(fclose(fp) == 0);
-  assert(content_len > 0);
-}
-
-static void spooky_write_spooky_pack_item_tests() {
-  char buf[MAX_TEST_STACK_BUFFER_SZ] = { 0 };
-  FILE * fp = fmemopen(buf, MAX_TEST_STACK_BUFFER_SZ, "rb+");
-
-	spooky_pack_item item = {
-		.type = spit_string
-	};
-
-  uint64_t content_len = 0;
-	spooky_write_spooky_pack_item(&item, fp, &content_len);
-	assert(fflush(fp) == 0);
-	assert(fclose(fp) == 0);
-
-	uint32_t t = (uint32_t)(*buf);
-	assert(t == spit_string);
-  assert(content_len > 0);
-}
-
-static void spooky_read_spooky_pack_item_tests() {
-  char buf[MAX_TEST_STACK_BUFFER_SZ] = { 0 };
-  FILE * fp = fmemopen(buf, MAX_TEST_STACK_BUFFER_SZ, "rb+");
-
-	spooky_pack_item item = {
-		.type = spit_string
-	};
-
-  uint64_t content_len = 0;
-	spooky_write_spooky_pack_item(&item, fp, &content_len);
-	assert(fflush(fp) == 0);
-	fseek(fp, 0, SEEK_SET);
-
-	spooky_pack_item result;
-	bool res = spooky_read_spooky_pack_item(fp, &result);
-	assert(res && result.type == spit_string);
-	assert(fclose(fp) == 0);
-  assert(content_len > 0);
-}
-
 void spooky_pack_tests() {
 	spooky_write_char_tests();
 
@@ -1807,10 +1575,5 @@ void spooky_pack_tests() {
  	spooky_read_int32_tests();
  	spooky_read_uint64_tests();
  	spooky_read_int64_tests();
-
-	spooky_write_spooky_pack_item_tests();
-	spooky_read_spooky_pack_item_tests();
-
-	spooky_write_index_entry_tests();
 }
 
