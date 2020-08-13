@@ -543,7 +543,9 @@ static bool spooky_write_file(const char * file_path, const char * key, FILE * f
       assert(inflated_buf_len < LONG_MAX);
 
       inflated_buf = calloc((size_t)inflated_buf_len, sizeof * inflated_buf);
+      if(!inflated_buf) { abort(); }
       deflated_buf = calloc((size_t)inflated_buf_len, sizeof * deflated_buf);
+      if(!deflated_buf) { abort(); }
 
       if(fseek(src_file, 0L, SEEK_SET) != 0) { abort(); }
 
@@ -574,9 +576,8 @@ static bool spooky_write_file(const char * file_path, const char * key, FILE * f
              */
 
             /* TYPE: */
-            spooky_pack_item_type type = spit_bin_file;
             /* write the type (bin-file) to the stream: */
-            spooky_write_item_type(type, fp, content_len);
+            spooky_write_item_type(spit_bin_file, fp, content_len);
 
             /* UNCOMPRESSED SIZE: */
             /* write the decompressed (inflated) file size to the stream */
@@ -586,23 +587,12 @@ static bool spooky_write_file(const char * file_path, const char * key, FILE * f
             /* write the compressed file length to the stream: */
             spooky_write_uint64(deflated_buf_len, fp, content_len);
 
-            //unsigned char hash[crypto_generichash_BYTES] = { 0 };
-
             /* UNCOMPRESSED HASH: */
             spooky_write_hash(inflated_buf, new_len, fp, content_len);
-            /*crypto_generichash(hash, sizeof hash, (const unsigned char *)(uintptr_t)inflated_buf, (size_t)new_len, NULL, 0);
-            spooky_write_raw(&hash, sizeof hash, fp);
-            if(content_len != NULL) { (*content_len) += crypto_generichash_BYTES; } */
-            
-            //memset(&hash, 0, sizeof hash);
-
+           
             /* COMPRESSED HASH: */
             spooky_write_hash(deflated_buf, (size_t)deflated_buf_len, fp, content_len);
 
-            /*crypto_generichash(hash, sizeof hash, deflated_buf, (size_t)deflated_buf_len, NULL, 0);
-            spooky_write_raw(&hash, sizeof hash, fp);
-            if(content_len != NULL) { (*content_len) += crypto_generichash_BYTES; } */
-           
             /* FILE PATH: */
             spooky_write_string(file_path, fp, content_len);
            
@@ -610,10 +600,6 @@ static bool spooky_write_file(const char * file_path, const char * key, FILE * f
             spooky_write_string(key, fp, content_len);
 
             fprintf(stdout, "Added [%s@%s] (%lu, %lu)\n", key, file_path, (size_t)new_len, (size_t)deflated_buf_len);
-            //fprintf(stdout, "  Hash: ");
-            //spooky_pak_dump_hash(stdout, hash, crypto_generichash_BYTES);
-            //fprintf(stdout, "\n");
-            fflush(stdout);
 
             /* CONTENT */
             spooky_write_raw(deflated_buf, deflated_buf_len, fp);
