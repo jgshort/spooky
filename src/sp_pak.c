@@ -170,12 +170,13 @@ static bool spooky_read_footer(FILE * fp);
 static bool spooky_write_raw(void * value, size_t len, FILE * fp) {
   assert(fp && value);
   assert(len > 0);
-  
-  size_t res = fwrite(value, sizeof(char), len, fp);
+
+  size_t res = fwrite(value, sizeof(unsigned char), len, fp);
+  if(res != len) { abort(); }
   assert(ferror(fp) == 0);
 
-  assert((size_t)res == sizeof(char) * len);
-  return ((size_t)res == sizeof(char) * len) && ferror(fp) == 0;
+  assert((size_t)res == sizeof(unsigned char) * len);
+  return ((size_t)res == sizeof(unsigned char) * len) && ferror(fp) == 0;
 }
 
 static bool spooky_read_raw(FILE * fp, size_t len, void * buf) {
