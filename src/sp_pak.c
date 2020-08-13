@@ -101,6 +101,7 @@ typedef enum spooky_pack_item_type /* unsigned char */ {
 
   spit_signature = 80,
   spit_pubkey = 81,
+  spit_hash = 82,
 
 /**/ spit_float = 90,
   spit_double = 91,
@@ -146,6 +147,8 @@ static bool spooky_write_string(const char * value, FILE * fp, uint64_t * conten
 static bool spooky_write_fixed_width_string(const char * value, size_t fixed_width, FILE * fp, uint64_t * content_len);
 static bool spooky_write_version(spooky_pack_version version, FILE * fp, uint64_t * content_len);
 
+static bool spooky_write_hash(const unsigned char * buf, size_t buf_len, FILE * fp, uint64_t * content_len);
+
 /* Readers */
 static bool spooky_read_item_type(FILE * fp, spooky_pack_item_type * item_type);
 static bool spooky_read_raw(FILE * fp, size_t len, void * buf);
@@ -184,6 +187,34 @@ static bool spooky_read_raw(FILE * fp, size_t len, void * buf) {
 	assert(hir);
 
   return hir > 0 && ferror(fp) == 0;
+}
+
+static bool spooky_write_hash(const unsigned char * buf, size_t buf_len, FILE * fp, uint64_t * content_len) {
+  unsigned char hash[crypto_generichash_BYTES] = { 0 };
+
+  if(!spooky_write_item_type(spit_hash, fp, content_len)) { abort(); }
+  /* generate hash from buffer: */
+  crypto_generichash(hash, crypto_generichash_BYTES, buf, buf_len, NULL, 0);
+  /* write generated hash to fp: */
+  bool res = spooky_write_raw(hash, crypto_generichash_BYTES, fp);
+  if(res) {
+    if(content_len != NULL) { (*content_len) += crypto_generichash_BYTES; }
+  }
+
+  return res;
+}
+
+static bool spooky_read_hash(FILE * fp, unsigned char * buf, size_t buf_len) {
+  assert(buf && buf_len == crypto_generichash_BYTES);
+  spooky_pack_item_type type = spit_unspecified;
+  spooky_read_item_type(fp, &type);
+
+  assert(type == spit_hash);
+  if(type != spit_hash) { abort(); }
+
+  assert(buf_len == crypto_generichash_BYTES);
+  
+  return spooky_read_raw(fp, buf_len, buf);
 }
 
 static bool spooky_write_item_type(spooky_pack_item_type type, FILE * fp, uint64_t * content_len) {
@@ -396,12 +427,16 @@ static bool spooky_read_file(FILE * fp, char ** buf, size_t * buf_len) {
   if(!spooky_read_uint64(fp, &compressed_len)) { return false; }
 
   /* READ UNCOMPRESSED CONTENT HASH */
+  //static bool spooky_read_hash(FILE * fp, unsigned char * buf, size_t buf_len) {
   unsigned char decompressed_hash[crypto_generichash_BYTES] = { 0 };
-  if(!spooky_read_raw(fp, crypto_generichash_BYTES, decompressed_hash)) { return false; }
+  if(!spooky_read_hash(fp, decompressed_hash, crypto_generichash_BYTES)) { return false; };
+  //if(!spooky_read_raw(fp, crypto_generichash_BYTES, decompressed_hash)) { return false; }
   
   /* READ COMPRESSED CONTENT HASH */
   unsigned char compressed_hash[crypto_generichash_BYTES] = { 0 };
-  if(!spooky_read_raw(fp, crypto_generichash_BYTES, compressed_hash)) { return false; };
+  if(!spooky_read_hash(fp, compressed_hash, crypto_generichash_BYTES)) { return false; };
+
+  //if(!spooky_read_raw(fp, crypto_generichash_BYTES, compressed_hash)) { return false; };
   
   /* READ FILE PATH */
   char * file_path = NULL;
@@ -552,19 +587,22 @@ static bool spooky_write_file(const char * file_path, const char * key, FILE * f
             /* write the compressed file length to the stream: */
             spooky_write_uint64(deflated_buf_len, fp, content_len);
 
-            unsigned char hash[crypto_generichash_BYTES] = { 0 };
+            //unsigned char hash[crypto_generichash_BYTES] = { 0 };
 
             /* UNCOMPRESSED HASH: */
-            crypto_generichash(hash, sizeof hash, (const unsigned char *)(uintptr_t)inflated_buf, (size_t)new_len, NULL, 0);
+            spooky_write_hash(inflated_buf, new_len, fp, content_len);
+            /*crypto_generichash(hash, sizeof hash, (const unsigned char *)(uintptr_t)inflated_buf, (size_t)new_len, NULL, 0);
             spooky_write_raw(&hash, sizeof hash, fp);
-            if(content_len != NULL) { (*content_len) += crypto_generichash_BYTES; }
+            if(content_len != NULL) { (*content_len) += crypto_generichash_BYTES; } */
             
-            memset(&hash, 0, sizeof hash);
+            //memset(&hash, 0, sizeof hash);
 
             /* COMPRESSED HASH: */
-            crypto_generichash(hash, sizeof hash, deflated_buf, (size_t)deflated_buf_len, NULL, 0);
+            spooky_write_hash(deflated_buf, (size_t)deflated_buf_len, fp, content_len);
+
+            /*crypto_generichash(hash, sizeof hash, deflated_buf, (size_t)deflated_buf_len, NULL, 0);
             spooky_write_raw(&hash, sizeof hash, fp);
-            if(content_len != NULL) { (*content_len) += crypto_generichash_BYTES; }
+            if(content_len != NULL) { (*content_len) += crypto_generichash_BYTES; } */
            
             /* FILE PATH: */
             spooky_write_string(file_path, fp, content_len);
@@ -573,9 +611,9 @@ static bool spooky_write_file(const char * file_path, const char * key, FILE * f
             spooky_write_string(key, fp, content_len);
 
             fprintf(stdout, "Added [%s@%s] (%lu, %lu)\n", key, file_path, (size_t)new_len, (size_t)deflated_buf_len);
-            fprintf(stdout, "  Hash: ");
-            spooky_pak_dump_hash(stdout, hash, crypto_generichash_BYTES);
-            fprintf(stdout, "\n");
+            //fprintf(stdout, "  Hash: ");
+            //spooky_pak_dump_hash(stdout, hash, crypto_generichash_BYTES);
+            //fprintf(stdout, "\n");
             fflush(stdout);
 
             /* CONTENT */

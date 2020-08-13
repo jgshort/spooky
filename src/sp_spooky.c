@@ -51,6 +51,7 @@ int main(int argc, char **argv) {
   fseek(fp, 0, SEEK_SET);
   spooky_pack_verify(fp);
 
+  if(argv) { return 0; }
   spooky_context context = { 0 };
 
   const spooky_ex * ex = NULL;
