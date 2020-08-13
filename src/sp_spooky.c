@@ -38,15 +38,18 @@ int main(int argc, char **argv) {
  
   spooky_pack_tests();
 
-  int fd = open("./test.spdb", O_CREAT | O_RDWR | O_EXCL, S_IRUSR | S_IWUSR);
+  bool create = false;
+  int fd = open("./pak.spdb", O_CREAT | O_RDWR | O_EXCL, S_IRUSR | S_IWUSR);
   if(fd < 0) {
     if(errno == EEXIST) {
-      fd = open("./test.spdb", O_RDWR | O_EXCL, S_IRUSR | S_IWUSR);
+      fd = open("./pak.spdb", O_RDWR | O_EXCL, S_IRUSR | S_IWUSR);
     }
+  } else {
+    create = true;
   }
   FILE * fp = fdopen(fd, "wb+x");
+  if(create) { spooky_pack_create(fp); }
   
-  spooky_pack_create(fp);
   fseek(fp, 0, SEEK_SET);
   spooky_pack_verify(fp);
 

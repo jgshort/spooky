@@ -198,11 +198,7 @@ static bool spooky_write_hash(const unsigned char * buf, size_t buf_len, FILE * 
   if(!spooky_write_item_type(spit_hash, fp, content_len)) { abort(); }
   /* generate hash from buffer: */
   crypto_generichash(hash, crypto_generichash_BYTES, buf, buf_len, NULL, 0);
-
-  fprintf(stdout, "\n");
-  fprintf(stdout, "Hash generated: ");
-  spooky_pak_dump_hash(stdout, hash, crypto_generichash_BYTES);
-  fprintf(stdout, "\n");
+  
   /* write generated hash to fp: */
   bool res = spooky_write_raw(hash, crypto_generichash_BYTES, fp);
   if(res) {
@@ -602,8 +598,6 @@ static bool spooky_write_file(const char * file_path, const char * key, FILE * f
            
             /* KEY: */
             spooky_write_string(key, fp, content_len);
-
-            fprintf(stdout, "Writing [%s@%s] (%lu -> %lu)\n", key, file_path, (size_t)new_len, (size_t)deflated_buf_len);
 
             /* CONTENT */
             fseek(deflated_fp, 0, SEEK_SET);
@@ -1020,11 +1014,9 @@ bool spooky_pack_create(FILE * fp) {
       unsigned char * buf = calloc(spf.content_len, sizeof * buf);
       if(!buf) { abort(); }
      
-      fprintf(stdout, "Reading bytes %lu\n", (size_t)spf.content_len);
       size_t hir = fread(buf, sizeof * buf, spf.content_len, fp);
       assert(hir);
       if(!(hir > 0 && ferror(fp) == 0)) { abort(); }
-      fprintf(stdout, "Read bytes %lu\n", (size_t)hir);
  
       assert(hir == spf.content_len);
 
