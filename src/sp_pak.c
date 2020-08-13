@@ -494,6 +494,7 @@ fprintf(stdout, "here\n");
   fprintf(stdout, "\n");
 
   unsigned char * decompressed_data = calloc(decompressed_len, sizeof * decompressed_data);
+  unsigned char * decompressed_data_head = decompressed_data;
   if(!decompressed_data) { 
     free(compressed_data), compressed_data = NULL;
     abort();
@@ -516,14 +517,15 @@ fprintf(stdout, "here\n");
       abort();
 
     }
+    fseek(inflated_fp, 0, SEEK_SET);
     fprintf(stdout, "%lu, %lu\n", (size_t)inflated_buf_len, (size_t)decompressed_len);
     assert(inflated_buf_len == decompressed_len);
 
-    char * out_buf = calloc(decompressed_len, sizeof * out_buf);
-    if(!out_buf) { abort(); }
-    memmove(out_buf, decompressed_data, decompressed_len);
+    //char * out_buf = calloc(decompressed_len, sizeof * out_buf);
+    //if(!out_buf) { abort(); }
+    //memmove(out_buf, decompressed_data, decompressed_len);
   
-    crypto_generichash(read_decompressed_hash, sizeof read_decompressed_hash / sizeof read_decompressed_hash[0], (const unsigned char *)(uintptr_t)out_buf, (size_t)decompressed_len, NULL, 0);
+    crypto_generichash(read_decompressed_hash, crypto_generichash_BYTES, decompressed_data_head, decompressed_len, NULL, 0);
 
     for(size_t i = 0; i < sizeof read_decompressed_hash / sizeof read_decompressed_hash[0]; i++) {
       if(read_decompressed_hash[i] != decompressed_hash[i]) {
@@ -532,7 +534,7 @@ fprintf(stdout, "here\n");
       }
     }
 
-    *buf = out_buf;
+    *buf = (char *)decompressed_data;
     *buf_len = decompressed_len;
 
     fclose(inflated_fp);
@@ -619,11 +621,14 @@ static bool spooky_write_file(const char * file_path, const char * key, FILE * f
             /* write the compressed file length to the stream: */
             spooky_write_uint64(deflated_buf_len, fp, content_len);
 
+            fseek(deflated_fp, 0, SEEK_SET);
+
             /* DECOMPRESSED HASH: */
             spooky_write_hash(inflated_buf, new_len, fp, content_len);
            
+
             /* COMPRESSED HASH: */
-            spooky_write_hash(deflated_buf, (size_t)deflated_buf_len, fp, content_len);
+            spooky_write_hash(deflated_buf_head, (size_t)deflated_buf_len, fp, content_len);
 
             /* FILE PATH: */
             spooky_write_string(file_path, fp, content_len);
