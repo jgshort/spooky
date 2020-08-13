@@ -229,8 +229,6 @@ static bool spooky_read_item_type(FILE * fp, spooky_pack_item_type * type) {
   unsigned char value = 0;
   bool res = spooky_read_uint8(fp, &value);
   assert(res);
-  assert(value >= 0 && value <= UCHAR_MAX);
-  assert(value >= spit_unspecified && value <= spit_eof);
   *type = (spooky_pack_item_type)value;
   return res;
 }
