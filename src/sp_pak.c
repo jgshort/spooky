@@ -549,7 +549,8 @@ static bool spooky_write_file(const char * file_path, const char * key, FILE * f
 
       if(fseek(src_file, 0L, SEEK_SET) != 0) { abort(); }
 
-      size_t new_len = fread(inflated_buf, sizeof(char), (size_t)inflated_buf_len, src_file);
+      size_t new_len = fread(inflated_buf, sizeof(unsigned char), (size_t)inflated_buf_len, src_file);
+      assert((size_t)new_len == (size_t)inflated_buf_len);
       if(ferror(src_file) != 0) {
         abort();
       } else {
