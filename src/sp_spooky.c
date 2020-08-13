@@ -38,8 +38,7 @@ int main(int argc, char **argv) {
  
   spooky_pack_tests();
 
-  int fd = 0;
-  fd = open("./test.spdb", O_CREAT | O_RDWR | O_EXCL, S_IRUSR | S_IWUSR);
+  int fd = open("./test.spdb", O_CREAT | O_RDWR | O_EXCL, S_IRUSR | S_IWUSR);
   if(fd < 0) {
     if(errno == EEXIST) {
       fd = open("./test.spdb", O_RDWR | O_EXCL, S_IRUSR | S_IWUSR);
