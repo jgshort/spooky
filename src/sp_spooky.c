@@ -58,6 +58,9 @@ int main(int argc, char **argv) {
     return EXIT_FAILURE;
   }
 
+  fprintf(stdout, "Okay!\n");
+
+  fseek(fp, 0, SEEK_SET);
   spooky_pack_print_resources(stdout, fp);
 
   fclose(fp);
