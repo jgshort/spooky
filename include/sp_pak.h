@@ -5,7 +5,7 @@
 #include <stdbool.h>
 
 bool spooky_pack_create(FILE * /* fp */);
-void spooky_pack_verify(FILE * /* fp */);
+errno_t spooky_pack_verify(FILE * /* fp */);
 
 void spooky_pack_tests();
 

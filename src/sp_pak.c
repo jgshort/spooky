@@ -16,7 +16,7 @@
 #include "sp_pak.h"
 #include "sp_math.h"
 
-const unsigned long SPOOKY_CONTENT_OFFSET = 0xff;
+const unsigned long SPOOKY_CONTENT_OFFSET = 0x100;
 
 const uint16_t SPOOKY_PACK_MAJOR_VERSION = 0;
 const uint16_t SPOOKY_PACK_MINOR_VERSION = 0;
@@ -73,7 +73,7 @@ static const uint64_t SPOOKY_ITEM_MAGIC = 0x00706b6e616e6d65;
 
 static errno_t spooky_deflate_file(FILE * source, FILE * dest, size_t * dest_len);
 
-static void spooky_pak_dump_hash(FILE * fp, const unsigned char * c, size_t len) {
+static void spooky_pack_dump_hash(FILE * fp, const unsigned char * c, size_t len) {
   assert(fp && c && len > 0);
   for(size_t i = 0; i < len; i++) {
     fprintf(fp, "%x", c[i]);
@@ -485,7 +485,7 @@ static bool spooky_read_file(FILE * fp, char ** buf, size_t * buf_len) {
     
     if(spooky_inflate_file(deflated_fp, inflated_fp, &inflated_buf_len) != Z_OK) { 
       fprintf(stderr, "Failed to inflate [%s] at '%s' (%lu, %lu) <", key, file_path, (size_t)compressed_len, (size_t)decompressed_len);
-      spooky_pak_dump_hash(stderr, compressed_hash, sizeof compressed_hash);
+      spooky_pack_dump_hash(stderr, compressed_hash, sizeof compressed_hash);
       fprintf(stderr, ">\n");
       fflush(stderr);
       abort();
@@ -987,24 +987,26 @@ bool spooky_pack_create(FILE * fp) {
     fwrite(&spf.header, sizeof(unsigned char), sizeof spf.header, fp);
     /* Version */
     spooky_write_version(spf.version, fp, NULL);
+    /* Content offset */
+    spooky_write_uint64(SPOOKY_CONTENT_OFFSET, fp, NULL);
     /* Content length */
     spooky_write_uint64(spf.content_len, fp, NULL);
 
     /* placeholder for content hash */
     spooky_write_hash(spf.hash, sizeof spf.hash / sizeof spf.hash[0], fp, NULL);
-   
-    fseek(fp, 0, SEEK_SET);
-    fseek(fp, SPOOKY_CONTENT_OFFSET, SEEK_SET);
+
     /* Content */
+    fseek(fp, SPOOKY_CONTENT_OFFSET, SEEK_SET);
     spooky_write_file("res/fonts/PRNumber3.ttf", "foo", fp, &spf.content_len);
     spooky_write_file("res/fonts/PrintChar21.ttf", "bar", fp, &spf.content_len);
     spooky_write_file("res/fonts/DejaVuSansMono.ttf", "baz",  fp, &spf.content_len);
     spooky_write_file("res/fonts/SIL Open Font License.txt", "buz", fp, &spf.content_len);
 
     /* Update Content Length */
-    fseek(fp, 0, SEEK_SET);
-    fseek(fp, sizeof spf.header + sizeof spf.version, SEEK_SET);
+    fseek(fp, sizeof spf.header + sizeof spf.version + sizeof SPOOKY_CONTENT_OFFSET, SEEK_SET);
     spooky_write_uint64(spf.content_len, fp, NULL);
+
+    /* Write an empty hash to the hash offset */
     spooky_write_hash(spf.hash, sizeof spf.hash / sizeof spf.hash[0], fp, NULL);
       
     fseek(fp, 0, SEEK_SET);
@@ -1021,7 +1023,9 @@ bool spooky_pack_create(FILE * fp) {
       assert(hir == spf.content_len);
 
       fseek(fp, 0, SEEK_SET);
-      fseek(fp, sizeof spf.header + sizeof spf.version + sizeof spf.content_len, SEEK_SET);
+      size_t hash_offset = sizeof spf.header + sizeof spf.version + sizeof SPOOKY_CONTENT_OFFSET + sizeof spf.content_len;
+      assert(hash_offset < LONG_MAX);
+      fseek(fp, (long)hash_offset, SEEK_SET);
 
       spooky_write_hash(buf, (size_t)spf.content_len, fp, NULL);
       
@@ -1037,37 +1041,47 @@ bool spooky_pack_create(FILE * fp) {
   return ret;
 }
 
-void spooky_pack_verify(FILE * fp) {
-  spooky_pack_version version = {
-    .major = 0,
-    .minor = 0,
-    .revision = 0,
-    .subrevision = 0
-  };
-
-  uint64_t content_len = 0;
-  
+errno_t spooky_pack_verify(FILE * fp) {
   SPOOKY_SET_BINARY_MODE(fp);
+
+  spooky_pack_version version = { 0 };
+  uint64_t content_len = 0;
+  uint64_t content_offset = 0;  
   
   unsigned char content_hash[crypto_generichash_BYTES] = { 0 };
   unsigned char read_content_hash[crypto_generichash_BYTES] = { 0 };
 
   if(fp) {
     if(!spooky_read_header(fp)) goto err0;
+    /*const uint16_t SPOOKY_PACK_MAJOR_VERSION = 0;
+const uint16_t SPOOKY_PACK_MINOR_VERSION = 0;
+const uint16_t SPOOKY_PACK_REVISION_VERSION = 1;
+const uint16_t SPOOKY_PACK_SUBREVISION_VERSION = 0;
+*/
     if(!spooky_read_version(fp, &version)) goto err1;
+    assert(version.major == SPOOKY_PACK_MAJOR_VERSION 
+        && version.minor == SPOOKY_PACK_MINOR_VERSION
+        && version.revision == SPOOKY_PACK_REVISION_VERSION
+        && version.subrevision == SPOOKY_PACK_SUBREVISION_VERSION
+        );
+
+    if(!spooky_read_uint64(fp, &content_offset)) goto err2;
+    assert(content_offset == SPOOKY_CONTENT_OFFSET);
+    assert(content_offset > 0 && content_offset <= LONG_MAX);
+
     if(!spooky_read_uint64(fp, &content_len)) goto err2;
+    assert(content_len > 0 && content_len <= LONG_MAX);
+
     if(!spooky_read_hash(fp, content_hash, crypto_generichash_BYTES)) goto err2;  
-    
-    assert(content_len > 0);
   
-    fseek(fp, SPOOKY_CONTENT_OFFSET, SEEK_SET);
+    fseek(fp, (long)content_offset, SEEK_SET);
     { 
       /* generate read content hash */
       unsigned char * buf = calloc(content_len, sizeof * buf);
       if(!buf) { abort(); }
       
       size_t hir = fread(buf, sizeof * buf, content_len, fp);
-      assert(hir);
+      assert(hir && hir == content_len);
 
       if(!(hir > 0 && ferror(fp) == 0)) { abort(); }
 
@@ -1083,8 +1097,7 @@ void spooky_pack_verify(FILE * fp) {
       }
     }
 
-    fseek(fp, 0, SEEK_SET);
-    fseek(fp, SPOOKY_CONTENT_OFFSET, SEEK_SET);
+    fseek(fp, (long)content_offset, SEEK_SET);
 
     char * data = NULL;
     size_t data_len = 0;
@@ -1092,34 +1105,32 @@ void spooky_pack_verify(FILE * fp) {
     /* TODO: Remove. Test file read: */
     if(!spooky_read_file(fp, &data, &data_len)) goto err2;
 
-    fseek(fp, (long)((SPOOKY_CONTENT_OFFSET + content_len)), SEEK_SET);
+    fseek(fp, (long)((content_offset + content_len)), SEEK_SET);
     if(!spooky_read_footer(fp)) goto err3;
   }
 
-  assert(content_len > 0);
   fprintf(stdout, "\nValid SPOOKY! database v%hu.%hu.%hu.%hu: ", version.major, version.minor, version.revision, version.subrevision);
 
-  for(size_t i = 0; i <  sizeof content_hash / sizeof content_hash[0]; i++) {
-    fprintf(stdout, "%x", content_hash[i]);
-  }
-  fprintf(stdout, "\n");
-  goto done;
+  size_t max_len = sodium_base64_ENCODED_LEN(sizeof content_hash / sizeof content_hash[0], sodium_base64_VARIANT_ORIGINAL_NO_PADDING);
+  char * out = malloc(max_len);
+  sodium_bin2base64(out, max_len, content_hash, sizeof content_hash / sizeof content_hash[0], sodium_base64_VARIANT_ORIGINAL_NO_PADDING);
+  fprintf(stdout, "<%s>\n", out);
+  free(out), out = NULL;
+
+  return SP_SUCCESS;
 
 err0:
   fprintf(stderr, "Invalid header\n");
-  goto done;
+  return SP_FAILURE;
 err1:
   fprintf(stderr, "Invalid version\n");
-  goto done;
+  return SP_FAILURE;
 err2:
   fprintf(stderr, "Invalid content length\n");
-  goto done;
+  return SP_FAILURE;
 err3:
   fprintf(stderr, "Invalid footer\n");
-  goto done;
-
-done:
-  fclose(fp);
+  return SP_FAILURE;
 }
 
 #define MAX_TEST_STACK_BUFFER_SZ 1024
