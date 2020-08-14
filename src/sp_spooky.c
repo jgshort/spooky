@@ -52,11 +52,16 @@ int main(int argc, char **argv) {
   
   fseek(fp, 0, SEEK_SET);
   errno_t res = spooky_pack_verify(fp);
-  fclose(fp);
   if(res != SP_SUCCESS) {
     fprintf(stderr, "The resource pack is invalid.\n");
+    fclose(fp);
     return EXIT_FAILURE;
   }
+
+  spooky_pack_print_resources(stdout, fp);
+
+  fclose(fp);
+  
 
   if(argv) { return 0; }
   spooky_context context = { 0 };

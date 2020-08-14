@@ -126,6 +126,7 @@ typedef struct spooky_pack_version {
 typedef struct spooky_pack_file {
   unsigned char header[SPOOKY_HEADER_LEN];
   spooky_pack_version version;
+  uint64_t content_offset;
   uint64_t content_len;
   unsigned char hash[crypto_generichash_BYTES];
 } spooky_pack_file;
@@ -404,7 +405,19 @@ static bool spooky_read_string(FILE * fp, char ** value, size_t * value_len) {
   return true;
 }
 
-static bool spooky_read_file(FILE * fp, char ** buf, size_t * buf_len) {
+typedef struct spooky_pack_item_bin_file {
+  uint64_t decompressed_len;
+  uint64_t compressed_len;
+  unsigned char decompressed_hash[crypto_generichash_BYTES];
+  unsigned char compressed_hash[crypto_generichash_BYTES];
+  char * file_path;
+  char * key;
+  char * data; 
+  spooky_pack_item_type type;
+  char padding[4]; /* non-portable */
+} spooky_pack_item_bin_file;
+
+static bool spooky_read_file(FILE * fp, spooky_pack_item_bin_file * file) {
   assert(fp);
   
   /* READ TYPE: (assert spit_bin_file)
@@ -477,7 +490,7 @@ static bool spooky_read_file(FILE * fp, char ** buf, size_t * buf_len) {
 
   FILE * deflated_fp = fmemopen(compressed_data, compressed_len, "rb");
   SPOOKY_SET_BINARY_MODE(deflated_fp);
-
+  char * decompressed_data_copy = NULL;
   {
     FILE * inflated_fp = fmemopen(decompressed_data, decompressed_len, "rb+");
     SPOOKY_SET_BINARY_MODE(inflated_fp);
@@ -504,12 +517,9 @@ static bool spooky_read_file(FILE * fp, char ** buf, size_t * buf_len) {
     }
 
     fseek(inflated_fp, 0, SEEK_SET);
-    char * decompressed_data_copy = calloc(decompressed_len, sizeof * decompressed_data_copy );
+    decompressed_data_copy = calloc(decompressed_len, sizeof * decompressed_data_copy );
     if(!decompressed_data_copy) { abort(); }
     memmove(decompressed_data_copy, decompressed_data, decompressed_len);
-
-    *buf = decompressed_data_copy;
-    *buf_len = decompressed_len;
 
     fclose(inflated_fp);
   } 
@@ -517,7 +527,26 @@ static bool spooky_read_file(FILE * fp, char ** buf, size_t * buf_len) {
 
   free(compressed_data), compressed_data = NULL;
   free(decompressed_data), decompressed_data = NULL;
-
+/*
+ *typedef struct spooky_pack_item_bin_file {
+  spooky_pack_item_type type;
+  uint64_t decompressed_len;
+  uint64_t compressed_len;
+  unsigned char decompressed_hash[crypto_generichash_BYTES];
+  unsigned char compressed_hash[crypto_generichash_BYTES];
+  char * file_path;
+  char * key;
+  unsigned char * data; 
+} spooky_pack_item_bin_file;
+*/
+  file->type = type;
+  file->decompressed_len = decompressed_len;
+  file->compressed_len = compressed_len;
+  memmove(file->decompressed_hash, decompressed_hash, crypto_generichash_BYTES);
+  memmove(file->compressed_hash, compressed_hash, crypto_generichash_BYTES);
+  file->file_path = file_path;
+  file->key = key;
+  file->data = decompressed_data_copy;
   return true;
 }
 
@@ -975,6 +1004,7 @@ bool spooky_pack_create(FILE * fp) {
       .revision = SPOOKY_PACK_REVISION_VERSION,
       .subrevision = SPOOKY_PACK_SUBREVISION_VERSION
     },
+    .content_offset = 0, /* offset that content begins */
     .content_len = 0, /* content length calculated after content added */
     .hash = { 0 } /* hash calculated after content added */
   };
@@ -1032,13 +1062,51 @@ bool spooky_pack_create(FILE * fp) {
       free(buf), buf = NULL;
     } 
 
-    /* Footer */
+    /* SPDB length */
     fseek(fp, 0, SEEK_END);
+    spooky_write_uint64(0 /* file length placeholder */, fp, NULL);
+    
+    /* Footer */
     fwrite(SPOOKY_FOOTER, sizeof(unsigned char), sizeof SPOOKY_FOOTER, fp);
+    fseek(fp, 0, SEEK_END);
+    long spdb_len = ftell(fp);
+    assert(spdb_len > 0 && spdb_len <= LONG_MAX);
+
+    size_t expected_len = 
+        sizeof spf  /* header */
+      + (((SPOOKY_CONTENT_OFFSET - sizeof spf)) + spf.content_len)  /* offset of content - header */
+      + ((sizeof(uint64_t) + sizeof SPOOKY_FOOTER)) /* (file length + footer marker) */
+      ;
+    assert((size_t)spdb_len == expected_len);
+
+    fseek(fp, (long)(sizeof spf + (long)(SPOOKY_CONTENT_OFFSET - sizeof spf) + spf.content_len), SEEK_SET);
+    spooky_write_uint64((size_t)spdb_len, fp, NULL);
+    fseek(fp, 0, SEEK_END);
+
     ret = true;
   }
  
   return ret;
+}
+
+errno_t spooky_pack_upgrade(FILE * fp, const spooky_pack_version * from, const spooky_pack_version * to) {
+  (void)fp;
+  (void)from;
+  (void)to;
+  return SP_SUCCESS;
+}
+
+errno_t spooky_pack_print_resources(FILE * dest, FILE * fp) {
+  (void)dest;
+  (void)fp;
+  return SP_SUCCESS;
+}
+
+char * spooky_pack_encode_binary_data(const unsigned char * bin_data, size_t bin_data_len) {
+  size_t max_len = sodium_base64_ENCODED_LEN(bin_data_len, sodium_base64_VARIANT_ORIGINAL_NO_PADDING);
+  char * out = malloc(max_len);
+  sodium_bin2base64(out, max_len, bin_data, bin_data_len, sodium_base64_VARIANT_ORIGINAL_NO_PADDING);
+  return out;
 }
 
 errno_t spooky_pack_verify(FILE * fp) {
@@ -1053,11 +1121,6 @@ errno_t spooky_pack_verify(FILE * fp) {
 
   if(fp) {
     if(!spooky_read_header(fp)) goto err0;
-    /*const uint16_t SPOOKY_PACK_MAJOR_VERSION = 0;
-const uint16_t SPOOKY_PACK_MINOR_VERSION = 0;
-const uint16_t SPOOKY_PACK_REVISION_VERSION = 1;
-const uint16_t SPOOKY_PACK_SUBREVISION_VERSION = 0;
-*/
     if(!spooky_read_version(fp, &version)) goto err1;
     assert(version.major == SPOOKY_PACK_MAJOR_VERSION 
         && version.minor == SPOOKY_PACK_MINOR_VERSION
@@ -1069,10 +1132,10 @@ const uint16_t SPOOKY_PACK_SUBREVISION_VERSION = 0;
     assert(content_offset == SPOOKY_CONTENT_OFFSET);
     assert(content_offset > 0 && content_offset <= LONG_MAX);
 
-    if(!spooky_read_uint64(fp, &content_len)) goto err2;
+    if(!spooky_read_uint64(fp, &content_len)) goto err3;
     assert(content_len > 0 && content_len <= LONG_MAX);
 
-    if(!spooky_read_hash(fp, content_hash, crypto_generichash_BYTES)) goto err2;  
+    if(!spooky_read_hash(fp, content_hash, crypto_generichash_BYTES)) goto err4;
   
     fseek(fp, (long)content_offset, SEEK_SET);
     { 
@@ -1091,29 +1154,53 @@ const uint16_t SPOOKY_PACK_SUBREVISION_VERSION = 0;
     }
 
     for(size_t i = 0; i < crypto_generichash_BYTES; i++) {
-      if(content_hash[i] != read_content_hash[i]) {
-        fprintf(stderr, "Unable to validate resource content. This is a fatal error :(\n");
-        abort();
-      }
+      if(content_hash[i] != read_content_hash[i]) { goto err5; }
     }
 
     fseek(fp, (long)content_offset, SEEK_SET);
 
-    char * data = NULL;
-    size_t data_len = 0;
-
     /* TODO: Remove. Test file read: */
-    if(!spooky_read_file(fp, &data, &data_len)) goto err2;
+/*
+ *typedef struct spooky_pack_item_bin_file {
+  uint64_t decompressed_len;
+  uint64_t compressed_len;
+  unsigned char decompressed_hash[crypto_generichash_BYTES];
+  unsigned char compressed_hash[crypto_generichash_BYTES];
+  char * file_path;
+  char * key;
+  char * data; 
+  spooky_pack_item_type type;
+  char padding[4];
+} spooky_pack_item_bin_file;*/
 
+
+    spooky_pack_item_bin_file file;
+    if(!spooky_read_file(fp, &file)) goto err2;
+    char * encoded_decompressed_hash = spooky_pack_encode_binary_data(file.decompressed_hash, sizeof file.decompressed_hash / sizeof file.decompressed_hash[0]);
+    char * encoded_compressed_hash = spooky_pack_encode_binary_data(file.compressed_hash, sizeof file.compressed_hash / sizeof file.compressed_hash[0]);
+
+    fprintf(stdout, "%s@%s [%lu -> %lu] <%s>; <%s>", file.key, file.file_path, (size_t)file.decompressed_len, (size_t)file.compressed_len, encoded_decompressed_hash, encoded_compressed_hash);
+
+
+    fseek(fp, 0, SEEK_END);
+    long saved_file_len = ftell(fp);
+    assert(saved_file_len > 0 && saved_file_len <= LONG_MAX);
+
+    fseek(fp, 0, SEEK_SET);
+    /* read content length */
     fseek(fp, (long)((content_offset + content_len)), SEEK_SET);
+
+    uint64_t file_len = 0;
+    spooky_read_uint64(fp, &file_len);
+    assert(file_len == (size_t)saved_file_len);
+
+    /* read footer */
+    fseek(fp, (long)((content_offset + content_len + sizeof(uint64_t))), SEEK_SET);
     if(!spooky_read_footer(fp)) goto err3;
   }
 
-  fprintf(stdout, "\nValid SPOOKY! database v%hu.%hu.%hu.%hu: ", version.major, version.minor, version.revision, version.subrevision);
-
-  size_t max_len = sodium_base64_ENCODED_LEN(sizeof content_hash / sizeof content_hash[0], sodium_base64_VARIANT_ORIGINAL_NO_PADDING);
-  char * out = malloc(max_len);
-  sodium_bin2base64(out, max_len, content_hash, sizeof content_hash / sizeof content_hash[0], sodium_base64_VARIANT_ORIGINAL_NO_PADDING);
+  fprintf(stdout, "\nValid SPDB v%hu.%hu.%hu.%hu: ", version.major, version.minor, version.revision, version.subrevision);
+  char * out = spooky_pack_encode_binary_data(content_hash, sizeof content_hash / sizeof content_hash[0]);
   fprintf(stdout, "<%s>\n", out);
   free(out), out = NULL;
 
@@ -1126,10 +1213,16 @@ err1:
   fprintf(stderr, "Invalid version\n");
   return SP_FAILURE;
 err2:
-  fprintf(stderr, "Invalid content length\n");
+  fprintf(stderr, "Invalid content offset\n");
   return SP_FAILURE;
 err3:
+  fprintf(stderr, "Invalid content length\n");
+  return SP_FAILURE;
+err4:
   fprintf(stderr, "Invalid footer\n");
+  return SP_FAILURE;
+err5:
+  fprintf(stderr, "Unable to validate resource content. This is a fatal error :(\n");
   return SP_FAILURE;
 }
 

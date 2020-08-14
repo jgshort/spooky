@@ -4,9 +4,12 @@
 #include <stdio.h>
 #include <stdbool.h>
 
+typedef struct spooky_pack_version spooky_pack_version;
+
 bool spooky_pack_create(FILE * /* fp */);
 errno_t spooky_pack_verify(FILE * /* fp */);
-
+errno_t spooky_pack_upgrade(FILE * /* fp */, const spooky_pack_version * /* from */, const spooky_pack_version * /* to */);
+errno_t spooky_pack_print_resources(FILE * /* dest */, FILE * /* fp */);
 void spooky_pack_tests();
 
 #endif /* SPOOKY_PACK__H */
