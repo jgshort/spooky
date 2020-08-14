@@ -1079,7 +1079,7 @@ bool spooky_pack_create(FILE * fp) {
       ;
     assert((size_t)spdb_len == expected_len);
 
-    fseek(fp, (long)(sizeof spf + (long)(SPOOKY_CONTENT_OFFSET - sizeof spf) + spf.content_len), SEEK_SET);
+    fseek(fp, (long)(sizeof spf + (SPOOKY_CONTENT_OFFSET - sizeof spf) + spf.content_len), SEEK_SET);
     spooky_write_uint64((size_t)spdb_len, fp, NULL);
     fseek(fp, 0, SEEK_END);
 
