@@ -1299,7 +1299,7 @@ long spooky_pack_get_offset(FILE * fp) {
 
   uint64_t pak_file_len = 0;
   if(!spooky_read_uint64(fp, &pak_file_len)) goto err;
-  assert(pak_file_len >= 0 && pak_file_len <= LONG_MAX);
+  assert(pak_file_len <= LONG_MAX);
 
   long pak_file_offset = file_len - (long)pak_file_len;
 
