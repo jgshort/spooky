@@ -1227,9 +1227,11 @@ err:
   return;
 }
 
-errno_t spooky_pack_is_valid_pak_file(FILE * fp, long * pak_offset) {
+errno_t spooky_pack_is_valid_pak_file(FILE * fp, long * pak_offset, uint64_t * content_offset, uint64_t * content_len) {
   SPOOKY_SET_BINARY_MODE(fp);
 
+  if(!content_offset || !content_len) { abort(); }
+  
   long pak_file_offset = spooky_pack_get_offset(fp);
   if(pak_file_offset < 0) { goto err; }
   if(pak_offset) { *pak_offset = pak_file_offset; }
@@ -1237,8 +1239,6 @@ errno_t spooky_pack_is_valid_pak_file(FILE * fp, long * pak_offset) {
   fseek(fp, *pak_offset, SEEK_SET);
 
   spooky_pack_version version = { 0 };
-  uint64_t content_len = 0;
-  uint64_t content_offset = 0;  
 
   unsigned char content_hash[crypto_generichash_BYTES] = { 0 };
   unsigned char read_content_hash[crypto_generichash_BYTES] = { 0 };
@@ -1251,27 +1251,27 @@ errno_t spooky_pack_is_valid_pak_file(FILE * fp, long * pak_offset) {
       && version.subrevision == SPOOKY_PACK_SUBREVISION_VERSION
       );
 
-  if(!spooky_read_uint64(fp, &content_offset)) goto err;
-  assert(content_offset == SPOOKY_CONTENT_OFFSET);
-  assert(content_offset > 0 && content_offset <= LONG_MAX);
+  if(!spooky_read_uint64(fp, content_offset)) goto err;
+  assert(*content_offset == SPOOKY_CONTENT_OFFSET);
+  assert(*content_offset > 0 && *content_offset <= LONG_MAX);
 
-  if(!spooky_read_uint64(fp, &content_len)) goto err;
-  assert(content_len > 0 && content_len <= LONG_MAX);
+  if(!spooky_read_uint64(fp, content_len)) goto err;
+  assert(*content_len > 0 && *content_len <= LONG_MAX);
 
   if(!spooky_read_hash(fp, content_hash, crypto_generichash_BYTES)) goto err;
 
-  fseek(fp, *pak_offset + (long)content_offset, SEEK_SET);
+  fseek(fp, *pak_offset + (long)(*content_offset), SEEK_SET);
   { 
     /* generate read content hash */
-    unsigned char * buf = calloc(content_len, sizeof * buf);
+    unsigned char * buf = calloc(*content_len, sizeof * buf);
     if(!buf) { abort(); }
 
-    size_t hir = fread(buf, sizeof * buf, content_len, fp);
-    assert(hir && hir == content_len);
+    size_t hir = fread(buf, sizeof * buf, *content_len, fp);
+    assert(hir && hir == *content_len);
 
     if(!(hir > 0 && ferror(fp) == 0)) { abort(); }
 
-    crypto_generichash(read_content_hash, crypto_generichash_BYTES, buf, (size_t)content_len, NULL, 0);
+    crypto_generichash(read_content_hash, crypto_generichash_BYTES, buf, (size_t)(*content_len), NULL, 0);
 
     free(buf), buf = NULL;
   }
@@ -1279,7 +1279,6 @@ errno_t spooky_pack_is_valid_pak_file(FILE * fp, long * pak_offset) {
   for(size_t i = 0; i < crypto_generichash_BYTES; i++) {
     if(content_hash[i] != read_content_hash[i]) { goto err; }
   }
-
 
   return SP_SUCCESS;
 
@@ -1313,55 +1312,16 @@ err:
 errno_t spooky_pack_verify(FILE * fp) {
   SPOOKY_SET_BINARY_MODE(fp);
 
-  spooky_pack_version version = { 0 };
   uint64_t content_len = 0;
   uint64_t content_offset = 0;  
 
-
   unsigned char content_hash[crypto_generichash_BYTES] = { 0 };
-  unsigned char read_content_hash[crypto_generichash_BYTES] = { 0 };
 
   if(fp) {
-    long pak_offset = spooky_pack_get_offset(fp);
-    fseek(fp, pak_offset, SEEK_SET);
-
-    if(!spooky_read_header(fp)) goto err0;
-    if(!spooky_read_version(fp, &version)) goto err1;
-    assert(version.major == SPOOKY_PACK_MAJOR_VERSION 
-        && version.minor == SPOOKY_PACK_MINOR_VERSION
-        && version.revision == SPOOKY_PACK_REVISION_VERSION
-        && version.subrevision == SPOOKY_PACK_SUBREVISION_VERSION
-        );
-
-    if(!spooky_read_uint64(fp, &content_offset)) goto err2;
-    assert(content_offset == SPOOKY_CONTENT_OFFSET);
-    assert(content_offset > 0 && content_offset <= LONG_MAX);
-
-    if(!spooky_read_uint64(fp, &content_len)) goto err3;
-    assert(content_len > 0 && content_len <= LONG_MAX);
-
-    if(!spooky_read_hash(fp, content_hash, crypto_generichash_BYTES)) goto err4;
-  
-    fseek(fp, pak_offset + (long)content_offset, SEEK_SET);
-    { 
-      /* generate read content hash */
-      unsigned char * buf = calloc(content_len, sizeof * buf);
-      if(!buf) { abort(); }
-      
-      size_t hir = fread(buf, sizeof * buf, content_len, fp);
-      assert(hir && hir == content_len);
-
-      if(!(hir > 0 && ferror(fp) == 0)) { abort(); }
-
-      crypto_generichash(read_content_hash, crypto_generichash_BYTES, buf, (size_t)content_len, NULL, 0);
-
-      free(buf), buf = NULL;
-    }
-
-    for(size_t i = 0; i < crypto_generichash_BYTES; i++) {
-      if(content_hash[i] != read_content_hash[i]) { goto err5; }
-    }
-
+    long pak_offset = -1;
+    errno_t is_valid = spooky_pack_is_valid_pak_file(fp, &pak_offset, &content_offset, &content_len);
+    if(is_valid != SP_SUCCESS) { goto err5; }
+   
     fseek(fp, pak_offset + (long)content_offset, SEEK_SET);
 
     spooky_pack_item_bin_file file;
@@ -1390,21 +1350,13 @@ errno_t spooky_pack_verify(FILE * fp) {
 
   return SP_SUCCESS;
 
-err0:
-  fprintf(stderr, "Invalid header\n");
-  return SP_FAILURE;
-err1:
-  fprintf(stderr, "Invalid version\n");
-  return SP_FAILURE;
 err2:
   fprintf(stderr, "Invalid content offset\n");
   return SP_FAILURE;
 err3:
   fprintf(stderr, "Invalid content length\n");
   return SP_FAILURE;
-err4:
-  fprintf(stderr, "Invalid footer\n");
-  return SP_FAILURE;
+
 err5:
   fprintf(stderr, "Unable to validate resource content. This is a fatal error :(\n");
   return SP_FAILURE;
