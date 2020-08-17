@@ -38,19 +38,56 @@ int main(int argc, char **argv) {
  
   spooky_pack_tests();
 
-  bool create = false;
-  int fd = open("./pak.spdb", O_CREAT | O_RDWR | O_EXCL, S_IRUSR | S_IWUSR);
-  if(fd < 0) {
-    if(errno == EEXIST) {
-      fd = open("./pak.spdb", O_RDWR | O_EXCL, S_IRUSR | S_IWUSR);
+  FILE * fp = NULL;
+
+  long pak_offset = 0;
+
+  { /* check if we're a bundled exec + pak file */
+    int fd = open(argv[0], O_RDWR | O_EXCL, S_IRUSR | S_IWUSR);
+    if(fd >= 0) {
+      fp = fdopen(fd, "rb");
+      if(fp) {
+        fprintf(stdout, "Reading pack file from %s\n", argv[0]);
+        errno_t is_valid = spooky_pack_is_valid_pak_file(fp, &pak_offset);
+        if(is_valid != SP_SUCCESS) {
+          fclose(fp);
+          fp = NULL;
+          /* not a valid bundle */
+          fprintf(stdout, "Invalid bundle in %s\n", argv[0]);
+        } else {
+          fprintf(stdout, "Valid bundle in %s\n", argv[0]);
+        }
+      }
     }
-  } else {
-    create = true;
   }
-  FILE * fp = fdopen(fd, "wb+x");
-  if(create) { spooky_pack_create(fp); }
-  
-  fseek(fp, 0, SEEK_SET);
+
+  if(!fp) {
+    /* we're not a bundle; see if default 'pak.spdb' exists; create if not */
+    bool create = false;
+    const char * pak_file = "pak.spdb"; 
+    int fd = open(pak_file, O_CREAT | O_RDWR | O_EXCL, S_IRUSR | S_IWUSR);
+    if(fd < 0) {
+      /* already exists; open it */
+      if(errno == EEXIST) {
+        fd = open(pak_file, O_RDWR | O_EXCL, S_IRUSR | S_IWUSR);
+      }
+    } else {
+      /* doens't already exist; empty file... populate it */
+      create = true;
+    }
+
+    fp = fdopen(fd, "wb+x");
+
+    if(create) {
+      /* only create it if it's not already a valid pak file */
+      spooky_pack_create(fp);
+    }
+    fseek(fp, 0, SEEK_SET);
+    errno_t is_valid = spooky_pack_is_valid_pak_file(fp, &pak_offset);
+    assert(is_valid == SP_SUCCESS);
+  }
+
+  fseek(fp, pak_offset, SEEK_SET);
   errno_t res = spooky_pack_verify(fp);
   if(res != SP_SUCCESS) {
     fprintf(stderr, "The resource pack is invalid.\n");

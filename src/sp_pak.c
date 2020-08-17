@@ -955,7 +955,6 @@ static bool spooky_read_header(FILE * fp) {
   assert(r == (sizeof header) * 1);
   
   int eq = strncmp((const char *)header, (const char *)SPOOKY_HEADER, SPOOKY_HEADER_LEN) == 0;
-  assert(eq);
 
   return eq;
 }
@@ -991,7 +990,6 @@ static bool spooky_read_footer(FILE * fp) {
   fflush(stdout);
   
   bool eq = strncmp((const char *)footer, (const char *)SPOOKY_FOOTER, sizeof SPOOKY_FOOTER) == 0;
-  assert(eq);
 
   return eq;
 }
@@ -1110,6 +1108,10 @@ errno_t spooky_pack_print_resources(FILE * dest, FILE * fp) {
   unsigned char read_content_hash[crypto_generichash_BYTES] = { 0 };
 
   if(fp) {
+    long pak_offset = spooky_pack_get_offset(fp);
+    if(pak_offset < 0) { return SP_FAILURE; }
+    fseek(fp, pak_offset, SEEK_SET);
+
     if(!spooky_read_header(fp)) goto err0;
     if(!spooky_read_version(fp, &version)) goto err1;
     fprintf(dest, "SPDB Version: %i.%i.%i.%i\n", version.major, version.minor, version.revision, version.subrevision);
@@ -1124,7 +1126,7 @@ errno_t spooky_pack_print_resources(FILE * dest, FILE * fp) {
     fprintf(dest, "Saved hash: <%s>\n", content_hash_out);
     free(content_hash_out), content_hash_out = NULL;
  
-    fseek(fp, (long)content_offset, SEEK_SET);
+    fseek(fp, pak_offset + (long)content_offset, SEEK_SET);
     { 
       /* generate read content hash */
       unsigned char * buf = calloc(content_len, sizeof * buf);
@@ -1147,7 +1149,7 @@ errno_t spooky_pack_print_resources(FILE * dest, FILE * fp) {
       if(content_hash[i] != read_content_hash[i]) { goto err5; }
     }
 
-    fseek(fp, (long)content_offset, SEEK_SET);
+    fseek(fp, pak_offset + (long)content_offset, SEEK_SET);
 
     spooky_pack_print_file_stats(fp);
     spooky_pack_print_file_stats(fp);
@@ -1158,17 +1160,17 @@ errno_t spooky_pack_print_resources(FILE * dest, FILE * fp) {
     assert(saved_file_len > 0 && saved_file_len <= LONG_MAX);
     fprintf(dest, "Calculated SPDB size: %lu\n", saved_file_len);
 
-    fseek(fp, 0, SEEK_SET);
+    fseek(fp, pak_offset, SEEK_SET);
     /* read content length */
-    fseek(fp, (long)((content_offset + content_len)), SEEK_SET);
+    fseek(fp, pak_offset + (long)((content_offset + content_len)), SEEK_SET);
 
     uint64_t file_len = 0;
     spooky_read_uint64(fp, &file_len);
-    assert(file_len == (size_t)saved_file_len);
+    assert((long)file_len == saved_file_len - pak_offset);
     fprintf(dest, "Saved SPDB size: %lu\n", (size_t)file_len);
 
     /* read footer */
-    fseek(fp, (long)((content_offset + content_len + sizeof(uint64_t))), SEEK_SET);
+    fseek(fp, pak_offset + (long)((content_offset + content_len + sizeof(uint64_t))), SEEK_SET);
     if(!spooky_read_footer(fp)) goto err3;
   }
 
@@ -1225,6 +1227,88 @@ err:
   return;
 }
 
+errno_t spooky_pack_is_valid_pak_file(FILE * fp, long * pak_offset) {
+  SPOOKY_SET_BINARY_MODE(fp);
+
+  long pak_file_offset = spooky_pack_get_offset(fp);
+  if(pak_file_offset < 0) { goto err; }
+  if(pak_offset) { *pak_offset = pak_file_offset; }
+
+  fseek(fp, *pak_offset, SEEK_SET);
+
+  spooky_pack_version version = { 0 };
+  uint64_t content_len = 0;
+  uint64_t content_offset = 0;  
+
+  unsigned char content_hash[crypto_generichash_BYTES] = { 0 };
+  unsigned char read_content_hash[crypto_generichash_BYTES] = { 0 };
+
+  if(!spooky_read_header(fp)) goto err;
+  if(!spooky_read_version(fp, &version)) goto err;
+  assert(version.major == SPOOKY_PACK_MAJOR_VERSION 
+      && version.minor == SPOOKY_PACK_MINOR_VERSION
+      && version.revision == SPOOKY_PACK_REVISION_VERSION
+      && version.subrevision == SPOOKY_PACK_SUBREVISION_VERSION
+      );
+
+  if(!spooky_read_uint64(fp, &content_offset)) goto err;
+  assert(content_offset == SPOOKY_CONTENT_OFFSET);
+  assert(content_offset > 0 && content_offset <= LONG_MAX);
+
+  if(!spooky_read_uint64(fp, &content_len)) goto err;
+  assert(content_len > 0 && content_len <= LONG_MAX);
+
+  if(!spooky_read_hash(fp, content_hash, crypto_generichash_BYTES)) goto err;
+
+  fseek(fp, *pak_offset + (long)content_offset, SEEK_SET);
+  { 
+    /* generate read content hash */
+    unsigned char * buf = calloc(content_len, sizeof * buf);
+    if(!buf) { abort(); }
+
+    size_t hir = fread(buf, sizeof * buf, content_len, fp);
+    assert(hir && hir == content_len);
+
+    if(!(hir > 0 && ferror(fp) == 0)) { abort(); }
+
+    crypto_generichash(read_content_hash, crypto_generichash_BYTES, buf, (size_t)content_len, NULL, 0);
+
+    free(buf), buf = NULL;
+  }
+
+  for(size_t i = 0; i < crypto_generichash_BYTES; i++) {
+    if(content_hash[i] != read_content_hash[i]) { goto err; }
+  }
+
+
+  return SP_SUCCESS;
+
+err:
+  return SP_FAILURE;
+}
+
+long spooky_pack_get_offset(FILE * fp) {
+  fseek(fp, 0, SEEK_END);
+  
+  long file_len = ftell(fp);
+  assert(file_len >= 0 && (size_t)file_len <= SIZE_MAX);
+
+  fseek(fp, file_len - (long)(sizeof SPOOKY_FOOTER), SEEK_SET);
+  if(!spooky_read_footer(fp)) goto err;
+  
+  fseek(fp, file_len - (long)(sizeof SPOOKY_FOOTER + sizeof(uint64_t)), SEEK_SET);
+
+  uint64_t pak_file_len = 0;
+  if(!spooky_read_uint64(fp, &pak_file_len)) goto err;
+  assert(pak_file_len >= 0 && pak_file_len <= LONG_MAX);
+
+  long pak_file_offset = file_len - (long)pak_file_len;
+
+  return pak_file_offset;
+
+err:
+  return -1;
+}
 
 errno_t spooky_pack_verify(FILE * fp) {
   SPOOKY_SET_BINARY_MODE(fp);
@@ -1232,11 +1316,15 @@ errno_t spooky_pack_verify(FILE * fp) {
   spooky_pack_version version = { 0 };
   uint64_t content_len = 0;
   uint64_t content_offset = 0;  
-  
+
+
   unsigned char content_hash[crypto_generichash_BYTES] = { 0 };
   unsigned char read_content_hash[crypto_generichash_BYTES] = { 0 };
 
   if(fp) {
+    long pak_offset = spooky_pack_get_offset(fp);
+    fseek(fp, pak_offset, SEEK_SET);
+
     if(!spooky_read_header(fp)) goto err0;
     if(!spooky_read_version(fp, &version)) goto err1;
     assert(version.major == SPOOKY_PACK_MAJOR_VERSION 
@@ -1254,7 +1342,7 @@ errno_t spooky_pack_verify(FILE * fp) {
 
     if(!spooky_read_hash(fp, content_hash, crypto_generichash_BYTES)) goto err4;
   
-    fseek(fp, (long)content_offset, SEEK_SET);
+    fseek(fp, pak_offset + (long)content_offset, SEEK_SET);
     { 
       /* generate read content hash */
       unsigned char * buf = calloc(content_len, sizeof * buf);
@@ -1274,33 +1362,26 @@ errno_t spooky_pack_verify(FILE * fp) {
       if(content_hash[i] != read_content_hash[i]) { goto err5; }
     }
 
-    fseek(fp, (long)content_offset, SEEK_SET);
+    fseek(fp, pak_offset + (long)content_offset, SEEK_SET);
 
     spooky_pack_item_bin_file file;
     if(!spooky_read_file(fp, &file)) goto err2;
     if(!spooky_read_file(fp, &file)) goto err2;
     if(!spooky_read_file(fp, &file)) goto err2;
 
-    /* TODO: Remove. Test file read: */
-    //spooky_pack_print_file_stats(fp);
-    //spooky_pack_print_file_stats(fp);
-    //spooky_pack_print_file_stats(fp);
-
-
     fseek(fp, 0, SEEK_END);
     long saved_file_len = ftell(fp);
     assert(saved_file_len > 0 && saved_file_len <= LONG_MAX);
 
-    fseek(fp, 0, SEEK_SET);
     /* read content length */
-    fseek(fp, (long)((content_offset + content_len)), SEEK_SET);
+    fseek(fp, pak_offset + (long)((content_offset + content_len)), SEEK_SET);
 
     uint64_t file_len = 0;
     spooky_read_uint64(fp, &file_len);
-    assert(file_len == (size_t)saved_file_len);
+    assert((long)file_len == saved_file_len - pak_offset);
 
     /* read footer */
-    fseek(fp, (long)((content_offset + content_len + sizeof(uint64_t))), SEEK_SET);
+    fseek(fp, pak_offset + (long)((content_offset + content_len + sizeof(uint64_t))), SEEK_SET);
     if(!spooky_read_footer(fp)) goto err3;
   }
 
