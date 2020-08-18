@@ -25,7 +25,7 @@ extern "C" {
 #define SPOOKY_SET_BINARY_MODE(file)
 #endif /* >> if defined(MSDOS) || ... */
 
-int spooky_inflate_file(FILE * /* source */, FILE * /* dest */, size_t * /* dest_len */);
+errno_t spooky_inflate_file(FILE * /* source */, FILE * /* dest */, size_t * /* dest_len */);
 errno_t spooky_deflate_file(FILE * /* source */, FILE * /* dest */, size_t * /* dest_len */);
 
 #ifdef __cplusplus
