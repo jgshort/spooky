@@ -29,22 +29,23 @@ const uint16_t SPOOKY_PACK_SUBREVISION_VERSION = 0;
  *   An SPDB file starts and ends with the SPOOKY_HEADER and SPOOKY_FOOTER vectors,
  *   defined below with the following structure: 
  *
- *   | offset | size (bytes) | info              | data
- *   |   0x00 |           16 | spooky header     | { 0xf0, 0x9f, 0x8e, 0x83, 'SPOOKY!', 0xf0, 0x9f, 0x8e, 0x83, '\0' }
- *   |   0x10 |            8 | version (4x16bit) | { 0x0001, 0x0002, 0x0003, 0x0004 }
- *   |   0x1e |            8 | content length    | length of the pak file binary-encoded content excluding the header, version, hash, and footer  
- *   |   0x26 |           32 | content hash      | hash of the binary-encoded content 
- *   |   0x46 |            ? | content entries   | binary-encoded content 
- *   |    EOF |           16 | spooky footer     | { 0xf0, 0x9f, 0x8e, 0x83, '!YKOOPS', 0xf0, 0x9f, 0x8e, 0x83, '\0' }
+ *  |  offset | size (bytes) | info              | data
+ *  |   0x000 |           16 | spooky header     | { 0xf0, 0x9f, 0x8e, 0x83, 'SPOOKY!', 0xf0, 0x9f, 0x8e, 0x83, '\0' }
+ *  |   0x010 |            8 | version (4x16bit) | { 0x0001, 0x0002, 0x0003, 0x0004 }
+ *  |   0x018 |            8 | content offset    | offset of pak contents, defaults to 0x100
+ *  |   0x020 |            8 | content length    | length of the pak file binary-encoded content excluding the header, version, hash, and footer  
+ *  |   0x028 |           32 | content hash      | hash of the binary-encoded content, starting at offset {content_offset} and including the magic
+ *  |     ??? |          216 | [empty]           | Empty space for future properties 
+ *  |   0x100 |            8 | magic             | magic header preceeding content 
+ *  |   0x108 |          ??? | content entries   | binary-encoded content 
+ *  |EOF-0x18 |            8 | total pak length  | length of the complete pak file, starting from the header through the footer
+ *  |EOF-0x10 |           16 | spooky footer     | { 0xf0, 0x9f, 0x8e, 0x83, '!YKOOPS', 0xf0, 0x9f, 0x8e, 0x83, '\0' }
  * 
  * Data saved in little endian format 
  *
  * unpack example: 
  *  i = (data[0]<<0) | (data[1]<<8) | (data[2]<<16) | (data[3]<<24);
 */
-
-#define SPOOKY_HEADER_LEN 16
-#define SPOOKY_FOOTER_LEN 16
 
 /* From: http://www.zlib.net/zlib_how.html */
 /* This is an ugly hack required to avoid corruption of the input and output
@@ -63,6 +64,9 @@ const uint16_t SPOOKY_PACK_SUBREVISION_VERSION = 0;
 #else
 #define SPOOKY_SET_BINARY_MODE(file)
 #endif /* >> if defined(MSDOS) || ... */
+
+#define SPOOKY_HEADER_LEN 16
+#define SPOOKY_FOOTER_LEN 16
 
 static const size_t MAX_PACK_STRING_LEN = 4096;
 static const unsigned char SPOOKY_PUMPKIN[4] = { 0xf0, 0x9f, 0x8e, 0x83 };
@@ -83,37 +87,11 @@ static void spooky_pack_dump_hash(FILE * fp, const unsigned char * c, size_t len
 
 typedef enum spooky_pack_item_type /* unsigned char */ {
   spit_unspecified = 0,
+  spit_undefined = 0,
   spit_null = 1,
-/**/ spit_bool = 2,
-
-/**/ spit_byte = 10, /* char  */
-/**/ spit_uint8 = 20,
-/**/ spit_uint16 = 21,
-/**/ spit_uint32 = 22,
-/**/ spit_uint64 = 23,
- 
-/**/ spit_int8 = 30,
-/**/ spit_int16 = 31,
-/**/ spit_int32 = 32,
-/**/ spit_int64 = 33,
-
-/**/ spit_string = 40,
-  spit_array = 41,
-
+  spit_string = 40,
   spit_bin_file = 76,
-
-  spit_signature = 80,
-  spit_pubkey = 81,
   spit_hash = 82,
-
-/**/ spit_float = 90,
-  spit_double = 91,
-
-  spit_bits128 = 95,
-  spit_bits256 = 96,
-
-/**/ spit_raw = 128,
-
   spit_eof = UCHAR_MAX 
 } spooky_pack_item_type;
 
@@ -385,7 +363,6 @@ err0:
   deflateEnd(&strm);
   return Z_ERRNO;
 #undef CHUNK
-#undef SET_BINARY_MODE 
 }
 
 static bool spooky_read_string(FILE * fp, char ** value, size_t * value_len) {
