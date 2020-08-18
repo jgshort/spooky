@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <inttypes.h>
 #include <stdio.h>
 #include <string.h>
 #include <sodium.h>
@@ -1007,7 +1008,8 @@ bool spooky_pack_create(FILE * fp) {
     },
     .content_offset = 0, /* offset that content begins */
     .content_len = 0, /* content length calculated after content added */
-    .hash = { 0 } /* hash calculated after content added */
+    .hash = { 0 }, /* hash calculated after content added */
+    //.magic = SPOOKY_ITEM_MAGIC /* magic number immediately before content at offset CONTENT_OFFSET */
   };
 
   assert(SPOOKY_ITEM_MAGIC == 0x00706b6e616e6d65);
@@ -1028,6 +1030,9 @@ bool spooky_pack_create(FILE * fp) {
 
     /* Content */
     fseek(fp, SPOOKY_CONTENT_OFFSET, SEEK_SET);
+    /* Write the magic number */
+    spooky_write_uint64(SPOOKY_ITEM_MAGIC, fp, &spf.content_len);
+    /* Actual pak content */
     spooky_write_file("res/fonts/PRNumber3.ttf", "foo", fp, &spf.content_len);
     spooky_write_file("res/fonts/PrintChar21.ttf", "bar", fp, &spf.content_len);
     spooky_write_file("res/fonts/DejaVuSansMono.ttf", "baz",  fp, &spf.content_len);
@@ -1043,7 +1048,7 @@ bool spooky_pack_create(FILE * fp) {
     fseek(fp, 0, SEEK_SET);
     fseek(fp, SPOOKY_CONTENT_OFFSET, SEEK_SET);
 
-    { /* generate content hash */
+    { /* generate content hash; includes magic */
       unsigned char * buf = calloc(spf.content_len, sizeof * buf);
       if(!buf) { abort(); }
      
@@ -1151,6 +1156,13 @@ errno_t spooky_pack_print_resources(FILE * dest, FILE * fp) {
 
     fseek(fp, pak_offset + (long)content_offset, SEEK_SET);
 
+    uint64_t magic = 0;
+    if(!spooky_read_uint64(fp, &magic)) { goto err5; }
+    if(magic != SPOOKY_ITEM_MAGIC) { goto err5; }
+    assert(magic == SPOOKY_ITEM_MAGIC);
+
+    fprintf(dest, "Magic: 0x%" PRIx64 "\n", magic);
+    
     spooky_pack_print_file_stats(fp);
     spooky_pack_print_file_stats(fp);
     spooky_pack_print_file_stats(fp);
@@ -1280,6 +1292,12 @@ errno_t spooky_pack_is_valid_pak_file(FILE * fp, long * pak_offset, uint64_t * c
     if(content_hash[i] != read_content_hash[i]) { goto err; }
   }
 
+  uint64_t magic = 0;
+  fseek(fp, *pak_offset + (long)(*content_offset), SEEK_SET);
+  spooky_read_uint64(fp, &magic);
+  if(magic != SPOOKY_ITEM_MAGIC) { goto err; }
+  assert(magic == SPOOKY_ITEM_MAGIC);
+
   return SP_SUCCESS;
 
 err:
@@ -1323,6 +1341,11 @@ errno_t spooky_pack_verify(FILE * fp) {
     if(is_valid != SP_SUCCESS) { goto err5; }
    
     fseek(fp, pak_offset + (long)content_offset, SEEK_SET);
+
+    uint64_t magic = 0;
+    if(!spooky_read_uint64(fp, &magic)) goto err2;
+    if(magic != SPOOKY_ITEM_MAGIC) goto err2;
+    assert(magic == SPOOKY_ITEM_MAGIC);
 
     spooky_pack_item_bin_file file;
     if(!spooky_read_file(fp, &file)) goto err2;
