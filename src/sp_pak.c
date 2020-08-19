@@ -1075,52 +1075,58 @@ errno_t spooky_pack_is_valid_pak_file(FILE * fp, long * pak_offset, uint64_t * c
   SPOOKY_SET_BINARY_MODE(fp);
 
   if(!content_offset || !content_len) { abort(); }
-  
+  spooky_pack_file spf = {
+    .header = { 0 },
+    .version = { 0 },
+    .content_offset = 0,
+    .content_len = 0,
+    .index_offset = 0,
+    .index_len = 0,
+    .hash = { 0 }
+  };
+ 
   long pak_file_offset = spooky_pack_get_offset(fp);
   if(pak_file_offset < 0) { goto err; }
   if(pak_offset) { *pak_offset = pak_file_offset; }
 
   fseek(fp, *pak_offset, SEEK_SET);
 
-  spooky_pack_version version = { 0 };
-
   unsigned char content_hash[crypto_generichash_BYTES] = { 0 };
   unsigned char read_content_hash[crypto_generichash_BYTES] = { 0 };
 
   if(!spooky_read_header(fp)) goto err;
-  if(!spooky_read_version(fp, &version)) goto err;
-  assert(version.major == SPOOKY_PACK_MAJOR_VERSION 
-      && version.minor == SPOOKY_PACK_MINOR_VERSION
-      && version.revision == SPOOKY_PACK_REVISION_VERSION
-      && version.subrevision == SPOOKY_PACK_SUBREVISION_VERSION
+  if(!spooky_read_version(fp, &spf.version)) goto err;
+  assert(spf.version.major == SPOOKY_PACK_MAJOR_VERSION 
+      && spf.version.minor == SPOOKY_PACK_MINOR_VERSION
+      && spf.version.revision == SPOOKY_PACK_REVISION_VERSION
+      && spf.version.subrevision == SPOOKY_PACK_SUBREVISION_VERSION
       );
 
-  if(!spooky_read_uint64(fp, content_offset)) goto err;
-  assert(*content_offset == SPOOKY_CONTENT_OFFSET);
-  assert(*content_offset > 0 && *content_offset <= LONG_MAX);
+  if(!spooky_read_uint64(fp, &spf.content_offset)) goto err;
+  assert(spf.content_offset == SPOOKY_CONTENT_OFFSET);
+  assert(spf.content_offset > 0 && spf.content_offset <= LONG_MAX);
 
-  if(!spooky_read_uint64(fp, content_len)) goto err;
-  assert(*content_len > 0 && *content_len <= LONG_MAX);
+  if(!spooky_read_uint64(fp, &spf.content_len)) goto err;
+  assert(spf.content_len > 0 && spf.content_len <= LONG_MAX);
 
-  uint64_t index_offset = 0, index_len = 0;
-  if(!spooky_read_uint64(fp, &index_offset)) goto err;
-  if(!spooky_read_uint64(fp, &index_len)) goto err;
-  assert(index_offset == 0 && index_len == 0);
+  if(!spooky_read_uint64(fp, &spf.index_offset)) goto err;
+  if(!spooky_read_uint64(fp, &spf.index_len)) goto err;
+  assert(spf.index_offset == 0 && spf.index_len == 0);
 
   if(!spooky_read_hash(fp, content_hash, crypto_generichash_BYTES)) goto err;
 
-  fseek(fp, *pak_offset + (long)(*content_offset), SEEK_SET);
+  fseek(fp, *pak_offset + (long)(spf.content_offset), SEEK_SET);
   { 
     /* generate read content hash */
-    unsigned char * buf = calloc(*content_len, sizeof * buf);
+    unsigned char * buf = calloc(spf.content_len, sizeof * buf);
     if(!buf) { abort(); }
 
-    size_t hir = fread(buf, sizeof * buf, *content_len, fp);
-    assert(hir && hir == *content_len);
+    size_t hir = fread(buf, sizeof * buf, spf.content_len, fp);
+    assert(hir && hir == spf.content_len);
 
     if(!(hir > 0 && ferror(fp) == 0)) { abort(); }
 
-    crypto_generichash(read_content_hash, crypto_generichash_BYTES, buf, (size_t)(*content_len), NULL, 0);
+    crypto_generichash(read_content_hash, crypto_generichash_BYTES, buf, (size_t)(spf.content_len), NULL, 0);
 
     free(buf), buf = NULL;
   }
@@ -1130,11 +1136,14 @@ errno_t spooky_pack_is_valid_pak_file(FILE * fp, long * pak_offset, uint64_t * c
   }
 
   uint64_t magic = 0;
-  fseek(fp, *pak_offset + (long)(*content_offset), SEEK_SET);
+  fseek(fp, *pak_offset + (long)(spf.content_offset), SEEK_SET);
   spooky_read_uint64(fp, &magic);
   if(magic != SPOOKY_ITEM_MAGIC) { goto err; }
   assert(magic == SPOOKY_ITEM_MAGIC);
 
+  *content_offset = spf.content_offset;
+  *content_len = spf.content_len;
+  
   return SP_SUCCESS;
 
 err:
