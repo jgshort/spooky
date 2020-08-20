@@ -890,35 +890,44 @@ bool spooky_pack_create(FILE * fp) {
   spooky_write_uint64(SPOOKY_ITEM_MAGIC, fp, &spf.content_len);
 
   /* Actual pak content */
-  spooky_pack_index_entry entries[4];
-  spooky_pack_index_entry * entry = &(entries[0]);
+  spooky_pack_index_entry entries[5];
+  spooky_pack_index_entry * entry = NULL; 
 
   long offset = ftell(fp);
   assert(offset > 0);
 
-  spooky_write_file("res/fonts/PRNumber3.ttf", "foo", fp, &spf.content_len);
-  entry->name = strndup("foo", 3); entry->offset = (uint64_t)offset; entry->len = spf.content_len - (uint64_t)offset;
+  entry = &(entries[0]);
+  spooky_write_file("res/fonts/PRNumber3.ttf", "pr.number", fp, &spf.content_len);
+  entry->name = strdup("pr.number"); entry->offset = (uint64_t)offset; entry->len = spf.content_len - (uint64_t)offset;
 
   offset = ftell(fp);
   assert(offset > 0);
 
   entry = &(entries[1]);
-  spooky_write_file("res/fonts/PrintChar21.ttf", "bar", fp, &spf.content_len);
-  entry->name = strndup("bar", 3); entry->offset = (uint64_t)offset; entry->len = spf.content_len - (uint64_t)offset;
+  spooky_write_file("res/fonts/PrintChar21.ttf", "print.char", fp, &spf.content_len);
+  entry->name = strdup("print.char"); entry->offset = (uint64_t)offset; entry->len = spf.content_len - (uint64_t)offset;
 
   offset = ftell(fp);
   assert(offset > 0);
 
   entry = &(entries[2]);
-  spooky_write_file("res/fonts/DejaVuSansMono.ttf", "baz",  fp, &spf.content_len);
-  entry->name = strndup("baz", 3); entry->offset = (uint64_t)offset; entry->len = spf.content_len - (uint64_t)offset;
+  spooky_write_file("res/fonts/DejaVuSansMono.ttf", "deja.sans.mono",  fp, &spf.content_len);
+  entry->name = strdup("deja.sans.mono"); entry->offset = (uint64_t)offset; entry->len = spf.content_len - (uint64_t)offset;
 
   offset = ftell(fp);
   assert(offset > 0);
 
   entry = &(entries[3]);
-  spooky_write_file("res/fonts/SIL Open Font License.txt", "buz", fp, &spf.content_len);
-  entry->name = strndup("buz", 3); entry->offset = (uint64_t)offset; entry->len = spf.content_len - (uint64_t)offset;
+  spooky_write_file("res/fonts/SIL Open Font License.txt", "open.font.license", fp, &spf.content_len);
+  entry->name = strdup("open.font.license"); entry->offset = (uint64_t)offset; entry->len = spf.content_len - (uint64_t)offset;
+
+  offset = ftell(fp);
+  assert(offset > 0);
+
+  entry = &(entries[4]);
+  spooky_write_file("res/fonts/deja-license.txt", "deja.license", fp, &spf.content_len);
+  entry->name = strdup("deja.license"); entry->offset = (uint64_t)offset; entry->len = spf.content_len - (uint64_t)offset;
+
 
   /* Update Content Length */
   fseek(fp, sizeof spf.header + sizeof spf.version + sizeof SPOOKY_CONTENT_OFFSET, SEEK_SET);
@@ -1072,6 +1081,8 @@ errno_t spooky_pack_print_resources(FILE * dest, FILE * fp) {
 
     fprintf(dest, "Magic: 0x%" PRIx64 "\n", magic);
     
+    spooky_pack_print_file_stats(fp);
+    spooky_pack_print_file_stats(fp);
     spooky_pack_print_file_stats(fp);
     spooky_pack_print_file_stats(fp);
     spooky_pack_print_file_stats(fp);
@@ -1277,9 +1288,11 @@ errno_t spooky_pack_verify(FILE * fp) {
   if(!spooky_read_file(fp, &file)) { goto err2; }
   if(!spooky_read_file(fp, &file)) { goto err2; }
   if(!spooky_read_file(fp, &file)) { goto err2; }
+  if(!spooky_read_file(fp, &file)) { goto err2; }
 
   /* TODO: */
   spooky_pack_index_entry entry;
+  spooky_read_index_entry(fp, &entry);
   spooky_read_index_entry(fp, &entry);
   spooky_read_index_entry(fp, &entry);
   spooky_read_index_entry(fp, &entry);
