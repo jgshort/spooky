@@ -44,7 +44,8 @@ int main(int argc, char **argv) {
   uint64_t content_offset = 0, content_len = 0, index_offset = 0, index_len = 0;
 
   { /* check if we're a bundled exec + pak file */
-    int fd = open(argv[0], O_RDWR | O_EXCL, S_IRUSR | S_IWUSR);
+    fprintf(stdout, "%s\n", argv[0]);
+    int fd = open(argv[0], O_RDONLY | O_EXCL, S_IRUSR | S_IWUSR);
     if(fd >= 0) {
       fp = fdopen(fd, "rb");
       if(fp) {
@@ -58,8 +59,8 @@ int main(int argc, char **argv) {
         } else {
           fprintf(stdout, "Valid bundle in %s\n", argv[0]);
         }
-      }
-    }
+      } else { fprintf(stderr, "Unable to open file descriptor\n"); }
+    } else { fprintf(stderr, "Unable to open file\n"); }
   }
 
   if(!fp) {
