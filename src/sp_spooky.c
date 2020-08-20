@@ -41,7 +41,7 @@ int main(int argc, char **argv) {
   FILE * fp = NULL;
 
   long pak_offset = 0;
-  uint64_t content_offset = 0, content_len = 0;
+  uint64_t content_offset = 0, content_len = 0, index_offset = 0, index_len = 0;
 
   { /* check if we're a bundled exec + pak file */
     int fd = open(argv[0], O_RDWR | O_EXCL, S_IRUSR | S_IWUSR);
@@ -49,7 +49,7 @@ int main(int argc, char **argv) {
       fp = fdopen(fd, "rb");
       if(fp) {
         fprintf(stdout, "Reading pack file from %s\n", argv[0]);
-        errno_t is_valid = spooky_pack_is_valid_pak_file(fp, &pak_offset, &content_offset, &content_len);
+        errno_t is_valid = spooky_pack_is_valid_pak_file(fp, &pak_offset, &content_offset, &content_len, &index_offset, &index_len);
         if(is_valid != SP_SUCCESS) {
           fclose(fp);
           fp = NULL;
@@ -84,7 +84,7 @@ int main(int argc, char **argv) {
       spooky_pack_create(fp);
     }
     fseek(fp, 0, SEEK_SET);
-    errno_t is_valid = spooky_pack_is_valid_pak_file(fp, &pak_offset, &content_offset, &content_len);
+    errno_t is_valid = spooky_pack_is_valid_pak_file(fp, &pak_offset, &content_offset, &content_len, &index_offset, &index_len);
     assert(is_valid == SP_SUCCESS);
   }
 
