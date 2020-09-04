@@ -90,13 +90,27 @@ int main(int argc, char **argv) {
   }
 
   fseek(fp, pak_offset, SEEK_SET);
-  errno_t res = spooky_pack_verify(fp);
+  const spooky_hash_table * hash = spooky_hash_table_acquire();
+  hash = hash->ctor(hash);
+  errno_t res = spooky_pack_verify(fp, hash);
   if(res != SP_SUCCESS) {
     fprintf(stderr, "The resource pack is invalid.\n");
     fclose(fp);
     return EXIT_FAILURE;
   }
+  
+  spooky_pack_item_file * font = NULL;
+  void * temp = NULL;
+  hash->find(hash, "pr.number", strlen("pr.number"), &temp);
+  font = (spooky_pack_item_file *)temp;
 
+  SDL_RWops * src = SDL_RWFromMem((void *)font->data, (int)font->data_len);
+  assert(src);
+  TTF_Init();
+  TTF_Font * ttf = TTF_OpenFontRW(src, 0, 10);
+  
+  assert(ttf);
+  fprintf(stdout, "Font Height: %i\n", TTF_FontHeight(ttf));
   fprintf(stdout, "Okay!\n");
 
   fseek(fp, 0, SEEK_SET);

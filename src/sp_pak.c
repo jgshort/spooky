@@ -16,6 +16,7 @@
 #include "sp_error.h"
 #include "sp_pak.h"
 #include "sp_math.h"
+#include "sp_hash.h"
 
 const unsigned long SPOOKY_CONTENT_OFFSET = 0x100;
 
@@ -75,6 +76,19 @@ typedef enum spooky_pack_item_type /* unsigned char */ {
   spit_eof = UCHAR_MAX 
 } spooky_pack_item_type;
 
+typedef struct spooky_pack_item_bin_file {
+  uint64_t decompressed_len;
+  uint64_t compressed_len;
+  unsigned char decompressed_hash[crypto_generichash_BYTES];
+  unsigned char compressed_hash[crypto_generichash_BYTES];
+  char * file_path;
+  char * key;
+  char * data; 
+  size_t data_len;
+  spooky_pack_item_type type;
+  char padding[4]; /* non-portable */
+} spooky_pack_item_bin_file;
+
 typedef struct spooky_pack_version {
   uint16_t major;
   uint16_t minor;
@@ -104,8 +118,7 @@ static void spooky_pack_print_file_stats(FILE * fp);
 
 /* Writers */
 static bool spooky_write_raw(void * value, size_t len, FILE * fp);
-static bool spooky_write_item_type(spooky_pack_item_type type, FILE * fp, uint64_t * content_len);
-static bool spooky_write_file(const char * file_path, const char * key, FILE * fp, uint64_t * content_len);
+
 static bool spooky_write_char(char value, FILE * fp, uint64_t * content_len);
 static bool spooky_write_uint8(uint8_t value, FILE * fp, uint64_t * content_len);
 static bool spooky_write_int8(int8_t value, FILE * fp, uint64_t * content_len);
@@ -117,16 +130,19 @@ static bool spooky_write_uint64(uint64_t value, FILE * fp, uint64_t * content_le
 static bool spooky_write_int64(int64_t value, FILE * fp, uint64_t * content_len);
 static bool spooky_write_bool(bool value, FILE * fp, uint64_t * content_len);
 static bool spooky_write_float(float value, FILE * fp, uint64_t * content_len);
+
+static bool spooky_write_item_type(spooky_pack_item_type type, FILE * fp, uint64_t * content_len);
+static bool spooky_write_file(const char * file_path, const char * key, FILE * fp, uint64_t * content_len);
 static bool spooky_write_string(const char * value, FILE * fp, uint64_t * content_len);
 static bool spooky_write_fixed_width_string(const char * value, size_t fixed_width, FILE * fp, uint64_t * content_len);
 static bool spooky_write_version(spooky_pack_version version, FILE * fp, uint64_t * content_len);
 static bool spooky_write_index_entry(spooky_pack_index_entry * entry, FILE * fp, uint64_t * content_len);
-
 static bool spooky_write_hash(const unsigned char * buf, size_t buf_len, FILE * fp, uint64_t * content_len);
 
 /* Readers */
-static bool spooky_read_item_type(FILE * fp, spooky_pack_item_type * item_type);
 static bool spooky_read_raw(FILE * fp, size_t len, void * buf);
+
+static bool spooky_read_char(FILE * fp, char * value);
 static bool spooky_read_uint8(FILE * fp, uint8_t * value);
 static bool spooky_read_int8(FILE * fp, int8_t * value);
 static bool spooky_read_uint16(FILE * fp, uint16_t * value);
@@ -136,12 +152,18 @@ static bool spooky_read_int32(FILE * fp, int32_t * value);
 static bool spooky_read_uint64(FILE * fp, uint64_t * value);
 static bool spooky_read_int64(FILE * fp, int64_t * value);
 static bool spooky_read_bool(FILE * fp, bool * value);
-/* static bool spooky_read_float(FILE * fp, float * value); */
+// TODO: read_float
+
+static bool spooky_read_item_type(FILE * fp, spooky_pack_item_type * item_type);
+static bool spooky_read_file(FILE * fp, spooky_pack_item_bin_file * file);
 static bool spooky_read_string(FILE * fp, char ** value, size_t * value_len);
-static bool spooky_read_header(FILE * fp);
+// TODO: read_fixed_width_string
 static bool spooky_read_version(FILE * fp, spooky_pack_version *version);
-static bool spooky_read_footer(FILE * fp);
 static bool spooky_read_index_entry(FILE * fp, spooky_pack_index_entry * entry);
+static bool spooky_read_hash(FILE * fp, unsigned char * buf, size_t buf_len);
+
+static bool spooky_read_footer(FILE * fp);
+static bool spooky_read_header(FILE * fp);
 
 static bool spooky_write_raw(void * value, size_t len, FILE * fp) {
   assert(fp && value);
@@ -231,18 +253,6 @@ static bool spooky_read_string(FILE * fp, char ** value, size_t * value_len) {
 
   return true;
 }
-
-typedef struct spooky_pack_item_bin_file {
-  uint64_t decompressed_len;
-  uint64_t compressed_len;
-  unsigned char decompressed_hash[crypto_generichash_BYTES];
-  unsigned char compressed_hash[crypto_generichash_BYTES];
-  char * file_path;
-  char * key;
-  char * data; 
-  spooky_pack_item_type type;
-  char padding[4]; /* non-portable */
-} spooky_pack_item_bin_file;
 
 static bool spooky_read_file(FILE * fp, spooky_pack_item_bin_file * file) {
   assert(fp);
@@ -374,6 +384,7 @@ static bool spooky_read_file(FILE * fp, spooky_pack_item_bin_file * file) {
   file->file_path = file_path;
   file->key = key;
   file->data = decompressed_data_copy;
+  file->data_len = (size_t)decompressed_len;
   return true;
 }
 
@@ -500,7 +511,6 @@ bool spooky_read_index_entry(FILE * fp, spooky_pack_index_entry * entry) {
 err:
   return false;
 }
-
 
 static bool spooky_write_char(char value, FILE * fp, uint64_t * content_len) {
   if(content_len != NULL) { *content_len += sizeof value; }
@@ -694,7 +704,21 @@ static bool spooky_write_float(float value, FILE * fp, uint64_t * content_len) {
   return spooky_write_string(buf, fp, content_len);
 }
 
+static bool spooky_read_char(FILE * fp, char * value) {
+  if(feof(fp) != 0) return false;
+
+	char c;
+  size_t hir = fread(&c, sizeof c, 1, fp);
+  assert(hir == sizeof *value);
+
+	*value = c;
+ 
+  return hir == sizeof *value && ferror(fp) == 0;
+}
+
 static bool spooky_read_uint8(FILE * fp, uint8_t * value) {
+  (void)spooky_read_char;
+
   if(feof(fp) != 0) return false;
 
 	uint8_t byte;
@@ -1262,8 +1286,10 @@ err:
   return -1;
 }
 
-errno_t spooky_pack_verify(FILE * fp) {
+errno_t spooky_pack_verify(FILE * fp, const spooky_hash_table * hash) {
   if(!fp) { return SP_FAILURE; }
+  if(!hash) { return SP_FAILURE; }
+
   SPOOKY_SET_BINARY_MODE(fp);
 
   uint64_t content_offset = 0;  
@@ -1283,12 +1309,15 @@ errno_t spooky_pack_verify(FILE * fp) {
   if(magic != SPOOKY_ITEM_MAGIC) { goto err2; }
   assert(magic == SPOOKY_ITEM_MAGIC);
 
-  spooky_pack_item_bin_file file;
-  if(!spooky_read_file(fp, &file)) { goto err2; }
-  if(!spooky_read_file(fp, &file)) { goto err2; }
-  if(!spooky_read_file(fp, &file)) { goto err2; }
-  if(!spooky_read_file(fp, &file)) { goto err2; }
-  if(!spooky_read_file(fp, &file)) { goto err2; }
+  for(int i = 0; i < 5; i++) {
+    spooky_pack_item_bin_file file = { 0 };
+    spooky_pack_item_file * pub = calloc(1, sizeof * pub);
+
+    if(!spooky_read_file(fp, &file)) { goto err2; }
+    pub->data = file.data;
+    pub->data_len = file.decompressed_len;
+    hash->ensure(hash, file.key, strnlen(file.key, SPOOKY_MAX_STRING_LEN), pub, NULL);
+  }
 
   /* TODO: */
   spooky_pack_index_entry entry;
