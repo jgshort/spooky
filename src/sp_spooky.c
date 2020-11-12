@@ -82,7 +82,15 @@ int main(int argc, char **argv) {
 
     if(create) {
       /* only create it if it's not already a valid pak file */
-      spooky_pack_create(fp);
+      spooky_pack_content_entry content[5] = {
+        { .path = "res/fonts/PRNumber3.ttf", .name = "pr.number" },
+        { .path = "res/fonts/PrintChar21.ttf", .name = "print.char" },
+        { .path = "res/fonts/DejaVuSansMono.ttf", .name = "deja.sans.mono" },
+        { .path = "res/fonts/SIL Open Font License.txt", .name = "open.font.license" },
+        { .path = "res/fonts/deja-license.txt", .name = "deja.license" }
+      };
+
+      spooky_pack_create(fp, content, 5);
     }
     fseek(fp, 0, SEEK_SET);
     errno_t is_valid = spooky_pack_is_valid_pak_file(fp, &pak_offset, &content_offset, &content_len, &index_offset, &index_len);

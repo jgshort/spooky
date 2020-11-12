@@ -869,7 +869,9 @@ static bool spooky_read_footer(FILE * fp) {
   return eq;
 }
 
-bool spooky_pack_create(FILE * fp) {
+bool spooky_pack_create(FILE * fp, const spooky_pack_content_entry * content, size_t content_len) {
+  assert(content_len > 0 && content != NULL);
+
   const unsigned char * P = SPOOKY_PUMPKIN;
   SPOOKY_SET_BINARY_MODE(fp);
   spooky_pack_file spf = {
@@ -914,44 +916,26 @@ bool spooky_pack_create(FILE * fp) {
   spooky_write_uint64(SPOOKY_ITEM_MAGIC, fp, &spf.content_len);
 
   /* Actual pak content */
-  spooky_pack_index_entry entries[5];
+  assert(content_len < 1024); /* Arbitrary number is arbitrary */
+
+  spooky_pack_index_entry * entries = calloc(sizeof * entries, content_len);
   spooky_pack_index_entry * entry = NULL; 
 
   long offset = ftell(fp);
   assert(offset > 0);
 
-  entry = &(entries[0]);
-  spooky_write_file("res/fonts/PRNumber3.ttf", "pr.number", fp, &spf.content_len);
-  entry->name = strdup("pr.number"); entry->offset = (uint64_t)offset; entry->len = spf.content_len - (uint64_t)offset;
-
-  offset = ftell(fp);
-  assert(offset > 0);
-
-  entry = &(entries[1]);
-  spooky_write_file("res/fonts/PrintChar21.ttf", "print.char", fp, &spf.content_len);
-  entry->name = strdup("print.char"); entry->offset = (uint64_t)offset; entry->len = spf.content_len - (uint64_t)offset;
-
-  offset = ftell(fp);
-  assert(offset > 0);
-
-  entry = &(entries[2]);
-  spooky_write_file("res/fonts/DejaVuSansMono.ttf", "deja.sans.mono",  fp, &spf.content_len);
-  entry->name = strdup("deja.sans.mono"); entry->offset = (uint64_t)offset; entry->len = spf.content_len - (uint64_t)offset;
-
-  offset = ftell(fp);
-  assert(offset > 0);
-
-  entry = &(entries[3]);
-  spooky_write_file("res/fonts/SIL Open Font License.txt", "open.font.license", fp, &spf.content_len);
-  entry->name = strdup("open.font.license"); entry->offset = (uint64_t)offset; entry->len = spf.content_len - (uint64_t)offset;
-
-  offset = ftell(fp);
-  assert(offset > 0);
-
-  entry = &(entries[4]);
-  spooky_write_file("res/fonts/deja-license.txt", "deja.license", fp, &spf.content_len);
-  entry->name = strdup("deja.license"); entry->offset = (uint64_t)offset; entry->len = spf.content_len - (uint64_t)offset;
-
+  for(size_t i = 0; i < content_len; i++) {
+    entry = entries + i;
+    const spooky_pack_content_entry * e = content + i;
+    /* write the content entry... */
+    spooky_write_file(e->path, e->name, fp, &spf.content_len);
+    /* ... and setup the index entry */
+    entry->name = strndup(e->name, SPOOKY_MAX_STRING_LEN);
+    entry->offset = (uint64_t)offset;
+    entry->len = spf.content_len - (uint64_t)offset;
+    offset = ftell(fp);
+    assert(offset > 0);
+  }
 
   /* Update Content Length */
   fseek(fp, sizeof spf.header + sizeof spf.version + sizeof SPOOKY_CONTENT_OFFSET, SEEK_SET);
@@ -990,8 +974,8 @@ bool spooky_pack_create(FILE * fp) {
   fseek(fp, 0, SEEK_END);
   long index_offset = ftell(fp);
   uint64_t index_len = 0;
-  for(size_t i = 0; i < sizeof entries / sizeof entries[0]; i++) {
-    spooky_pack_index_entry * e = &(entries[i]);
+  for(size_t i = 0; i < content_len; i++) {
+    spooky_pack_index_entry * e = entries + i;
     fprintf(stdout, "Index written for %s\n", e->name);
     spooky_write_index_entry(e, fp, &index_len);
     free(e->name), e->name = NULL;
