@@ -32,10 +32,18 @@
 static errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex);
 static errno_t spooky_command_parser(spooky_context * context, const spooky_console * console, const spooky_log * log, const char * command) ;
 
+typedef struct spooky_options {
+  bool print_licenses;
+  char padding[7];
+} spooky_options;
+
+static errno_t spooky_parse_args(int argc, char ** argv, spooky_options * options);
+
 int main(int argc, char **argv) {
-  (void)argc;
-  (void)argv;
- 
+  spooky_options options = { 0 };
+  
+  spooky_parse_args(argc, argv, &options);
+
   spooky_pack_tests();
 
   FILE * fp = NULL;
@@ -44,7 +52,6 @@ int main(int argc, char **argv) {
   uint64_t content_offset = 0, content_len = 0, index_offset = 0, index_len = 0;
 
   { /* check if we're a bundled exec + pak file */
-    fprintf(stdout, "%s\n", argv[0]);
     int fd = open(argv[0], O_RDONLY | O_EXCL, S_IRUSR | S_IWUSR);
     if(fd >= 0) {
       fp = fdopen(fd, "rb");
@@ -56,11 +63,9 @@ int main(int argc, char **argv) {
           fp = NULL;
           /* not a valid bundle */
           fprintf(stdout, "Invalid bundle in %s\n", argv[0]);
-        } else {
-          fprintf(stdout, "Valid bundle in %s\n", argv[0]);
         }
-      } else { fprintf(stderr, "Unable to open file descriptor\n"); }
-    } else { fprintf(stderr, "Unable to open file\n"); }
+      } else { fprintf(stderr, "Unable to open file %s\n", argv[0]); }
+    } else { fprintf(stderr, "Unable to open file %s\n", argv[0]); }
   }
 
   if(!fp) {
@@ -74,7 +79,7 @@ int main(int argc, char **argv) {
         fd = open(pak_file, O_RDWR | O_EXCL, S_IRUSR | S_IWUSR);
       }
     } else {
-      /* doens't already exist; empty file... populate it */
+      /* doesn't already exist; empty file... populate it */
       create = true;
     }
 
@@ -82,7 +87,7 @@ int main(int argc, char **argv) {
 
     if(create) {
       /* only create it if it's not already a valid pak file */
-      spooky_pack_content_entry content[5] = {
+      spooky_pack_content_entry content[] = {
         { .path = "res/fonts/PRNumber3.ttf", .name = "pr.number" },
         { .path = "res/fonts/PrintChar21.ttf", .name = "print.char" },
         { .path = "res/fonts/DejaVuSansMono.ttf", .name = "deja.sans.mono" },
@@ -90,7 +95,7 @@ int main(int argc, char **argv) {
         { .path = "res/fonts/deja-license.txt", .name = "deja.license" }
       };
 
-      spooky_pack_create(fp, content, 5);
+      spooky_pack_create(fp, content, sizeof content / sizeof content[0]);
     }
     fseek(fp, 0, SEEK_SET);
     errno_t is_valid = spooky_pack_is_valid_pak_file(fp, &pak_offset, &content_offset, &content_len, &index_offset, &index_len);
@@ -106,23 +111,48 @@ int main(int argc, char **argv) {
     fclose(fp);
     return EXIT_FAILURE;
   }
-  
-  spooky_pack_item_file * font = NULL;
+ 
   void * temp = NULL;
-  hash->find(hash, "pr.number", strlen("pr.number"), &temp);
-  font = (spooky_pack_item_file *)temp;
+ 
+  {
+    spooky_pack_item_file * font = NULL;
+    hash->find(hash, "pr.number", strnlen("pr.number", SPOOKY_MAX_STRING_LEN), &temp);
+    font = (spooky_pack_item_file *)temp;
 
-  SDL_RWops * src = SDL_RWFromMem((void *)font->data, (int)font->data_len);
-  assert(src);
-  TTF_Init();
-  TTF_Font * ttf = TTF_OpenFontRW(src, 0, 10);
-  
-  assert(ttf);
-  fprintf(stdout, "Font Height: %i\n", TTF_FontHeight(ttf));
-  fprintf(stdout, "Okay!\n");
+    SDL_RWops * src = SDL_RWFromMem(font->data, (int)font->data_len);
+    assert(src);
+    TTF_Init();
+    TTF_Font * ttf = TTF_OpenFontRW(src, 0, 10);
+    
+    assert(ttf);
+    fprintf(stdout, "Font Height: %i\n", TTF_FontHeight(ttf));
+    fprintf(stdout, "Okay!\n");
+  }
 
-  fseek(fp, 0, SEEK_SET);
-  spooky_pack_print_resources(stdout, fp);
+  if(options.print_licenses) {
+    fprintf(stdout, "Licenses:\n");
+    fprintf(stdout, "*********************************************************************************\n");
+    char * deja_license;
+    hash->find(hash, "deja.license", strnlen("deja.license", SPOOKY_MAX_STRING_LEN), &temp);
+    deja_license = strndup(((spooky_pack_item_file *)temp)->data, ((spooky_pack_item_file *)temp)->data_len);
+    
+    char * open_license;
+    hash->find(hash, "open.font.license", strnlen("open.font.license", SPOOKY_MAX_STRING_LEN), &temp);
+    open_license = strndup(((spooky_pack_item_file *)temp)->data, ((spooky_pack_item_file *)temp)->data_len);
+    
+    fprintf(stdout, "%s\n\n%s\n", open_license, deja_license);
+    fprintf(stdout, "*********************************************************************************\n");
+    free(deja_license), deja_license = NULL;
+    free(open_license), open_license = NULL;
+  }
+
+  {
+#ifdef DEBUG
+    /* Print out the pak file resources: */
+    fseek(fp, 0, SEEK_SET);
+    spooky_pack_print_resources(stdout, fp);
+#endif
+  }
 
   fclose(fp);
 
@@ -563,5 +593,27 @@ errno_t spooky_command_parser(spooky_context * context, const spooky_console * c
   }
 
   return SP_SUCCESS;
+}
+
+static errno_t spooky_parse_args(int argc, char ** argv, spooky_options * options) {
+  if(argc <= 1) { goto err0; }
+  for(int i = 0; i < argc; i++) {
+    if(argv[i][0] == '-') {
+      if(i + 1 > argc) { goto err0; }
+      switch (argv[i][1]) {
+        /* case 'p': { options->gen_primes = true; return SP_SUCCESS; }
+        case 'E': { options->exercise_hash = true; return SP_SUCCESS; }
+        case 'i': options->ifile = argv[i + 1]; break;
+        case 'o': options->ofile = argv[i + 1]; break; */
+        case 'L': options->print_licenses = true; break;
+        default: goto err0;
+      }
+    }
+  }
+
+  return SP_SUCCESS;
+
+err0:
+  return SP_FAILURE;
 }
 
