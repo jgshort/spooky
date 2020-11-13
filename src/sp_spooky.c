@@ -56,13 +56,11 @@ int main(int argc, char **argv) {
     if(fd >= 0) {
       fp = fdopen(fd, "rb");
       if(fp) {
-        fprintf(stdout, "Reading pack file from %s\n", argv[0]);
         errno_t is_valid = spooky_pack_is_valid_pak_file(fp, &pak_offset, &content_offset, &content_len, &index_offset, &index_len);
         if(is_valid != SP_SUCCESS) {
           fclose(fp);
           fp = NULL;
           /* not a valid bundle */
-          fprintf(stdout, "Invalid bundle in %s\n", argv[0]);
         }
       } else { fprintf(stderr, "Unable to open file %s\n", argv[0]); }
     } else { fprintf(stderr, "Unable to open file %s\n", argv[0]); }
@@ -112,9 +110,10 @@ int main(int argc, char **argv) {
     return EXIT_FAILURE;
   }
  
-  void * temp = NULL;
- 
   {
+#ifdef DEBUG
+    void * temp = NULL;
+    /* Loading a font from the resource pak example */
     spooky_pack_item_file * font = NULL;
     hash->find(hash, "pr.number", strnlen("pr.number", SPOOKY_MAX_STRING_LEN), &temp);
     font = (spooky_pack_item_file *)temp;
@@ -127,23 +126,28 @@ int main(int argc, char **argv) {
     assert(ttf);
     fprintf(stdout, "Font Height: %i\n", TTF_FontHeight(ttf));
     fprintf(stdout, "Okay!\n");
+#endif
   }
 
   if(options.print_licenses) {
     fprintf(stdout, "Licenses:\n");
-    fprintf(stdout, "*********************************************************************************\n");
-    char * deja_license;
-    hash->find(hash, "deja.license", strnlen("deja.license", SPOOKY_MAX_STRING_LEN), &temp);
-    deja_license = strndup(((spooky_pack_item_file *)temp)->data, ((spooky_pack_item_file *)temp)->data_len);
+    fprintf(stdout, "********************************************************************************\n");
+
+    spooky_pack_item_file * temp = NULL; 
+    char * deja_license = NULL, * open_license = NULL;
+    if(hash->find(hash, "deja.license", strnlen("deja.license", SPOOKY_MAX_STRING_LEN), ((void *)&temp)) == SP_SUCCESS) {
+      deja_license = strndup(temp->data, temp->data_len);
+    } 
     
-    char * open_license;
-    hash->find(hash, "open.font.license", strnlen("open.font.license", SPOOKY_MAX_STRING_LEN), &temp);
-    open_license = strndup(((spooky_pack_item_file *)temp)->data, ((spooky_pack_item_file *)temp)->data_len);
+    if(hash->find(hash, "open.font.license", strnlen("open.font.license", SPOOKY_MAX_STRING_LEN), ((void *)&temp)) == SP_SUCCESS) {
+      open_license = strndup(temp->data, temp->data_len);
+    }
     
     fprintf(stdout, "%s\n\n%s\n", open_license, deja_license);
-    fprintf(stdout, "*********************************************************************************\n");
     free(deja_license), deja_license = NULL;
     free(open_license), open_license = NULL;
+
+    fprintf(stdout, "********************************************************************************\n");
   }
 
   {
