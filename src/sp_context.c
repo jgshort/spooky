@@ -331,7 +331,7 @@ void spooky_release_context(spooky_context * context) {
   if(context) {
     spooky_context_data * data = context->data;
     
-    spooky_hash_table_release(data->hash);
+    spooky_hash_table_release(data->hash, NULL);
 
     for(size_t i = 0; i < SPOOKY_FONT_MAX_TYPES; i++) {
       if(data->fonts[i] != NULL) {

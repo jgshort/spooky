@@ -239,7 +239,21 @@ void spooky_hash_clear_buckets(const spooky_hash_table * self) {
   free(impl->buckets), impl->buckets = NULL;
 }
 
-const spooky_hash_table * spooky_hash_table_dtor(const spooky_hash_table * self) {
+const spooky_hash_table * spooky_hash_table_dtor(const spooky_hash_table * self, const spooky_hash_free_item free_item_fn) {
+  if(free_item_fn != NULL) {
+    /* Free allocated items */
+    for(size_t i = 0; i < self->impl->buckets_limits.len; i++) {
+      const spooky_hash_bucket * bucket = &(self->impl->buckets[i]);
+      size_t x = bucket->items_limits.len;
+      for(size_t j = 0; j < x; j++) {
+        void * item = bucket->items[j].value;
+        if(item) {
+          free_item_fn(item);
+        }
+      }
+    }
+  }
+
   spooky_hash_clear_buckets(self);
   spooky_hash_clear_strings(self);
 
@@ -251,8 +265,8 @@ void spooky_hash_table_free(const spooky_hash_table * self) {
   free((void *)(uintptr_t)self), self = NULL;
 }
 
-void spooky_hash_table_release(const spooky_hash_table * self) {
-  self->free(self->dtor(self));
+void spooky_hash_table_release(const spooky_hash_table * self, const spooky_hash_free_item free_item_fn) {
+  self->free(self->dtor(self, free_item_fn));
 }
 
 static inline uint64_t spooky_hash_get_index(const spooky_hash_table * self, uint64_t hash) {

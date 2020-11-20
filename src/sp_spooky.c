@@ -39,6 +39,19 @@ typedef struct spooky_options {
 
 static errno_t spooky_parse_args(int argc, char ** argv, spooky_options * options);
 
+void spooky_index_free_item(void * item) {
+  if(item) {
+    spooky_pack_item_file * pub = item;
+    if(pub) {
+      if(pub->data) {
+        free(pub->data), pub->data = NULL;
+        pub->data_len = 0;
+      }
+      free(pub), pub = NULL;
+    }
+  }
+}
+
 int main(int argc, char **argv) {
   spooky_options options = { 0 };
   
@@ -49,14 +62,14 @@ int main(int argc, char **argv) {
   FILE * fp = NULL;
 
   long pak_offset = 0;
-  uint64_t content_offset = 0, content_len = 0, index_offset = 0, index_len = 0;
+  uint64_t content_offset = 0, content_len = 0, index_entries = 0, index_offset = 0, index_len = 0;
 
   { /* check if we're a bundled exec + pak file */
     int fd = open(argv[0], O_RDONLY | O_EXCL, S_IRUSR | S_IWUSR);
     if(fd >= 0) {
       fp = fdopen(fd, "rb");
       if(fp) {
-        errno_t is_valid = spooky_pack_is_valid_pak_file(fp, &pak_offset, &content_offset, &content_len, &index_offset, &index_len);
+        errno_t is_valid = spooky_pack_is_valid_pak_file(fp, &pak_offset, &content_offset, &content_len, &index_entries, &index_offset, &index_len);
         if(is_valid != SP_SUCCESS) {
           fclose(fp);
           fp = NULL;
@@ -96,9 +109,11 @@ int main(int argc, char **argv) {
       spooky_pack_create(fp, content, sizeof content / sizeof content[0]);
     }
     fseek(fp, 0, SEEK_SET);
-    errno_t is_valid = spooky_pack_is_valid_pak_file(fp, &pak_offset, &content_offset, &content_len, &index_offset, &index_len);
+    errno_t is_valid = spooky_pack_is_valid_pak_file(fp, &pak_offset, &content_offset, &content_len, &index_entries, &index_offset, &index_len);
     assert(is_valid == SP_SUCCESS);
   }
+
+  /* fprintf(stdout, "SPDB Stats: Content Offset:  %lu, Content Len: %lu, Index Entries: %lu, Index Offset:  %lu, Index Len: %lu\n", (size_t)content_offset, (size_t)content_len, (size_t)index_entries, (size_t)index_offset, (size_t)index_len); */
 
   fseek(fp, pak_offset, SEEK_SET);
   const spooky_hash_table * hash = spooky_hash_table_acquire();
@@ -159,6 +174,8 @@ int main(int argc, char **argv) {
   }
 
   fclose(fp);
+
+  spooky_hash_table_release(hash, &spooky_index_free_item);
 
   if(argv) { return 0; }
   spooky_context context = { 0 };
