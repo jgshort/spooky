@@ -38,7 +38,7 @@ typedef struct spooky_context {
   struct spooky_context_data * data;
 } spooky_context;
 
-errno_t spooky_init_context(spooky_context * context);
+errno_t spooky_init_context(spooky_context * context, FILE * fp);
 errno_t spooky_test_resources(const spooky_context * context);
 errno_t spooky_quit_context(spooky_context * context);
 

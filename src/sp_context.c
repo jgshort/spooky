@@ -6,6 +6,8 @@
 #include <math.h>
 
 #include "config.h"
+#include "sp_pak.h"
+#include "sp_limits.h"
 #include "sp_hash.h"
 #include "sp_context.h"
 #include "sp_error.h"
@@ -121,7 +123,20 @@ static const spooky_hash_table * spooky_context_get_hash(const spooky_context * 
   return context->data->hash;
 }
 
-errno_t spooky_init_context(spooky_context * context) {
+static void spooky_index_item_free_item(void * item) {
+  if(item) {
+    spooky_pack_item_file * pub = item;
+    if(pub) {
+      if(pub->data) {
+        free(pub->data), pub->data = NULL;
+        pub->data_len = 0;
+      }
+      free(pub), pub = NULL;
+    }
+  }
+}
+
+errno_t spooky_init_context(spooky_context * context, FILE * fp) {
   assert(!(context == NULL));
 
   if(context == NULL) { return SP_FAILURE; }
@@ -151,8 +166,17 @@ errno_t spooky_init_context(spooky_context * context) {
   fflush(stdout);
   const char * error_message = NULL;
 
+  const spooky_hash_table * hash = NULL;
   context->data->hash = spooky_hash_table_acquire();
   context->data->hash = context->data->hash->ctor(context->data->hash);
+  hash = context->data->hash;
+
+  errno_t res = spooky_pack_verify(fp, hash);
+  if(res != SP_SUCCESS) {
+    fprintf(stderr, "The resource pack is invalid.\n");
+    fclose(fp);
+    return EXIT_FAILURE;
+  }
 
   SDL_ClearError();
   /* allow high-DPI windows */
@@ -274,8 +298,18 @@ errno_t spooky_init_context(spooky_context * context) {
     do {
       assert(point_size > 0);
       assert(point_size <= (int)global_data.fonts_len[i]);
-      *next = spooky_font_acquire();
-      *next = (*next)->ctor(*next, renderer, spooky_default_font_name, point_size);
+
+      if(spooky_font_sizes[point_size] != 0) {
+        fprintf(stdout, "Opening %s at %ipt\n", spooky_default_font_name, point_size);
+        *next = spooky_font_acquire();
+
+        void * temp = NULL;
+        spooky_pack_item_file * font = NULL;
+        hash->find(hash, spooky_default_font_name, strnlen(spooky_default_font_name, SPOOKY_MAX_STRING_LEN), &temp);
+        font = (spooky_pack_item_file *)temp;
+
+        *next = (*next)->ctor(*next, renderer, font->data, font->data_len, point_size);
+      }
       point_size++;
     } while(++next < global_data.fonts[i] + global_data.fonts_len[i]);
   }
@@ -330,8 +364,8 @@ err0:
 void spooky_release_context(spooky_context * context) {
   if(context) {
     spooky_context_data * data = context->data;
-    
-    spooky_hash_table_release(data->hash, NULL);
+
+    spooky_hash_table_release(data->hash, &spooky_index_item_free_item);
 
     for(size_t i = 0; i < SPOOKY_FONT_MAX_TYPES; i++) {
       if(data->fonts[i] != NULL) {

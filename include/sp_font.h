@@ -3,7 +3,7 @@
 
 #include "sp_gui.h"
 
-#define SPOOKY_FONT_MAX_TYPES 3
+#define SPOOKY_FONT_MAX_TYPES 2
 
 extern const int spooky_default_font_size;
 extern const char * spooky_default_font_names[SPOOKY_FONT_MAX_TYPES];
@@ -12,7 +12,7 @@ struct spooky_font_data;
 typedef struct spooky_font spooky_font;
 
 typedef struct spooky_font {
-  const spooky_font * (*ctor)(const spooky_font * self, SDL_Renderer * renderer, const char * file_path, int point_size);
+  const spooky_font * (*ctor)(const spooky_font * self, SDL_Renderer * renderer, const void * mem, size_t mem_len, int point_size);
   const spooky_font * (*dtor)(const spooky_font * self);
   void (*free)(const spooky_font * self);
   void (*release)(const spooky_font * self);
@@ -47,7 +47,7 @@ const spooky_font * spooky_font_init(spooky_font * self);
 const spooky_font * spooky_font_acquire();
 
 /* Construct data */
-const spooky_font * spooky_font_ctor(const spooky_font * self, SDL_Renderer * renderer, const char * file_path, int point_size);
+const spooky_font * spooky_font_ctor(const spooky_font * self, SDL_Renderer * renderer, const void * mem, size_t mem_len, int point_size);
 
 /* Destruct data */
 const spooky_font * spooky_font_dtor(const spooky_font * self);

@@ -39,19 +39,6 @@ typedef struct spooky_options {
 
 static errno_t spooky_parse_args(int argc, char ** argv, spooky_options * options);
 
-void spooky_index_free_item(void * item) {
-  if(item) {
-    spooky_pack_item_file * pub = item;
-    if(pub) {
-      if(pub->data) {
-        free(pub->data), pub->data = NULL;
-        pub->data_len = 0;
-      }
-      free(pub), pub = NULL;
-    }
-  }
-}
-
 int main(int argc, char **argv) {
   spooky_options options = { 0 };
   
@@ -101,7 +88,7 @@ int main(int argc, char **argv) {
       spooky_pack_content_entry content[] = {
         { .path = "res/fonts/PRNumber3.ttf", .name = "pr.number" },
         { .path = "res/fonts/PrintChar21.ttf", .name = "print.char" },
-        { .path = "res/fonts/DejaVuSansMono.ttf", .name = "deja.sans.mono" },
+        //{ .path = "res/fonts/DejaVuSansMono.ttf", .name = "deja.sans.mono" },
         { .path = "res/fonts/SIL Open Font License.txt", .name = "open.font.license" },
         { .path = "res/fonts/deja-license.txt", .name = "deja.license" }
       };
@@ -113,18 +100,20 @@ int main(int argc, char **argv) {
     assert(is_valid == SP_SUCCESS);
   }
 
-  /* fprintf(stdout, "SPDB Stats: Content Offset:  %lu, Content Len: %lu, Index Entries: %lu, Index Offset:  %lu, Index Len: %lu\n", (size_t)content_offset, (size_t)content_len, (size_t)index_entries, (size_t)index_offset, (size_t)index_len); */
-
   fseek(fp, pak_offset, SEEK_SET);
-  const spooky_hash_table * hash = spooky_hash_table_acquire();
-  hash = hash->ctor(hash);
-  errno_t res = spooky_pack_verify(fp, hash);
-  if(res != SP_SUCCESS) {
-    fprintf(stderr, "The resource pack is invalid.\n");
-    fclose(fp);
-    return EXIT_FAILURE;
-  }
- 
+
+  spooky_context context = { 0 };
+  const spooky_ex * ex = NULL;
+
+  if(spooky_init_context(&context, fp) != SP_SUCCESS) { goto err0; }
+  if(spooky_test_resources(&context) != SP_SUCCESS) { goto err0; }
+
+  fprintf(stdout, "SPDB Stats: Content Offset:  %lu, Content Len: %lu, Index Entries: %lu, Index Offset:  %lu, Index Len: %lu\n", (size_t)content_offset, (size_t)content_len, (size_t)index_entries, (size_t)index_offset, (size_t)index_len);
+
+  const spooky_hash_table * hash = context.get_hash(&context);
+
+  fclose(fp);
+
   {
 #ifdef DEBUG
     void * temp = NULL;
@@ -173,16 +162,6 @@ int main(int argc, char **argv) {
 #endif
   }
 
-  fclose(fp);
-
-  spooky_hash_table_release(hash, &spooky_index_free_item);
-
-  if(argv) { return 0; }
-  spooky_context context = { 0 };
-
-  const spooky_ex * ex = NULL;
-  if(spooky_init_context(&context) != SP_SUCCESS) { goto err0; }
-  if(spooky_test_resources(&context) != SP_SUCCESS) { goto err0; }
   if(spooky_loop(&context, &ex) != SP_SUCCESS) { goto err1; }
   if(spooky_quit_context(&context) != SP_SUCCESS) { goto err2; }
 
@@ -227,14 +206,13 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
           fps = 0,
           seconds_since_start = 0;
 
-
-  const spooky_hash_table * hash = spooky_hash_table_acquire();
-  hash = hash->ctor(hash);
-
   uint64_t last_second_time = (uint64_t) (last_update_time / BILLION);
 
   SDL_Window * window = context->get_window(context);
+  assert(window);
+
   SDL_Renderer * renderer = context->get_renderer(context);
+  assert(renderer);
 
 #ifdef __APPLE__ 
   /* On OS X Mojave, screen will appear blank until a call to PumpEvents.
@@ -289,7 +267,7 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
   bool is_done = false, is_up = false, is_down = false;
  
   if(((const spooky_base *)debug)->add_child((const spooky_base *)debug, (const spooky_base *)help, ex) != SP_SUCCESS) { goto err1; }
-
+  
   log->prepend(log, "Logging enabled\n", SLS_INFO);
   int x_dir = 30, y_dir = 30;
   double interpolation = 0.0;

@@ -1104,7 +1104,7 @@ errno_t spooky_pack_print_resources(FILE * dest, FILE * fp) {
     
     spooky_pack_print_file_stats(fp);
     spooky_pack_print_file_stats(fp);
-    spooky_pack_print_file_stats(fp);
+    //spooky_pack_print_file_stats(fp);
     spooky_pack_print_file_stats(fp);
     spooky_pack_print_file_stats(fp);
 
@@ -1310,7 +1310,7 @@ errno_t spooky_pack_verify(FILE * fp, const spooky_hash_table * hash) {
   if(magic != SPOOKY_ITEM_MAGIC) { goto err2; }
   assert(magic == SPOOKY_ITEM_MAGIC);
 
-  for(int i = 0; i < 5; i++) {
+  for(int i = 0; i < 4; i++) {
     spooky_pack_item_bin_file file = { 0 };
     spooky_pack_item_file * pub = calloc(1, sizeof * pub);
 
