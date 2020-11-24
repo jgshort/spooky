@@ -308,7 +308,7 @@ errno_t spooky_init_context(spooky_context * context, FILE * fp) {
     } while(++next < global_data.fonts[i] + global_data.fonts_len[i]);
   }
   
-  global_data.fonts_index = &(global_data.fonts[global_data.font_type_index][0]);
+  global_data.fonts_index = &(global_data.fonts[global_data.font_type_index][spooky_default_font_size]);
   global_data.font_current = *global_data.fonts_index;
 
   fprintf(stdout, " Done!\n");
