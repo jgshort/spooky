@@ -20,25 +20,24 @@
 #include "sp_help.h"
 #include "sp_time.h"
 
-#define MAX_FONT_LEN 86 
+#define MAX_FONT_LEN 15
 static const size_t max_font_len = MAX_FONT_LEN;
 static size_t spooky_font_sizes[MAX_FONT_LEN] = { 
-  0, 0, 0, 0,
-  4, 0, 0, 0,
+  4,
   8,
   9,
   10,
   11,
-  12, 0,
-  14, 0, 0, 0,
-  18, 0, 0, 0, 0, 0,
-  24, 0, 0, 0, 0, 0,
-  30, 0, 0, 0, 0, 0,
-  36, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  48, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  60, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  72, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  84, 0
+  12,
+  14,
+  18,
+  24,
+  30,
+  36,
+  48,
+  60,
+  72,
+  84
 };
 #undef MAX_FONT_LEN
 
@@ -51,7 +50,7 @@ typedef struct spooky_context_data {
   const spooky_hash_table * hash;
 
   size_t font_type_index;
-  size_t fonts_len[SPOOKY_FONT_MAX_TYPES];
+  
   const spooky_font * font_current;
   const spooky_font ** fonts_index;
   const spooky_font ** fonts[SPOOKY_FONT_MAX_TYPES];
@@ -66,6 +65,8 @@ typedef struct spooky_context_data {
   bool is_paused;
   bool is_running;
   char padding[5]; /* not portable */
+
+  size_t fonts_len[SPOOKY_FONT_MAX_TYPES];
 } spooky_context_data;
 
 static spooky_context_data global_data = { 0 };
@@ -288,33 +289,26 @@ errno_t spooky_init_context(spooky_context * context, FILE * fp) {
   SDL_ShowWindow(window);
 
   global_data.font_type_index = 0;
-
   for(size_t i = 0; i < SPOOKY_FONT_MAX_TYPES; i++) {
     global_data.fonts_len[i] = max_font_len;
     global_data.fonts[i] = calloc(max_font_len, sizeof * global_data.fonts[i]);
     const spooky_font ** next = global_data.fonts[i];
-    int point_size = 1;
-    const char * spooky_default_font_name = spooky_default_font_names[i];
-    do {
+    const char * font_name = spooky_default_font_names[i];
+    for(size_t j = 0; j < max_font_len; ++j) {  
+      int point_size = (int)spooky_font_sizes[j];
       assert(point_size > 0);
-      assert(point_size <= (int)global_data.fonts_len[i]);
 
-      if(spooky_font_sizes[point_size] != 0) {
-        fprintf(stdout, "Opening %s at %ipt\n", spooky_default_font_name, point_size);
-        *next = spooky_font_acquire();
+      fprintf(stdout, "Opening %s at %ipt\n", font_name, point_size);
+      *next = spooky_font_acquire();
 
-        void * temp = NULL;
-        spooky_pack_item_file * font = NULL;
-        hash->find(hash, spooky_default_font_name, strnlen(spooky_default_font_name, SPOOKY_MAX_STRING_LEN), &temp);
-        font = (spooky_pack_item_file *)temp;
+      spooky_pack_item_file * font = NULL;
+      hash->find(hash, font_name, strnlen(font_name, SPOOKY_MAX_STRING_LEN), (void **)&font);
 
-        *next = (*next)->ctor(*next, renderer, font->data, font->data_len, point_size);
-      }
-      point_size++;
+      *next = (*next)->ctor(*next, renderer, font->data, font->data_len, point_size);
     } while(++next < global_data.fonts[i] + global_data.fonts_len[i]);
   }
   
-  global_data.fonts_index = global_data.fonts[global_data.font_type_index] + spooky_default_font_size * (int)floor(global_data.window_scale_factor);
+  global_data.fonts_index = &(global_data.fonts[global_data.font_type_index][0]);
   global_data.font_current = *global_data.fonts_index;
 
   fprintf(stdout, " Done!\n");

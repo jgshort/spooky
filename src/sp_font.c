@@ -20,7 +20,7 @@ const char * spooky_default_font_names[SPOOKY_FONT_MAX_TYPES] = {
 static const int spooky_font_outline = 1;
 static const size_t spooky_glyphs_alloc_unit = 127;
 
-const int spooky_default_font_size = 8;
+const int spooky_default_font_size = 1;
 
 typedef struct spooky_glyph {
   SDL_Texture * texture;
