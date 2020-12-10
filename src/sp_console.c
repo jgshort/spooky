@@ -210,16 +210,22 @@ bool spooky_console_handle_event(const spooky_base * self, SDL_Event * event) {
         }
       } else {
         close_console = true;
+        goto why_not;
       }
-    } 
+    }
+    return true;
   }
+ 
+why_not:
   if(close_console || (!impl->show_console && event->type == SDL_KEYUP && event->key.keysym.sym == SDLK_BACKQUOTE)) {
     if(!impl->is_animating) { impl->show_console = !impl->show_console; }
     impl->direction = impl->direction < 0 ? spooky_console_animation_speed : -spooky_console_animation_speed;
     const SDL_Rect * rect = self->get_rect(self); 
     impl->is_animating = rect->y + rect->h > 0 || rect->y + rect->h < rect->h;
+    return true;
   }
-  else if(event->type == SDL_WINDOWEVENT && (
+  
+  if(event->type == SDL_WINDOWEVENT && (
                event->window.event == SDL_WINDOWEVENT_SIZE_CHANGED 
             || event->window.event == SDL_WINDOWEVENT_MOVED 
             || event->window.event == SDL_WINDOWEVENT_RESIZED

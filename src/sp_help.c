@@ -107,7 +107,6 @@ bool spooky_help_handle_event(const spooky_base * self, SDL_Event * event) {
         SDL_Keycode sym = event->key.keysym.sym;
         switch(sym) {
           case SDLK_F1: /* show help */
-          case SDLK_h:
           case SDLK_SLASH:
           case SDLK_QUESTION:
             {

@@ -261,8 +261,10 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
 
   objects[0]->set_z_order(objects[0], 9999998.f);
   objects[1]->set_z_order(objects[1], 9999999.f);
+  objects[2]->set_z_order(objects[2], 9999997.f);
 
-  spooky_base_z_sort(objects, (sizeof objects / sizeof * objects) - 1);
+
+  spooky_base_z_sort(objects, (sizeof objects / sizeof * objects));
   
   bool is_done = false, is_up = false, is_down = false;
  
@@ -379,15 +381,15 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
         } /* >> switch(evt.type ... */
 
         /* handle base events */
-        const spooky_base ** event_iter = first;
+        const spooky_base ** event_iter = last - 1;
         do {
           const spooky_base * obj = *event_iter;
           if(obj != NULL && obj->handle_event != NULL) { 
             if(obj->handle_event(obj, &evt)) {
-              break;
+              goto render_pipeline;
             }
           }
-        } while(++event_iter < last);
+        } while(--event_iter != first - 1);
       } /* >> while(SDL_PollEvent(&evt)) */
 
       {
@@ -436,7 +438,7 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
       /* handle base deltas */
     } /* >> while ((now - last_update_time ... */
 
-
+render_pipeline:
     interpolation = fmin(1.0f, (double)(now - last_update_time) / (double)(TIME_BETWEEN_UPDATES));
     if (now - last_update_time > TIME_BETWEEN_UPDATES) {
       last_update_time = now - TIME_BETWEEN_UPDATES;
