@@ -13,8 +13,8 @@
 
 const char * spooky_default_font_names[SPOOKY_FONT_MAX_TYPES] = {
   "pr.number",
-  "print.char"
-//  "deja.sans.mono"
+  "print.char",
+  "deja.sans"
 };
 
 static const int spooky_font_outline = 1;
@@ -182,13 +182,18 @@ const spooky_font * spooky_font_ctor(const spooky_font * self, SDL_Renderer * re
 
   SDL_RWops * stream = SDL_RWFromConstMem(mem, (int)mem_len);
 
+  SDL_RWseek(stream, 0, RW_SEEK_SET);
   SDL_ClearError();
   TTF_Font * ttf_font = TTF_OpenFontRW(stream, FREE_SRC, point_size);
   assert(ttf_font);
 
+  
   SDL_ClearError();
+  SDL_RWseek(stream, 0, RW_SEEK_SET);
   TTF_Font * ttf_font_outline = TTF_OpenFontRW(stream, FREE_SRC, point_size);
+  assert(ttf_font_outline);
   TTF_SetFontOutline(ttf_font_outline, spooky_font_outline);
+  
 
   const spooky_font * font = spooky_font_cctor(self, renderer, point_size, stream, ttf_font, ttf_font_outline); 
 

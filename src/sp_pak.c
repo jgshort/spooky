@@ -239,9 +239,9 @@ static bool spooky_read_string(FILE * fp, char ** value, size_t * value_len) {
 
   uint64_t len = 0;
   if(!spooky_read_uint64(fp, &len)) { return false; }
+  
   assert(len <= SIZE_MAX);
   assert(len <= SPOOKY_MAX_STRING_LEN);
-  if(len >= SPOOKY_MAX_STRING_LEN) { abort(); }
 
   *value = NULL;
   *value_len = (size_t)len;

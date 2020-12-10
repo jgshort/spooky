@@ -88,7 +88,7 @@ int main(int argc, char **argv) {
       spooky_pack_content_entry content[] = {
         { .path = "res/fonts/PRNumber3.ttf", .name = "pr.number" },
         { .path = "res/fonts/PrintChar21.ttf", .name = "print.char" },
-        //{ .path = "res/fonts/DejaVuSansMono.ttf", .name = "deja.sans.mono" },
+        { .path = "res/fonts/DejaVuSansMono.ttf", .name = "deja.sans" },
         { .path = "res/fonts/SIL Open Font License.txt", .name = "open.font.license" },
         { .path = "res/fonts/deja-license.txt", .name = "deja.license" }
       };
