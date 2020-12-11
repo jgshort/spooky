@@ -1,3 +1,4 @@
+#define _POSIX_C_SOURCE 200809L
 #include <assert.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -303,7 +304,9 @@ errno_t spooky_init_context(spooky_context * context, FILE * fp) {
       assert(point_size > 0);
 
       spooky_pack_item_file * font = NULL;
-      hash->find(hash, font_name, strnlen(font_name, SPOOKY_MAX_STRING_LEN), (void **)&font);
+      void * temp = NULL;
+      hash->find(hash, font_name, strnlen(font_name, SPOOKY_MAX_STRING_LEN), &temp);
+      font = temp;
 
       next = spooky_font_init((spooky_font *)(uintptr_t)next);
       next = next->ctor(next, renderer, font->data, font->data_len, point_size);

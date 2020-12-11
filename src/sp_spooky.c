@@ -389,7 +389,7 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
               goto render_pipeline;
             }
           }
-        } while(--event_iter != first - 1);
+        } while(--event_iter >= first);
       } /* >> while(SDL_PollEvent(&evt)) */
 
       {
