@@ -9,6 +9,7 @@ typedef struct spooky_help spooky_help;
 typedef struct spooky_help {
   spooky_base super;
 
+  const spooky_base * (*as_base)(const spooky_help * self);
   const spooky_help * (*ctor)(const spooky_help * self, const spooky_context * context);
   const spooky_help * (*dtor)(const spooky_help * self);
   void (*free)(const spooky_help * self);
@@ -17,6 +18,7 @@ typedef struct spooky_help {
   struct spooky_help_impl * impl;
 } spooky_help;
 
+const spooky_base * spooky_help_as_base(const spooky_help * self);
 const spooky_help * spooky_help_init(spooky_help * self);
 const spooky_help * spooky_help_alloc();
 const spooky_help * spooky_help_acquire();

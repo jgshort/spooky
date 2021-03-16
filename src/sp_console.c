@@ -57,6 +57,7 @@ static void spooky_console_clear_current_command(const spooky_console * self);
 static void spooky_console_clear_console(const spooky_console * self);
 
 static const spooky_console spooky_console_funcs = {
+  .as_base = &spooky_console_as_base,
   .ctor = &spooky_console_ctor,
   .dtor = &spooky_console_dtor,
   .free = &spooky_console_free,
@@ -71,6 +72,10 @@ static const spooky_console spooky_console_funcs = {
   .clear_current_command = &spooky_console_clear_current_command,
   .clear_console = &spooky_console_clear_console
 };
+
+const spooky_base * spooky_console_as_base(const spooky_console * self) {
+  return SP_AS_BASE(self);
+}
 
 const spooky_console * spooky_console_alloc() {
   spooky_console * self = calloc(1, sizeof * self);
@@ -87,6 +92,7 @@ const spooky_console * spooky_console_init(spooky_console * self) {
 
   self = (spooky_console *)(uintptr_t)spooky_base_init((spooky_base *)(uintptr_t)self);
 
+  self->as_base = spooky_console_funcs.as_base;
   self->ctor = spooky_console_funcs.ctor;
   self->dtor = spooky_console_funcs.dtor;
   self->free = spooky_console_funcs.free;

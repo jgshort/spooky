@@ -18,6 +18,7 @@ typedef struct spooky_debug_data {
 } spooky_debug_data;
 
 static const spooky_debug spooky_debug_funcs = {
+  .as_base = &spooky_debug_as_base,
   .ctor = &spooky_debug_ctor,
   .dtor = &spooky_debug_dtor,
   .free = &spooky_debug_free,
@@ -27,11 +28,16 @@ static const spooky_debug spooky_debug_funcs = {
   .super.render = &spooky_debug_render
 };
 
+const spooky_base * spooky_debug_as_base(const spooky_debug * self) {
+  return SP_AS_BASE(self);
+}
+
 const spooky_debug * spooky_debug_init(spooky_debug * self) {
   assert(self != NULL);
   if(!self) { abort(); }
 
   self = (spooky_debug *)(uintptr_t)spooky_base_init((spooky_base *)(uintptr_t)self);
+  self->as_base = spooky_debug_funcs.as_base;
   self->ctor = spooky_debug_funcs.ctor;
   self->dtor = spooky_debug_funcs.dtor;
   self->free = spooky_debug_funcs.free;

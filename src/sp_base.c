@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <stdlib.h>
+#include <stdbool.h>
 
 #include "sp_error.h"
 #include "sp_iter.h"
@@ -22,6 +23,8 @@ typedef struct spooky_base_impl {
   SDL_Rect rect;
 
   size_t z_order;
+  bool is_focus;
+  char padding[7];
 } spooky_base_impl;
 
 static void spooky_base_set_z_order(const spooky_base * self, size_t z_order);
@@ -44,6 +47,9 @@ static errno_t spooky_base_add_child(const spooky_base * self, const spooky_base
 static errno_t spooky_base_set_rect_relative(const spooky_base * self, const SDL_Rect * from_rect, const spooky_ex ** ex);
 static errno_t spooky_base_get_rect_relative(const spooky_base * self, const SDL_Rect * rect, SDL_Rect * out_rect, const spooky_ex ** ex);
 static errno_t spooky_base_get_bounds(const spooky_base * self, SDL_Rect * out_bounds, const spooky_ex ** ex);
+
+static bool spooky_base_get_focus(const spooky_base * self);
+static void spooky_base_set_focus(const spooky_base * self, bool is_focus);
 
 static const spooky_base spooky_base_funcs = {
   .ctor = &spooky_base_ctor,
@@ -75,6 +81,9 @@ static const spooky_base spooky_base_funcs = {
   .get_rect_relative = &spooky_base_get_rect_relative,
 
   .get_bounds = &spooky_base_get_bounds,
+
+  .get_focus = &spooky_base_get_focus,
+  .set_focus = &spooky_base_set_focus
 };
 
 const spooky_base * spooky_base_alloc() {
@@ -344,6 +353,14 @@ void spooky_base_set_h(const spooky_base * self, int h) {
   self->impl->rect.h = h;
 }
 
+bool spooky_base_get_focus(const spooky_base * self) {
+  return self->impl->rect.h;
+}
+
+void spooky_base_set_focus(const spooky_base * self, bool is_focus) {
+    self->impl->is_focus = is_focus;
+}
+
 typedef struct spooky_children_iter {
   spooky_iter super;
   const spooky_base * base;
@@ -412,4 +429,5 @@ err0:
   if(ex) { *ex = &spooky_null_ref_ex; }
   return SP_FAILURE;
 }
+
 

@@ -982,7 +982,7 @@ bool spooky_pack_create(FILE * fp, const spooky_pack_content_entry * content, si
   for(size_t i = 0; i < content_len; i++) {
     spooky_pack_index_entry * e = entries + i;
     spooky_write_index_entry(e, fp, &index_len);
-    fprintf(stdout, "Index written for %s\n", e->name);
+    /* fprintf(stdout, "Index written for %s\n", e->name); */
     free(e->name), e->name = NULL;
     (void)spooky_read_index_entry;
     index_entries++;
@@ -1031,7 +1031,7 @@ errno_t spooky_pack_upgrade(FILE * fp, const spooky_pack_version * from, const s
 
 errno_t spooky_pack_print_resources(FILE * dest, FILE * fp) {
   SPOOKY_SET_BINARY_MODE(fp);
-
+  (void)dest;
   spooky_pack_version version = { 0 };
   uint64_t content_len = 0;
   uint64_t content_offset = 0;
@@ -1049,25 +1049,25 @@ errno_t spooky_pack_print_resources(FILE * dest, FILE * fp) {
 
     if(!spooky_read_header(fp)) goto err0;
     if(!spooky_read_version(fp, &version)) goto err1;
-    fprintf(dest, "SPDB Version: %i.%i.%i.%i\n", version.major, version.minor, version.revision, version.subrevision);
+    /* fprintf(dest, "SPDB Version: %i.%i.%i.%i\n", version.major, version.minor, version.revision, version.subrevision); */
     if(!spooky_read_uint64(fp, &content_offset)) goto err2;
-    fprintf(dest, "Content offset: %x\n", (unsigned int)content_offset);
+    /* fprintf(dest, "Content offset: %x\n", (unsigned int)content_offset); */
 
     if(!spooky_read_uint64(fp, &content_len)) goto err3;
-    fprintf(dest, "Content length: %lu\n", (size_t)content_len);
+    /* fprintf(dest, "Content length: %lu\n", (size_t)content_len); */
 
     if(!spooky_read_uint64(fp, &index_entries)) goto err3;
-    fprintf(dest, "Index entries: %lu\n", (size_t)index_entries);
+    /* fprintf(dest, "Index entries: %lu\n", (size_t)index_entries); */
 
     if(!spooky_read_uint64(fp, &index_offset)) goto err3;
-    fprintf(dest, "Index offset: %lu\n", (size_t)index_offset);
+    /* fprintf(dest, "Index offset: %lu\n", (size_t)index_offset); */
 
     if(!spooky_read_uint64(fp, &index_len)) goto err3;
-    fprintf(dest, "Index length: %lu\n", (size_t)index_len);
+    /* fprintf(dest, "Index length: %lu\n", (size_t)index_len); */
 
     if(!spooky_read_hash(fp, content_hash, crypto_generichash_BYTES)) goto err4;
     char * content_hash_out = spooky_pack_encode_binary_data(content_hash, sizeof content_hash / sizeof content_hash[0]);
-    fprintf(dest, "Saved hash: <%s>\n", content_hash_out);
+    /* fprintf(dest, "Saved hash: <%s>\n", content_hash_out); */
     free(content_hash_out), content_hash_out = NULL;
  
     fseek(fp, pak_offset + (long)content_offset, SEEK_SET);
@@ -1083,7 +1083,7 @@ errno_t spooky_pack_print_resources(FILE * dest, FILE * fp) {
       crypto_generichash(read_content_hash, crypto_generichash_BYTES, buf, (size_t)content_len, NULL, 0);
 
       char * saved_content_hash_out = spooky_pack_encode_binary_data(read_content_hash, sizeof read_content_hash / sizeof read_content_hash[0]);
-      fprintf(dest, "Calculated hash: <%s>\n", saved_content_hash_out);
+      /* fprintf(dest, "Calculated hash: <%s>\n", saved_content_hash_out); */
       free(saved_content_hash_out), saved_content_hash_out = NULL;
 
       free(buf), buf = NULL;
@@ -1100,7 +1100,7 @@ errno_t spooky_pack_print_resources(FILE * dest, FILE * fp) {
     if(magic != SPOOKY_ITEM_MAGIC) { goto err5; }
     assert(magic == SPOOKY_ITEM_MAGIC);
 
-    fprintf(dest, "Magic: 0x%" PRIx64 "\n", magic);
+    /* fprintf(dest, "Magic: 0x%" PRIx64 "\n", magic); */
     
     spooky_pack_print_file_stats(fp);
     spooky_pack_print_file_stats(fp);
@@ -1111,7 +1111,7 @@ errno_t spooky_pack_print_resources(FILE * dest, FILE * fp) {
     fseek(fp, 0, SEEK_END);
     long saved_file_len = ftell(fp);
     assert(saved_file_len > 0 && saved_file_len <= LONG_MAX);
-    fprintf(dest, "Calculated SPDB size: %lu\n", saved_file_len);
+    /* fprintf(dest, "Calculated SPDB size: %lu\n", saved_file_len); */
 
     fseek(fp, pak_offset, SEEK_SET);
     /* read content length */
@@ -1119,7 +1119,7 @@ errno_t spooky_pack_print_resources(FILE * dest, FILE * fp) {
 
     uint64_t file_len = 0;
     spooky_read_uint64(fp, &file_len);
-    fprintf(dest, "Saved SPDB size: %lu\n", (size_t)file_len);
+    /* fprintf(dest, "Saved SPDB size: %lu\n", (size_t)file_len); */
     assert((long)file_len == saved_file_len - pak_offset);
 
     /* read footer */
@@ -1127,9 +1127,9 @@ errno_t spooky_pack_print_resources(FILE * dest, FILE * fp) {
     if(!spooky_read_footer(fp)) goto err3;
   }
 
-  fprintf(dest, "Valid SPDB v%hu.%hu.%hu.%hu: ", version.major, version.minor, version.revision, version.subrevision);
+  /* fprintf(dest, "Valid SPDB v%hu.%hu.%hu.%hu: ", version.major, version.minor, version.revision, version.subrevision); */
   char * out = spooky_pack_encode_binary_data(content_hash, sizeof content_hash / sizeof content_hash[0]);
-  fprintf(dest, "<%s>\n", out);
+  /* fprintf(dest, "<%s>\n", out); */
   free(out), out = NULL;
 
   return SP_SUCCESS;

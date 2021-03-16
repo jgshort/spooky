@@ -108,7 +108,7 @@ int main(int argc, char **argv) {
   if(spooky_init_context(&context, fp) != SP_SUCCESS) { goto err0; }
   if(spooky_test_resources(&context) != SP_SUCCESS) { goto err0; }
 
-  fprintf(stdout, "SPDB Stats: Content Offset:  %lu, Content Len: %lu, Index Entries: %lu, Index Offset:  %lu, Index Len: %lu\n", (size_t)content_offset, (size_t)content_len, (size_t)index_entries, (size_t)index_offset, (size_t)index_len);
+  /* fprintf(stdout, "SPDB Stats: Content Offset:  %lu, Content Len: %lu, Index Entries: %lu, Index Offset:  %lu, Index Len: %lu\n", (size_t)content_offset, (size_t)content_len, (size_t)index_entries, (size_t)index_offset, (size_t)index_len); */
 
   const spooky_hash_table * hash = context.get_hash(&context);
 
@@ -128,7 +128,7 @@ int main(int argc, char **argv) {
     TTF_Font * ttf = TTF_OpenFontRW(src, 0, 10);
     
     assert(ttf);
-    fprintf(stdout, "Font Height: %i\n", TTF_FontHeight(ttf));
+    /* fprintf(stdout, "Font Height: %i\n", TTF_FontHeight(ttf)); */
     fprintf(stdout, "Okay!\n");
 #endif
   }
@@ -259,13 +259,14 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
   objects[1] = (const spooky_base *)debug;
   objects[2] = (const spooky_base *)help;
 
-  objects[0]->set_z_order(objects[0], 9999998.f);
-  objects[1]->set_z_order(objects[1], 9999999.f);
-  objects[2]->set_z_order(objects[2], 9999997.f);
-
+  console->as_base(console)->set_z_order(console->as_base(console), 9999997);
+  help->as_base(help)->set_z_order(help->as_base(help), 9999998);
+  debug->as_base(debug)->set_z_order(debug->as_base(debug), 9999999);
 
   spooky_base_z_sort(objects, (sizeof objects / sizeof * objects));
-  
+ 
+  fprintf(stdout, "z order: %lu\n", (help->as_base(help))->get_z_order(help->as_base(help)));
+
   bool is_done = false, is_up = false, is_down = false;
  
   if(((const spooky_base *)debug)->add_child((const spooky_base *)debug, (const spooky_base *)help, ex) != SP_SUCCESS) { goto err1; }

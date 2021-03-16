@@ -11,6 +11,7 @@ typedef struct spooky_help_impl {
 } spooky_help_impl;
 
 static const spooky_help spooky_help_funcs = {
+  .as_base = &spooky_help_as_base,
   .ctor = &spooky_help_ctor,
   .dtor = &spooky_help_dtor,
   .free = &spooky_help_free,
@@ -21,12 +22,17 @@ static const spooky_help spooky_help_funcs = {
   .super.handle_delta = NULL
 };
 
+const spooky_base * spooky_help_as_base(const spooky_help * self) {
+  return SP_AS_BASE(self);
+}
+
 const spooky_help * spooky_help_init(spooky_help * self) {
   assert(self != NULL);
   if(!self) { abort(); }
 
   self = (spooky_help *)(uintptr_t)spooky_base_init((spooky_base *)(uintptr_t)self);
 
+  self->as_base = spooky_help_funcs.as_base;
   self->ctor = spooky_help_funcs.ctor;
   self->dtor = spooky_help_funcs.dtor;
   self->free = spooky_help_funcs.free;
