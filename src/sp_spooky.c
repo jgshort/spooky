@@ -468,7 +468,8 @@ render_pipeline:
       SDL_SetRenderDrawColor(renderer, saved_color.r, saved_color.g, saved_color.b, saved_color.a);
     }
 
-    SDL_RenderCopy(renderer, background, NULL, NULL);
+    /* Placeholder background *?
+    /* SDL_RenderCopy(renderer, background, NULL, NULL); */
 
     /* render bases */
     const spooky_base ** render_iter = first;
