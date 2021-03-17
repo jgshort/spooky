@@ -296,6 +296,7 @@ void spooky_console_render(const spooky_base * self, SDL_Renderer * renderer) {
       if(t->line_len > 0 && t->line != NULL) {
         SDL_Point text_dest = { .x = rect->x + 10, .y = rect->y + rect->h - (line_skip * (line_next)) - 10};
         if(t->is_command) {
+          /* draw the executed command */
           static const SDL_Color command_color = { .r = 255, .g = 0x55, .b = 255, .a = 255 };
           int command_width = 0;
           font->write_to_renderer(font, renderer, &text_dest, &command_color, "> ", strlen("> "), &command_width, NULL);
@@ -318,7 +319,7 @@ void spooky_console_render(const spooky_base * self, SDL_Renderer * renderer) {
           int line_w, line_h;
           font->measure_text(font, t->line, t->line_len, &line_w, &line_h);
 
-          size_t max_rect_width = (size_t)(rect->w /* - ((font->get_m_dash(font)) * 3) */);
+          size_t max_rect_width = (size_t)(rect->w);
           size_t max_chars = (size_t)((float)max_rect_width / ((float)line_w / (float)t->line_len)) - 3; /* -3 for '...' */
 
           if(t->line_len < max_chars) {
