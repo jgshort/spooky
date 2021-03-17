@@ -265,8 +265,6 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
 
   spooky_base_z_sort(objects, (sizeof objects / sizeof * objects));
 
-  fprintf(stdout, "z order: %lu\n", (help->as_base(help))->get_z_order(help->as_base(help)));
-
   bool is_done = false, is_up = false, is_down = false;
 
   if(((const spooky_base *)debug)->add_child((const spooky_base *)debug, (const spooky_base *)help, ex) != SP_SUCCESS) { goto err1; }

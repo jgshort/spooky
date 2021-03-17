@@ -178,5 +178,6 @@ void spooky_debug_render(const spooky_base * self, SDL_Renderer * renderer) {
   const SDL_Point debug_point = { .x = self->get_rect(self)->x, .y = self->get_rect(self)->y };
   const SDL_Color debug_fore_color = { .r = 255, .g = 255, .b = 255, .a = 255};
 
-  font->write_to_renderer(font, renderer, &debug_point, &debug_fore_color, debug, NULL, NULL);
+  assert(debug_out > 0);
+  font->write_to_renderer(font, renderer, &debug_point, &debug_fore_color, debug, (size_t)debug_out, NULL, NULL);
 }

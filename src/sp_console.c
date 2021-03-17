@@ -198,21 +198,14 @@ bool spooky_console_handle_event(const spooky_base * self, SDL_Event * event) {
       /* accumulate command text*/
       if(event->text.text[0] != '`') {
         size_t input_len = strnlen(event->text.text, spooky_console_max_input_len);
-        if(input_len + impl->text_len <= spooky_console_max_input_len) {
-          if(impl->text_len + input_len > impl->text_capacity) {
-            impl->text_capacity += SPOOKY_MAX_STRING_LEN;
-            char * temp = realloc(impl->text, impl->text_capacity * sizeof * impl->text);
-            if(temp == NULL) {
-              abort();
-            }
-            impl->text = temp;
-          }
-
-          strncat(impl->text, event->text.text, spooky_console_max_input_len);
-
-          size_t new_len = input_len + impl->text_len;
-          impl->text_len = new_len;
-          assert(impl->text_len <= spooky_console_max_input_len);
+        if(!impl->text) {
+          impl->text = calloc(spooky_console_max_input_len, sizeof * impl->text);
+          impl->text_capacity = spooky_console_max_input_len;
+          impl->text_len = 0;
+        }
+        if(impl->text_len + input_len < spooky_console_max_input_len) {
+          strncat(impl->text + impl->text_len, event->text.text, spooky_console_max_input_len);
+          impl->text_len += input_len;
         }
       } else {
         close_console = true;
@@ -304,32 +297,37 @@ void spooky_console_render(const spooky_base * self, SDL_Renderer * renderer) {
         SDL_Point text_dest = { .x = rect->x + 10, .y = rect->y + rect->h - (line_skip * (line_next)) - 10};
         if(t->is_command) {
           static const SDL_Color command_color = { .r = 255, .g = 0x55, .b = 255, .a = 255 };
-          int command_width;
-          font->write_to_renderer(font, renderer, &text_dest, &command_color, "> ", &command_width, NULL);
-          text_dest.x += command_width;
+          int command_width = 0;
+          font->write_to_renderer(font, renderer, &text_dest, &command_color, "> ", strlen("> "), &command_width, NULL);
+          text_dest.x = command_width;
 
           int line_w, line_h;
-          font->measure_text(font, t->line, &line_w, &line_h);
+          font->measure_text(font, t->line, t->line_len, &line_w, &line_h);
 
           size_t max_rect_width = (size_t)(rect->w - ((font->get_m_dash(font)) * 3));
           size_t max_chars = (size_t)((float)max_rect_width / ((float)line_w / (float)t->line_len)) - 3; /* -3 for '...' */
-          static char temp[1024] = { 0 };
-          snprintf(temp, max_chars, "%s...", t->line);
-          font->write_to_renderer(font, renderer, &text_dest, &command_color, temp,  NULL, NULL);
+          static char * temp = NULL;
+          if(!temp) {
+            temp = calloc(1024, sizeof * temp);
+            assert(temp);
+          }
+          int temp_len = snprintf(temp, max_chars, "%s...", t->line);
+          assert(temp_len > 0);
+          font->write_to_renderer(font, renderer, &text_dest, &command_color, temp, (size_t)temp_len, NULL, NULL);
         } else {
           int line_w, line_h;
-          font->measure_text(font, t->line, &line_w, &line_h);
+          font->measure_text(font, t->line, t->line_len, &line_w, &line_h);
 
           size_t max_rect_width = (size_t)(rect->w /* - ((font->get_m_dash(font)) * 3) */);
           size_t max_chars = (size_t)((float)max_rect_width / ((float)line_w / (float)t->line_len)) - 3; /* -3 for '...' */
 
           if(t->line_len < max_chars) {
-            font->write_to_renderer(font, renderer, &text_dest, &color, t->line, NULL, NULL);
+            font->write_to_renderer(font, renderer, &text_dest, &color, t->line, t->line_len, NULL, NULL);
           } else {
             static char temp[1024] = { 0 };
-            snprintf(temp, max_chars, "%s...", t->line);
-            //snprintf(temp, max_chars + 3, "%s...", temp);
-            font->write_to_renderer(font, renderer, &text_dest, &color, temp, NULL, NULL);
+            int temp_len = snprintf(temp, max_chars, "%s...", t->line);
+            assert(temp_len > 0);
+            font->write_to_renderer(font, renderer, &text_dest, &color, temp, (size_t)temp_len, NULL, NULL);
           }
         }
         line_next++;
@@ -338,13 +336,13 @@ void spooky_console_render(const spooky_base * self, SDL_Renderer * renderer) {
     }
 
     // Draw prompt
-    font->write_to_renderer(font, renderer, &dest, &color, "$", NULL, NULL);
+    font->write_to_renderer(font, renderer, &dest, &color, "$", strlen("$"), NULL, NULL);
 
     /* Draw command accumulator */
     static const SDL_Color command_color = { .r = 255, .g = 255, .b = 0, .a = 255 };
 
     int text_w, text_h;
-    font->measure_text(font, impl->text, &text_w, &text_h);
+    font->measure_text(font, impl->text, impl->text_len, &text_w, &text_h);
 
     dest.x += font->get_m_dash(font) * 2;
     if(impl->text != NULL) {
@@ -356,28 +354,34 @@ void spooky_console_render(const spooky_base * self, SDL_Renderer * renderer) {
         int offset = total_len - max_chars;
         static const SDL_Color chevron_color = { .r = 255, .g = 0, .b = 255, .a = 255 };
         int chevron_w;
-        font->write_to_renderer(font, renderer, &dest, &chevron_color, "<<<", &chevron_w, NULL);
-        dest.x += chevron_w;
+        font->write_to_renderer(font, renderer, &dest, &chevron_color, "<<<", strlen("<<<"), &chevron_w, NULL);
+        dest.x = chevron_w;
 
         {
-          char * text = calloc(SPOOKY_MAX_STRING_LEN, sizeof * text);
+          static char * text = NULL;
+          if(!text) {
+            text = calloc(SPOOKY_MAX_STRING_LEN, sizeof * text);
+          } else {
+            text[impl->text_len - 1] = '\0';
+          }
           if(!text) { abort(); }
-          snprintf(text, spooky_console_max_input_len, "%s", impl->text + offset);
+          int text_len = snprintf(text, spooky_console_max_input_len, "%s", impl->text + offset);
+          assert(text_len > 0);
           int text_width;
-          font->write_to_renderer(font, renderer, &dest, &command_color, text, &text_width, NULL);
+          font->write_to_renderer(font, renderer, &dest, &command_color, text, (size_t)text_len, &text_width, NULL);
           free(text), text = NULL;
-          dest.x += text_width;
+          dest.x = text_width;
         }
       } else {
-        int text_width;
-        font->write_to_renderer(font, renderer, &dest, &command_color, impl->text, &text_width, NULL);
-        dest.x += text_width;
+        int text_width = 0;
+        font->write_to_renderer(font, renderer, &dest, &command_color, impl->text, impl->text_len, &text_width, NULL);
+        dest.x = text_width;
       }
     }
 
     /* Draw blinking cursor */
     if(!impl->hide_cursor) {
-      font->write_to_renderer(font, renderer, &dest, &command_color, "_", NULL, NULL);
+      font->write_to_renderer(font, renderer, &dest, &command_color, "_", strlen("_"), NULL, NULL);
     }
   }
 }

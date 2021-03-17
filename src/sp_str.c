@@ -265,3 +265,38 @@ int spooky_str_compare(const spooky_str * left, const spooky_str * right) {
   int diff = strncmp(left->str, right->str, max_len);
   return diff;
 }
+
+const char * spooky_strcpy(const char * start, const char * end, size_t * text_len) {
+  assert(start && end && text_len);
+  assert(end >= start);
+  assert(*text_len == 0);
+
+  if(end < start) { abort(); }
+
+  ptrdiff_t end_start_diff = end - start;
+  assert(end_start_diff >= 0 && end_start_diff < SSIZE_MAX);
+
+  char * temp = NULL;
+  if(end_start_diff > 0) {
+    *text_len = (size_t)end_start_diff;
+    assert(*text_len > 0);
+
+    temp = calloc((*text_len) + 1, sizeof * temp);
+    if(!temp) { abort(); }
+    assert(temp);
+
+    memmove(temp, start, *text_len);
+
+    temp[*text_len] = '\0';
+
+  } else if(end_start_diff == 0) {
+    /* start and end are equal; what do? */
+    abort();
+  } else {
+    abort();
+  }
+
+  assert(temp);
+
+  return temp;
+}

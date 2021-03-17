@@ -63,7 +63,7 @@ const spooky_help * spooky_help_ctor(const spooky_help * self, const spooky_cont
 
   int help_text_w, help_text_h;
   const spooky_font * font = context->get_font(context);
-  font->measure_text(font, "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm", &help_text_w, &help_text_h);
+  font->measure_text(font, "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm", strlen("mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm"), &help_text_w, &help_text_h);
   int help_rect_w, help_rect_h;
   SDL_GetRendererOutputSize(context->get_renderer(context), &help_rect_w, &help_rect_h);
   SDL_Rect origin = {
@@ -136,32 +136,20 @@ bool spooky_help_handle_event(const spooky_base * self, SDL_Event * event) {
 }
 
 void spooky_help_render(const spooky_base * self, SDL_Renderer * renderer) {
-  static char help[1920] = { 0 };
-
   spooky_help_impl * impl = ((const spooky_help *)self)->impl;
 
   if(!impl->show_help) { return; }
 
+  static char help[1920] = { 0 };
   static_assert(sizeof(help) == 1920, "Help buffer must be 1920 bytes.");
-
-  int mouse_x = 0, mouse_y = 0;
-  SDL_GetMouseState(&mouse_x, &mouse_y);
 
   const spooky_font * font = impl->context->get_font(impl->context);
 
-  int help_text_w, help_text_h;
-  font->measure_text(font, "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm", &help_text_w, &help_text_h);
   int help_rect_w, help_rect_h;
   SDL_GetRendererOutputSize(renderer, &help_rect_w, &help_rect_h);
-  SDL_Rect origin = {
-    .x = (help_rect_w / 2) - (help_text_w / 2) - 500,
-    .y = (help_rect_h / 2) - ((help_text_h * 24) / 2) - 350,
-    .w = help_text_w,
-    .h = help_text_h * 24
-  };
 
   int help_out = snprintf(help, sizeof(help),
-  //"mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm\n"
+    "               > HELP <                 \n"
     " h or ? or F1 : Help                    \n"
     "                                        \n"
     " ` : Debug Console                      \n"
@@ -173,40 +161,34 @@ void spooky_help_render(const spooky_base * self, SDL_Renderer * renderer) {
     " Esc    : Cancel/Back Out               \n"
     "                                        \n"
     " Ctrl-Q : Quit                          \n"
+    "                          [Esc to Close]\n"
   );
 
   assert(help_out > 0 && (size_t)help_out < sizeof(help));
 
-  int w, h;
-  font->measure_text(font, "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm", &w, &h);
   const SDL_Color help_fore_color = { .r = 255, .g = 255, .b = 255, .a = 255};
+  const SDL_Rect * rect = self->get_rect(self);
 
   uint8_t r, g, b, a;
   SDL_GetRenderDrawColor(renderer, &r, &g, &b, &a);
+
   SDL_BlendMode blend_mode;
   SDL_GetRenderDrawBlendMode(renderer, &blend_mode);
 
   SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
   SDL_SetRenderDrawColor(renderer, 199, 78, 157, 150);
 
-  const SDL_Rect * rect = self->get_rect(self);
+  int help_w = 0, help_h = 0;
+  font->measure_text(font, help, (size_t)help_out, &help_w, &help_h);
 
-  SDL_Rect rr = {
-    .x = (help_rect_w / 2) - (help_text_w / 2) - 500,
-    .y = (help_rect_h / 2) - ((help_text_h * 24) / 2) - 350,
-    .w = origin.w,
-    .h = origin.h
-  };
+  int line_skip = font->get_line_skip(font);
+  const SDL_Point help_point = { .x = rect->x + (rect->w / 2), .y = rect->y + (line_skip * 3) };
+
+  SDL_Rect rr = { .x = help_point.x - 10, .y = help_point.y - 10, .w = help_w + 20, .h = help_h + 20 };
   SDL_RenderFillRect(renderer, &rr);
   SDL_SetRenderDrawColor(renderer, a, b, g, a);
   SDL_SetRenderDrawBlendMode(renderer, blend_mode);
 
-  int help_w, help_h;
-  font->measure_text(font, "> HELP <", &help_w, &help_h);
-  const SDL_Point title_point = { .x = rect->x + (rect->w / 2) - (help_w / 2), .y = rect->y + help_h };
-  font->write_to_renderer(font, renderer, &title_point, &help_fore_color, "> HELP <", NULL, NULL);
-
-  int line_skip = font->get_line_skip(font);
-  const SDL_Point help_point = { .x = rect->x + (rect->w / 2) - (w / 2), .y = rect->y + (line_skip * 3) };
-  font->write_to_renderer(font, renderer, &help_point, &help_fore_color, help, NULL, NULL);
+  int out_w = 0, out_h = 0;
+  font->write_to_renderer(font, renderer, &help_point, &help_fore_color, help, (size_t)help_out, &out_w, &out_h);
 }

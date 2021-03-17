@@ -14,6 +14,7 @@ typedef struct spooky_str {
 } spooky_str;
 
 errno_t spooky_alloc_str(const char * /* s */, size_t /* len */, spooky_str ** /* out_str */, const spooky_ex ** /* ex */);
+const char * spooky_strcpy(const char * /* start */, const char * /* end */, size_t * /* text_len */);
 
 #ifdef __cplusplus
 }
