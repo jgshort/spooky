@@ -23,7 +23,7 @@
 
 #define MAX_FONT_LEN 20
 static const size_t max_font_len = MAX_FONT_LEN;
-static size_t spooky_font_sizes[MAX_FONT_LEN] = { 
+static size_t spooky_font_sizes[MAX_FONT_LEN] = {
   4,
   8,
   9,

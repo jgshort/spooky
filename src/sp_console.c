@@ -79,7 +79,7 @@ const spooky_base * spooky_console_as_base(const spooky_console * self) {
 
 const spooky_console * spooky_console_alloc() {
   spooky_console * self = calloc(1, sizeof * self);
-  if(self == NULL) { 
+  if(self == NULL) {
     fprintf(stderr, "Unable to allocate memory.");
     abort();
   }
@@ -376,8 +376,7 @@ void spooky_console_render(const spooky_base * self, SDL_Renderer * renderer) {
     }
 
     /* Draw blinking cursor */
-    if(impl->hide_cursor) {
-    } else {
+    if(!impl->hide_cursor) {
       font->write_to_renderer(font, renderer, &dest, &command_color, "_", NULL, NULL);
     }
   }

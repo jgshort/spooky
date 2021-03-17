@@ -257,7 +257,7 @@ static bool spooky_read_string(FILE * fp, char ** value, size_t * value_len) {
 
 static bool spooky_read_file(FILE * fp, spooky_pack_item_bin_file * file) {
   assert(fp);
- 
+
   /* READ TYPE: (assert spit_bin_file)
    * READ DECOMPRESSED LEN (uint64_t)
    * READ COMPRESSED LEN (uint64_t)
@@ -334,7 +334,7 @@ static bool spooky_read_file(FILE * fp, spooky_pack_item_bin_file * file) {
     SPOOKY_SET_BINARY_MODE(inflated_fp);
     size_t inflated_buf_len = 0;
 
-    if(spooky_inflate_file(deflated_fp, inflated_fp, &inflated_buf_len) != SP_SUCCESS) { 
+    if(spooky_inflate_file(deflated_fp, inflated_fp, &inflated_buf_len) != SP_SUCCESS) {
       fprintf(stderr, "Failed to inflate [%s] at '%s' (%lu, %lu) <", key, file_path, (size_t)compressed_len, (size_t)decompressed_len);
       spooky_pack_dump_hash(stderr, compressed_hash, sizeof compressed_hash);
       fprintf(stderr, ">\n");
@@ -360,23 +360,12 @@ static bool spooky_read_file(FILE * fp, spooky_pack_item_bin_file * file) {
     memmove(decompressed_data_copy, decompressed_data, decompressed_len);
 
     fclose(inflated_fp);
-  } 
+  }
   fclose(deflated_fp);
 
   free(compressed_data), compressed_data = NULL;
   free(decompressed_data), decompressed_data = NULL;
-/*
- *typedef struct spooky_pack_item_bin_file {
-  spooky_pack_item_type type;
-  uint64_t decompressed_len;
-  uint64_t compressed_len;
-  unsigned char decompressed_hash[crypto_generichash_BYTES];
-  unsigned char compressed_hash[crypto_generichash_BYTES];
-  char * file_path;
-  char * key;
-  unsigned char * data;
-} spooky_pack_item_bin_file;
-*/
+
   file->type = type;
   file->decompressed_len = decompressed_len;
   file->compressed_len = compressed_len;
@@ -1205,7 +1194,7 @@ errno_t spooky_pack_is_valid_pak_file(FILE * fp, long * pak_offset, uint64_t * c
 
   if(!spooky_read_header(fp)) goto err;
   if(!spooky_read_version(fp, &spf.version)) goto err;
-  assert(spf.version.major == SPOOKY_PACK_MAJOR_VERSION 
+  assert(spf.version.major == SPOOKY_PACK_MAJOR_VERSION
       && spf.version.minor == SPOOKY_PACK_MINOR_VERSION
       && spf.version.revision == SPOOKY_PACK_REVISION_VERSION
       && spf.version.subrevision == SPOOKY_PACK_SUBREVISION_VERSION

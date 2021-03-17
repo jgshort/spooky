@@ -377,7 +377,7 @@ int spooky_font_nearest_y(const spooky_font * self, int y) {
 errno_t spooky_font_glyph_create_texture(const spooky_font * self, const char * text, SDL_Texture ** out_texture) {
   assert(out_texture != NULL && self->data->font_outline != NULL);
 
-  const SDL_Color black = { .r = 0, .g = 0, .b = 0, .a = 255 }; 
+  const SDL_Color black = { .r = 0, .g = 0, .b = 0, .a = 255 };
   const SDL_Color white = { .r = 255, .g = 255, .b = 255, .a = 255 };
 
   SDL_ClearError();
@@ -420,12 +420,12 @@ errno_t spooky_font_glyph_create_texture(const spooky_font * self, const char * 
   SDL_RenderClear(self->data->renderer);
 
   /* render the outline */
-  SDL_Rect bg_rect = {.x = 0, .y = 0, .w = bg_surface->w, .h = bg_surface->h}; 
+  SDL_Rect bg_rect = {.x = 0, .y = 0, .w = bg_surface->w, .h = bg_surface->h};
 
   SDL_RenderCopy(self->data->renderer, bg_texture, NULL, &bg_rect);
 
   /* render the text */
-  SDL_Rect fg_rect = {.x = 1, .y = 1, .w = fg_surface->w, .h = fg_surface->h }; 
+  SDL_Rect fg_rect = {.x = 1, .y = 1, .w = fg_surface->w, .h = fg_surface->h };
   SDL_RenderCopy(self->data->renderer, fg_texture, NULL, &fg_rect);
 
   /* reset the render target */
@@ -579,7 +579,7 @@ int spooky_font_get_drop_y(const spooky_font * self) {
 }
 
 /* WARNING: Everything below is garbage */
-/* From https://stackoverflow.com/questions/395832/how-to-get-code-point-number-for-a-given-character-in-a-utf-8-string 
+/* From https://stackoverflow.com/questions/395832/how-to-get-code-point-number-for-a-given-character-in-a-utf-8-string
    U+0000 — U+007F:    1 byte:  0xxxxxxx
    U+0080 — U+07FF:    2 bytes: 110xxxxx 10xxxxxx
    U+0800 — U+FFFF:    3 bytes: 1110xxxx 10xxxxxx 10xxxxxx

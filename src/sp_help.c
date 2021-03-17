@@ -47,7 +47,7 @@ const spooky_help * spooky_help_init(spooky_help * self) {
 
 const spooky_help * spooky_help_alloc() {
   spooky_help * self = calloc(1, sizeof * self);
-  if(self == NULL) { 
+  if(self == NULL) {
     fprintf(stderr, "Unable to allocate memory.");
     abort();
   }

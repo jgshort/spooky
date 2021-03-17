@@ -565,7 +565,7 @@ errno_t spooky_hash_find(const spooky_hash_table * self, const char * s, size_t 
 
 const char * spooky_hash_move_string_to_strings(const spooky_hash_table * self, const char * s, size_t s_len, size_t * out_len) {
   spooky_hash_table_impl * impl = self->impl;
- 
+
   if(!s) { return NULL; }
   if(s_len <= 0) { return NULL; }
   if(s_len >= SPOOKY_MAX_STRING_LEN) { s_len = SPOOKY_MAX_STRING_LEN; }

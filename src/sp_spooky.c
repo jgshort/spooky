@@ -1,4 +1,4 @@
-#define _POSIX_C_SOURCE 200809L 
+#define _POSIX_C_SOURCE 200809L
 #include <assert.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -231,7 +231,7 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
   SDL_Texture * letterbox_background = NULL;
   SDL_ClearError();
   if(spooky_load_texture(renderer, "./res/bg4.png", 13, &letterbox_background) != SP_SUCCESS) { goto err1; }
-  if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); } 
+  if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
 
   assert(background != NULL && letterbox_background != NULL);
 
@@ -291,8 +291,8 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
 #ifdef __APPLE__
         /* On OS X Mojave, resize of a non-maximized window does not correctly update the aspect ratio */
         if (evt.type == SDL_WINDOWEVENT && (
-             evt.window.event == SDL_WINDOWEVENT_SIZE_CHANGED 
-          || evt.window.event == SDL_WINDOWEVENT_MOVED 
+             evt.window.event == SDL_WINDOWEVENT_SIZE_CHANGED
+          || evt.window.event == SDL_WINDOWEVENT_MOVED
           || evt.window.event == SDL_WINDOWEVENT_RESIZED
           /* Only happens when clicking About in OS X Mojave */
           || evt.window.event == SDL_WINDOWEVENT_FOCUS_LOST
@@ -330,7 +330,7 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
                     }
                   }
                   break;
-                case SDLK_EQUALS: 
+                case SDLK_EQUALS:
                   {
                     if((SDL_GetModState() & KMOD_CTRL) != 0) {
                       spooky_context_scale_font_up(context, &is_done);
@@ -385,7 +385,7 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
         const spooky_base ** event_iter = last - 1;
         do {
           const spooky_base * obj = *event_iter;
-          if(obj != NULL && obj->handle_event != NULL) { 
+          if(obj != NULL && obj->handle_event != NULL) {
             if(obj->handle_event(obj, &evt)) {
               goto render_pipeline;
             }
@@ -462,7 +462,7 @@ render_pipeline:
       /** If not rendering non-scaled background below, render the letterbox color instead:
       *** const SDL_Color bg = { .r = 20, .g = 1, .b = 36, .a = 255 };
       *** SDL_SetRenderDrawColor(renderer, bg.r, bg.g, bg.b, bg.a);
-      *** SDL_RenderClear(renderer); // letterbox color 
+      *** SDL_RenderClear(renderer); // letterbox color
       */
       const SDL_Color c = { .r = 1, .g = 20, .b = 36, .a = 255 };
       SDL_SetRenderDrawColor(renderer, c.r, c.g, c.b, c.a);
