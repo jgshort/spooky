@@ -71,6 +71,8 @@ typedef struct spooky_context_data {
   bool is_running;
   char padding[5]; /* not portable */
 
+  size_t turns;
+
   size_t fonts_len[SPOOKY_FONT_MAX_TYPES];
 } spooky_context_data;
 #undef MAX_FONT_LEN
@@ -287,6 +289,8 @@ errno_t spooky_init_context(spooky_context * context, FILE * fp) {
   global_data.window = window;
   global_data.glContext = glContext;
   global_data.canvas = canvas;
+
+  global_data.turns = 0;
 
   /* This is a strange defect I can't figure out:
    * Fonts don't render until a call to SDL_ShowWindow. So calling ShowWindow here,

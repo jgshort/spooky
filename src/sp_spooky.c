@@ -468,7 +468,7 @@ render_pipeline:
       SDL_SetRenderDrawColor(renderer, saved_color.r, saved_color.g, saved_color.b, saved_color.a);
     }
 
-    /* Placeholder background *?
+    /* Placeholder background */
     /* SDL_RenderCopy(renderer, background, NULL, NULL); */
 
     /* render bases */
