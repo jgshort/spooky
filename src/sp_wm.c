@@ -156,7 +156,7 @@ static void spooky_wm_set_active_object(const spooky_wm * self, const spooky_bas
 
 static void spooky_wm_register_window(const spooky_wm * self, const spooky_base * active_object) {
   spooky_wm_data * data = self->data;
- 
+
   if(data->objects_index + 1 > spooky_wm_objects_max - 1) {
     fprintf(stderr, "Attempt to register window object over maximum available allocation.\n");
     abort();
@@ -193,7 +193,7 @@ static void spooky_wm_activate_window(const spooky_wm * self, const spooky_base 
       object->set_z_order(object, i);
     }
   }
- 
+
   /* Active window becomes first in series with highest z-order */
   data->objects[data->objects_index] = active_object;
   active_object->set_z_order(active_object, data->objects_index);
@@ -226,20 +226,20 @@ static bool spooky_iter_next(const spooky_iter * it) {
 }
 
 static const void * spooky_iter_current(const spooky_iter * it) {
-  spooky_window_iter * wit = (spooky_window_iter *)(uintptr_t)it; 
+  spooky_window_iter * wit = (spooky_window_iter *)(uintptr_t)it;
   spooky_wm_data * data = wit->wm->data;
 
   return data->objects[wit->index];
 }
 
 static void spooky_iter_reset(const spooky_iter * it) {
-  spooky_window_iter * wit = (spooky_window_iter *)(uintptr_t)it; 
+  spooky_window_iter * wit = (spooky_window_iter *)(uintptr_t)it;
   wit->index = 0;
   wit->reverse = false;
 }
 
 static void spooky_iter_free(const spooky_iter * it) {
-  spooky_window_iter * wit = (spooky_window_iter *)(uintptr_t)it; 
+  spooky_window_iter * wit = (spooky_window_iter *)(uintptr_t)it;
   if(wit != NULL) { free(wit), wit = NULL; }
 }
 
@@ -262,7 +262,6 @@ static const spooky_iter * spooky_wm_window_iter(const spooky_wm * self) {
   it->reset = &spooky_iter_reset;
   it->reverse = &spooky_iter_reverse;
   it->free = &spooky_iter_free;
-  
+
   return it;
 }
-

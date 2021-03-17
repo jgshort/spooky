@@ -77,7 +77,7 @@ const spooky_help * spooky_help_ctor(const spooky_help * self, const spooky_cont
 
   spooky_help_impl * impl = calloc(1, sizeof * impl);
   if(!impl) { abort(); }
- 
+
   impl->context = context;
   impl->show_help = false;
 
@@ -139,11 +139,11 @@ void spooky_help_render(const spooky_base * self, SDL_Renderer * renderer) {
   static char help[1920] = { 0 };
 
   spooky_help_impl * impl = ((const spooky_help *)self)->impl;
-  
+
   if(!impl->show_help) { return; }
 
   static_assert(sizeof(help) == 1920, "Help buffer must be 1920 bytes.");
-  
+
   int mouse_x = 0, mouse_y = 0;
   SDL_GetMouseState(&mouse_x, &mouse_y);
 
@@ -188,7 +188,7 @@ void spooky_help_render(const spooky_base * self, SDL_Renderer * renderer) {
 
   SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
   SDL_SetRenderDrawColor(renderer, 199, 78, 157, 150);
- 
+
   const SDL_Rect * rect = self->get_rect(self);
 
   SDL_Rect rr = {
@@ -210,4 +210,3 @@ void spooky_help_render(const spooky_base * self, SDL_Renderer * renderer) {
   const SDL_Point help_point = { .x = rect->x + (rect->w / 2) - (w / 2), .y = rect->y + (line_skip * 3) };
   font->write_to_renderer(font, renderer, &help_point, &help_fore_color, help, NULL, NULL);
 }
-

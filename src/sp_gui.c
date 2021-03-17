@@ -29,12 +29,12 @@ err0:
   *out_surface = NULL;
   fprintf(stderr, "Could not load surface from path '%s'.\n", file_path);
   fprintf(stderr, "This is a fatal error. Check the resources path and restart.\n");
-  abort(); 
+  abort();
 }
 
 errno_t spooky_load_texture(SDL_Renderer * renderer, const char * file_path, size_t file_path_len, SDL_Texture ** out_texture) {
   assert(!(*out_texture != NULL || renderer == NULL || file_path == NULL || file_path_len <= 0));
-  
+
   if(*out_texture != NULL || renderer == NULL || file_path == NULL || file_path_len <= 0) { goto err0; }
 
 
@@ -67,4 +67,3 @@ err0:
   fprintf(stderr, "This is a fatal error. Check the resources path and restart.\n");
   abort();
 }
-

@@ -41,7 +41,7 @@ static errno_t spooky_parse_args(int argc, char ** argv, spooky_options * option
 
 int main(int argc, char **argv) {
   spooky_options options = { 0 };
-  
+
   spooky_parse_args(argc, argv, &options);
 
   spooky_pack_tests();
@@ -69,7 +69,7 @@ int main(int argc, char **argv) {
   if(!fp) {
     /* we're not a bundle; see if default 'pak.spdb' exists; create if not */
     bool create = false;
-    const char * pak_file = "pak.spdb"; 
+    const char * pak_file = "pak.spdb";
     int fd = open(pak_file, O_CREAT | O_RDWR | O_EXCL, S_IRUSR | S_IWUSR);
     if(fd < 0) {
       /* already exists; open it */
@@ -126,7 +126,7 @@ int main(int argc, char **argv) {
     assert(src);
     TTF_Init();
     TTF_Font * ttf = TTF_OpenFontRW(src, 0, 10);
-    
+
     assert(ttf);
     /* fprintf(stdout, "Font Height: %i\n", TTF_FontHeight(ttf)); */
     fprintf(stdout, "Okay!\n");
@@ -137,16 +137,16 @@ int main(int argc, char **argv) {
     fprintf(stdout, "Licenses:\n");
     fprintf(stdout, "********************************************************************************\n");
 
-    spooky_pack_item_file * temp = NULL; 
+    spooky_pack_item_file * temp = NULL;
     char * deja_license = NULL, * open_license = NULL;
     if(hash->find(hash, "deja.license", strnlen("deja.license", SPOOKY_MAX_STRING_LEN), ((void *)&temp)) == SP_SUCCESS) {
       deja_license = strndup(temp->data, temp->data_len);
-    } 
-    
+    }
+
     if(hash->find(hash, "open.font.license", strnlen("open.font.license", SPOOKY_MAX_STRING_LEN), ((void *)&temp)) == SP_SUCCESS) {
       open_license = strndup(temp->data, temp->data_len);
     }
-    
+
     fprintf(stdout, "%s\n\n%s\n", open_license, deja_license);
     free(deja_license), deja_license = NULL;
     free(open_license), open_license = NULL;
@@ -214,7 +214,7 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
   SDL_Renderer * renderer = context->get_renderer(context);
   assert(renderer);
 
-#ifdef __APPLE__ 
+#ifdef __APPLE__
   /* On OS X Mojave, screen will appear blank until a call to PumpEvents.
    * This temporarily fixes the blank screen problem */
   SDL_PumpEvents();
@@ -264,13 +264,13 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
   debug->as_base(debug)->set_z_order(debug->as_base(debug), 9999999);
 
   spooky_base_z_sort(objects, (sizeof objects / sizeof * objects));
- 
+
   fprintf(stdout, "z order: %lu\n", (help->as_base(help))->get_z_order(help->as_base(help)));
 
   bool is_done = false, is_up = false, is_down = false;
- 
+
   if(((const spooky_base *)debug)->add_child((const spooky_base *)debug, (const spooky_base *)help, ex) != SP_SUCCESS) { goto err1; }
-  
+
   log->prepend(log, "Logging enabled\n", SLS_INFO);
   int x_dir = 30, y_dir = 30;
   double interpolation = 0.0;
@@ -285,10 +285,10 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
       SDL_ClearError();
       while(SDL_PollEvent(&evt)) {
         if(spooky_is_sdl_error(SDL_GetError())) { log->prepend(log, SDL_GetError(), SLS_INFO); }
-        
+
         /* NOTE: SDL_PollEvent can set the Error message returned by SDL_GetError; so clear it, here: */
         SDL_ClearError();
-#ifdef __APPLE__ 
+#ifdef __APPLE__
         /* On OS X Mojave, resize of a non-maximized window does not correctly update the aspect ratio */
         if (evt.type == SDL_WINDOWEVENT && (
              evt.window.event == SDL_WINDOWEVENT_SIZE_CHANGED 
@@ -401,7 +401,7 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
           console->clear_current_command(console);
         }
       }
-     
+
       {
         ((const spooky_base *)debug)->get_bounds((const spooky_base *)debug, &debug_rect, NULL);
 
@@ -432,10 +432,10 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
       rr.x += x_dir * (int)floor((double)5 * interpolation);
       rr.y += y_dir * (int)floor((double)5 * interpolation);
       if(((const spooky_base *)debug)->set_rect((const spooky_base *)debug, &rr, ex) != SP_SUCCESS) { goto err1; }
-      */ 
+      */
       last_update_time += TIME_BETWEEN_UPDATES;
       update_loops++;
-      
+
       /* handle base deltas */
     } /* >> while ((now - last_update_time ... */
 
@@ -446,7 +446,7 @@ render_pipeline:
     }
 
     if(!is_done) {
-      if(is_up) { 
+      if(is_up) {
         spooky_context_scale_font_up(context, &is_done);
       }
       else if(is_down) {
@@ -469,9 +469,9 @@ render_pipeline:
       SDL_RenderFillRect(renderer, NULL); /* screen color */
       SDL_SetRenderDrawColor(renderer, saved_color.r, saved_color.g, saved_color.b, saved_color.a);
     }
- 
+
     SDL_RenderCopy(renderer, background, NULL, NULL);
-    
+
     /* render bases */
     const spooky_base ** render_iter = first;
     do {
@@ -518,7 +518,7 @@ end_of_running_loop: ;
   spooky_console_release(console);
   spooky_log_release(log);
   spooky_wm_release(wm);
-  
+
   return SP_SUCCESS;
 
 err1:
@@ -535,7 +535,7 @@ errno_t spooky_command_parser(spooky_context * context, const spooky_console * c
   if(strncmp(command, "clear", sizeof("clear")) == 0) {
     console->clear_console(console);
   } else if(strncmp(command, "help", sizeof("help")) == 0) {
-    const char help[] = 
+    const char help[] =
       "DIAGNOSTIC CONSOLE\n"
       "Comands:\n"
       "  help  -- show this help screen\n"
@@ -551,7 +551,7 @@ errno_t spooky_command_parser(spooky_context * context, const spooky_console * c
     char info[4096] = { 0 };
     char * out = info;
     struct rusage usage;
-    
+
     long int tv_usec = 0, tv_sec = 0;
 #ifdef __linux__
     long ru_maxrss = 0;
@@ -568,7 +568,7 @@ errno_t spooky_command_parser(spooky_context * context, const spooky_console * c
     }
 
 #ifdef __APPLE__
-    out += snprintf(out, 4096 - (out - info), 
+    out += snprintf(out, 4096 - (out - info),
         PACKAGE_STRING " :: "
         "Time: %ld.%06ld\n"
         "Logging entries: %zu\n"
@@ -577,7 +577,7 @@ errno_t spooky_command_parser(spooky_context * context, const spooky_console * c
     );
 #endif
 #ifdef __linux__
-    out += snprintf(out, 4096 - (size_t)(out - info), 
+    out += snprintf(out, 4096 - (size_t)(out - info),
         PACKAGE_STRING " :: "
         "Time: %ld.%06ld\n"
         "Resident set: %ld\n"
@@ -587,7 +587,7 @@ errno_t spooky_command_parser(spooky_context * context, const spooky_console * c
         , ru_maxrss
         , ru_minflt, ru_majflt
         , log->get_entries_count(log)
-    );   
+    );
 #endif
     console->push_str(console, info);
   } else if(strncmp(command, "log", sizeof("log")) == 0) {
@@ -618,4 +618,3 @@ static errno_t spooky_parse_args(int argc, char ** argv, spooky_options * option
 err0:
   return SP_FAILURE;
 }
-

@@ -28,23 +28,23 @@ const uint16_t SPOOKY_PACK_SUBREVISION_VERSION = 0;
 /* A spooky pak file (SPDB) is a serialization format for SPOOKY resources:
  *
  *   An SPDB file starts and ends with the SPOOKY_HEADER and SPOOKY_FOOTER vectors,
- *   defined below with the following structure: 
+ *   defined below with the following structure:
  *
  *  |  offset | size (bytes) | info              | data
  *  |   0x000 |           16 | spooky header     | { 0xf0, 0x9f, 0x8e, 0x83, 'SPOOKY!', 0xf0, 0x9f, 0x8e, 0x83, '\0' }
  *  |   0x010 |            8 | version (4x16bit) | { 0x0001, 0x0002, 0x0003, 0x0004 }
  *  |   0x018 |            8 | content offset    | offset of pak contents, defaults to 0x100
- *  |   0x020 |            8 | content length    | length of the pak file binary-encoded content excluding the header, version, hash, and footer  
+ *  |   0x020 |            8 | content length    | length of the pak file binary-encoded content excluding the header, version, hash, and footer
  *  |   0x028 |           32 | content hash      | hash of the binary-encoded content, starting at offset {content_offset} and including the magic
- *  |     ??? |          216 | [empty]           | Empty space for future properties 
- *  |   0x100 |            8 | magic             | magic header preceeding content 
- *  |   0x108 |          ??? | content entries   | binary-encoded content 
+ *  |     ??? |          216 | [empty]           | Empty space for future properties
+ *  |   0x100 |            8 | magic             | magic header preceeding content
+ *  |   0x108 |          ??? | content entries   | binary-encoded content
  *  |EOF-0x18 |            8 | total pak length  | length of the complete pak file, starting from the header through the footer
  *  |EOF-0x10 |           16 | spooky footer     | { 0xf0, 0x9f, 0x8e, 0x83, '!YKOOPS', 0xf0, 0x9f, 0x8e, 0x83, '\0' }
- * 
- * Data saved in little endian format 
  *
- * unpack example: 
+ * Data saved in little endian format
+ *
+ * unpack example:
  *  i = (data[0]<<0) | (data[1]<<8) | (data[2]<<16) | (data[3]<<24);
 */
 
@@ -73,7 +73,7 @@ typedef enum spooky_pack_item_type /* unsigned char */ {
   spit_string = 40,
   spit_bin_file = 76,
   spit_hash = 82,
-  spit_eof = UCHAR_MAX 
+  spit_eof = UCHAR_MAX
 } spooky_pack_item_type;
 
 typedef struct spooky_pack_item_bin_file {
@@ -83,7 +83,7 @@ typedef struct spooky_pack_item_bin_file {
   unsigned char compressed_hash[crypto_generichash_BYTES];
   char * file_path;
   char * key;
-  char * data; 
+  char * data;
   size_t data_len;
   spooky_pack_item_type type;
   char padding[4]; /* non-portable */
@@ -195,7 +195,7 @@ static bool spooky_write_hash(const unsigned char * buf, size_t buf_len, FILE * 
   if(!spooky_write_item_type(spit_hash, fp, content_len)) { abort(); }
   /* generate hash from buffer: */
   crypto_generichash(hash, crypto_generichash_BYTES, buf, buf_len, NULL, 0);
-  
+
   /* write generated hash to fp: */
   bool res = spooky_write_raw(hash, crypto_generichash_BYTES, fp);
   if(res) {
@@ -214,7 +214,7 @@ static bool spooky_read_hash(FILE * fp, unsigned char * buf, size_t buf_len) {
   if(type != spit_hash) { abort(); }
 
   assert(buf_len == crypto_generichash_BYTES);
-  
+
   return spooky_read_raw(fp, buf_len, buf);
 }
 
@@ -239,13 +239,13 @@ static bool spooky_read_string(FILE * fp, char ** value, size_t * value_len) {
 
   uint64_t len = 0;
   if(!spooky_read_uint64(fp, &len)) { return false; }
-  
+
   assert(len <= SIZE_MAX);
   assert(len <= SPOOKY_MAX_STRING_LEN);
 
   *value = NULL;
   *value_len = (size_t)len;
-  if(len > 0) { 
+  if(len > 0) {
     *value = calloc(len, sizeof ** value);
     assert(*value);
     if(!*value) { abort(); }
@@ -257,7 +257,7 @@ static bool spooky_read_string(FILE * fp, char ** value, size_t * value_len) {
 
 static bool spooky_read_file(FILE * fp, spooky_pack_item_bin_file * file) {
   assert(fp);
-  
+ 
   /* READ TYPE: (assert spit_bin_file)
    * READ DECOMPRESSED LEN (uint64_t)
    * READ COMPRESSED LEN (uint64_t)
@@ -304,23 +304,23 @@ static bool spooky_read_file(FILE * fp, spooky_pack_item_bin_file * file) {
   unsigned char * compressed_data = calloc(compressed_len, sizeof * compressed_data);
   if(!compressed_data) { abort(); }
   unsigned char * compressed_data_head = compressed_data;
-  
+
   if(!spooky_read_raw(fp, compressed_len, compressed_data)) {
     free(compressed_data), compressed_data = NULL;
     return false;
   }
-  
+
   crypto_generichash(read_compressed_hash, crypto_generichash_BYTES, compressed_data_head, compressed_len, NULL, 0);
 
   for(size_t i = 0; i < crypto_generichash_BYTES; i++) {
-    if(read_compressed_hash[i] != compressed_hash[i]) { 
+    if(read_compressed_hash[i] != compressed_hash[i]) {
       fprintf(stderr, "Failed to verify compressed content hash.\n");
       return false;
     }
   }
 
   unsigned char * decompressed_data = calloc(decompressed_len, sizeof * decompressed_data);
-  if(!decompressed_data) { 
+  if(!decompressed_data) {
     free(compressed_data), compressed_data = NULL;
     abort();
   }
@@ -333,7 +333,7 @@ static bool spooky_read_file(FILE * fp, spooky_pack_item_bin_file * file) {
     FILE * inflated_fp = fmemopen(decompressed_data, decompressed_len, "rb+");
     SPOOKY_SET_BINARY_MODE(inflated_fp);
     size_t inflated_buf_len = 0;
-    
+
     if(spooky_inflate_file(deflated_fp, inflated_fp, &inflated_buf_len) != SP_SUCCESS) { 
       fprintf(stderr, "Failed to inflate [%s] at '%s' (%lu, %lu) <", key, file_path, (size_t)compressed_len, (size_t)decompressed_len);
       spooky_pack_dump_hash(stderr, compressed_hash, sizeof compressed_hash);
@@ -374,7 +374,7 @@ static bool spooky_read_file(FILE * fp, spooky_pack_item_bin_file * file) {
   unsigned char compressed_hash[crypto_generichash_BYTES];
   char * file_path;
   char * key;
-  unsigned char * data; 
+  unsigned char * data;
 } spooky_pack_item_bin_file;
 */
   file->type = type;
@@ -391,7 +391,7 @@ static bool spooky_read_file(FILE * fp, spooky_pack_item_bin_file * file) {
 
 static bool spooky_write_file(const char * file_path, const char * key, FILE * fp, uint64_t * content_len) {
   assert(file_path != NULL && fp != NULL);
-  
+
   unsigned char * inflated_buf = NULL;
   unsigned char * deflated_buf = NULL;
 
@@ -425,11 +425,11 @@ static bool spooky_write_file(const char * file_path, const char * key, FILE * f
             SPOOKY_SET_BINARY_MODE(deflated_fp);
             fseek(deflated_fp, 0, SEEK_SET);
             size_t deflated_buf_len = 0;
-           
+
             /* compress the file: */
             if(spooky_deflate_file(inflated_fp, deflated_fp, &deflated_buf_len) != SP_SUCCESS) { abort(); };
-            
-            /* File format: 
+
+            /* File format:
              * - Type (spit_bin_file)
              * - Decompressed len (uint64_t)
              * - Compressed len (uint64_t)
@@ -456,14 +456,13 @@ static bool spooky_write_file(const char * file_path, const char * key, FILE * f
 
             /* DECOMPRESSED HASH: */
             spooky_write_hash(inflated_buf, new_len, fp, content_len);
-           
 
             /* COMPRESSED HASH: */
             spooky_write_hash(deflated_buf_head, (size_t)deflated_buf_len, fp, content_len);
 
             /* FILE PATH: */
             spooky_write_string(file_path, fp, content_len);
-           
+
             /* KEY: */
             spooky_write_string(key, fp, content_len);
 
@@ -493,7 +492,7 @@ bool spooky_write_index_entry(spooky_pack_index_entry * entry, FILE * fp, uint64
   if(!spooky_write_string(entry->name, fp, content_len)) { goto err; }
   if(!spooky_write_uint64(entry->offset, fp, content_len)) { goto err; }
   if(!spooky_write_uint64(entry->len, fp, content_len)) { goto err; }
-  
+
   return true;
 err:
   return false;
@@ -501,7 +500,7 @@ err:
 
 bool spooky_read_index_entry(FILE * fp, spooky_pack_index_entry * entry) {
   assert(fp && entry);
- 
+
   size_t name_len = 0;
   if(!spooky_read_string(fp, &(entry->name), &name_len)) { goto err; }
   if(!spooky_read_uint64(fp, &(entry->offset))) { goto err; }
@@ -531,7 +530,7 @@ static bool spooky_write_int8(int8_t value, FILE * fp, uint64_t * content_len) {
 static bool spooky_write_uint16(uint16_t value, FILE * fp, uint64_t * content_len) {
   if(content_len != NULL) { *content_len += sizeof value; }
   uint8_t bytes[sizeof value] = { 0 };
-  
+
   /* little endian */
   bytes[0] = (uint8_t)(value & 0x00ff);
   bytes[1] = (uint8_t)(value >> 8);
@@ -541,7 +540,7 @@ static bool spooky_write_uint16(uint16_t value, FILE * fp, uint64_t * content_le
 
 static bool spooky_write_int16(int16_t value, FILE * fp, uint64_t * content_len) {
   if(content_len != NULL) { *content_len += sizeof value; }
-  
+
   int8_t bytes[sizeof value] = { 0 };
 
   /* little endian */
@@ -575,7 +574,7 @@ static bool spooky_write_uint64(uint64_t value, FILE * fp, uint64_t * content_le
   if(content_len != NULL) { *content_len += sizeof value; }
   uint32_t lo = value & 0xffffffff;
   uint32_t hi =(uint32_t)((value >> 32) & 0xffffffff);
- 
+
   /* little endian */
   return spooky_write_raw(&lo, sizeof lo, fp)
     && spooky_write_raw(&hi, sizeof hi, fp);
@@ -604,7 +603,7 @@ static bool spooky_read_bool(FILE * fp, bool * value) {
   uint32_t b;
   bool res = spooky_read_uint32(fp, &b);
   assert(res);
-  
+
   *value = b == spooky_true;
 
   return res;
@@ -624,7 +623,7 @@ static bool spooky_write_string(const char * value, FILE * fp, uint64_t * conten
     len = strnlen(value, MAX_PACK_STRING_LEN);
     res += fwrite(&len, sizeof(char), sizeof len, fp);
     if(ferror(fp) != 0) return false;
-    
+
     expected += (int)((sizeof len) * 1);
     if(len > 0) {
       res += fwrite(value, sizeof(char), len, fp);
@@ -673,18 +672,18 @@ static bool spooky_write_fixed_width_string(const char * value, size_t fixed_wid
   rmin = fwrite(&min, sizeof(char), sizeof min, fp);
   if(rmin != (sizeof min) * 1) goto err1;
 
-	rbuf = fwrite(buf, sizeof(char), min, fp);	
+	rbuf = fwrite(buf, sizeof(char), min, fp);
   if((size_t)rbuf != sizeof(char) * min) goto err1;
 
-	rnull =  fwrite(&nullstr, sizeof nullstr, 1, fp);	
+	rnull =  fwrite(&nullstr, sizeof nullstr, 1, fp);
   if(rnull != 1) goto err1;
-  
+
   free(buf), buf = NULL;
 
   if(content_len != NULL) { *content_len += rmin + rbuf + rnull; }
 
   assert((size_t)(rmin + rbuf + rnull) == (sizeof min) + (sizeof(char)) * min + (1));
-  
+
   return true;
 
 err1:
@@ -695,9 +694,9 @@ err0:
 }
 
 static bool spooky_write_float(float value, FILE * fp, uint64_t * content_len) {
-#define BUF_MAX 256 
+#define BUF_MAX 256
   char buf[BUF_MAX] = { 0 };
-  int len = snprintf((char *)buf, BUF_MAX - 1, "%.9g", value); 
+  int len = snprintf((char *)buf, BUF_MAX - 1, "%.9g", value);
   assert(len > 0 && len < BUF_MAX);
 #undef BUF_MAX
   buf[len] = '\0';
@@ -713,7 +712,7 @@ static bool spooky_read_char(FILE * fp, char * value) {
   assert(hir == sizeof *value);
 
 	*value = c;
- 
+
   return hir == sizeof *value && ferror(fp) == 0;
 }
 
@@ -727,7 +726,7 @@ static bool spooky_read_uint8(FILE * fp, uint8_t * value) {
   assert(hir == sizeof *value);
 
 	*value = byte;
- 
+
   return hir == sizeof *value && ferror(fp) == 0;
 }
 
@@ -748,7 +747,7 @@ static bool spooky_read_uint16(FILE * fp, uint16_t * value) {
   uint8_t bytes[sizeof(uint16_t)] = { 0 } ;
   size_t hir = fread(&bytes, sizeof bytes, 1, fp);
   assert(hir);
-  
+
   /* little endian */
   *value = (uint16_t)(((uint16_t)(bytes[0] << 0)) | (uint16_t)(bytes[1] << 8));
 
@@ -761,7 +760,7 @@ static bool spooky_read_int16(FILE * fp, int16_t * value) {
   int8_t bytes[sizeof(int16_t)] = { 0 } ;
   size_t hir = fread(&bytes, sizeof bytes, 1, fp);
   assert(hir);
-  
+
   /* little endian */
   *value = (int16_t)(((int16_t)bytes[0] << 0) | ((int16_t)bytes[1] << 8));
 
@@ -774,7 +773,7 @@ static bool spooky_read_uint32(FILE * fp, uint32_t * value) {
   uint8_t bytes[sizeof(uint32_t)] = { 0 } ;
   size_t hir = fread(&bytes, sizeof bytes, 1, fp);
   assert(hir);
-  
+
   /* little endian */
   *value = (uint32_t)((uint32_t)(bytes[0] << 0)) | ((uint32_t)(bytes[1] << 8)) | (uint32_t)(bytes[2] << 16) | (uint32_t)(bytes[3] << 24);
 
@@ -787,7 +786,7 @@ static bool spooky_read_int32(FILE * fp, int32_t * value) {
   int8_t bytes[sizeof(int32_t)] = { 0 } ;
   size_t hir = fread(&bytes, sizeof bytes, 1, fp);
   assert(hir);
-  
+
   /* little endian */
   *value = (bytes[0] << 0) | (bytes[1] << 8) | bytes[2] << 16 | bytes[3] << 24;
 
@@ -800,7 +799,7 @@ static bool spooky_read_uint64(FILE * fp, uint64_t * value) {
   uint8_t bytes[sizeof(uint64_t)] = { 0 } ;
   size_t hir = fread(&bytes, sizeof(uint8_t), sizeof * value, fp);
   assert(hir == sizeof(uint8_t) * sizeof * value);
-  
+
   /* little endian */
   *value = ((uint64_t)bytes[0] <<  0) | ((uint64_t)bytes[1] <<  8) | ((uint64_t)bytes[2] << 16) | ((uint64_t)bytes[3] << 24)
 				 | ((uint64_t)bytes[4] << 32) | ((uint64_t)bytes[5] << 40) | ((uint64_t)bytes[6] << 48) | ((uint64_t)bytes[7] << 56);
@@ -814,7 +813,7 @@ static bool spooky_read_int64(FILE * fp, int64_t * value) {
   uint8_t bytes[sizeof *value] = { 0 } ;
   size_t hir = fread(&bytes, sizeof(uint8_t), sizeof *value,  fp);
   assert(hir == sizeof(uint8_t) * sizeof *value);
-  
+
   /* little endian */
   *value = ((int64_t)bytes[0] <<  0) | ((int64_t)bytes[1] <<  8) | ((int64_t)bytes[2] << 16) | ((int64_t)bytes[3] << 24)
 				 | ((int64_t)bytes[4] << 32) | ((int64_t)bytes[5] << 40) | ((int64_t)bytes[6] << 48) | ((int64_t)bytes[7] << 56);
@@ -829,7 +828,7 @@ static bool spooky_read_header(FILE * fp) {
 
   size_t r = fread(&header, sizeof(unsigned char), SPOOKY_HEADER_LEN, fp);
   assert(r == (sizeof header) * 1);
-  
+
   int eq = strncmp((const char *)header, (const char *)SPOOKY_HEADER, SPOOKY_HEADER_LEN) == 0;
 
   return eq;
@@ -860,11 +859,11 @@ static bool spooky_read_footer(FILE * fp) {
 
   size_t r = fread(&footer, sizeof(unsigned char), SPOOKY_FOOTER_LEN, fp);
   fflush(stdout);
-  
+
   assert(r == (sizeof footer) * 1);
-  
+
   fflush(stdout);
-  
+
   bool eq = strncmp((const char *)footer, (const char *)SPOOKY_FOOTER, sizeof SPOOKY_FOOTER) == 0;
 
   return eq;
@@ -877,7 +876,7 @@ bool spooky_pack_create(FILE * fp, const spooky_pack_content_entry * content, si
   SPOOKY_SET_BINARY_MODE(fp);
   spooky_pack_file spf = {
     .header = { P[0], P[1], P[2], P[3], 'S', 'P', 'O', 'O', 'K', 'Y', '!', P[0], P[1], P[2], P[3], '\n' },
-    .version = { 
+    .version = {
       .major = SPOOKY_PACK_MAJOR_VERSION,
       .minor = SPOOKY_PACK_MINOR_VERSION,
       .revision = SPOOKY_PACK_REVISION_VERSION,
@@ -909,7 +908,7 @@ bool spooky_pack_create(FILE * fp, const spooky_pack_content_entry * content, si
   long index_offset_loc = ftell(fp);
   spooky_write_uint64(0, fp, NULL);
   /* Index length */
-  long index_len_loc = ftell(fp); 
+  long index_len_loc = ftell(fp);
   spooky_write_uint64(0, fp, NULL);
 
   /* placeholder for content hash */
@@ -924,7 +923,7 @@ bool spooky_pack_create(FILE * fp, const spooky_pack_content_entry * content, si
   assert(content_len < 1024); /* Arbitrary number is arbitrary */
 
   spooky_pack_index_entry * entries = calloc(sizeof * entries, content_len);
-  spooky_pack_index_entry * entry = NULL; 
+  spooky_pack_index_entry * entry = NULL;
 
   long offset = ftell(fp);
   assert(offset > 0);
@@ -1006,7 +1005,7 @@ bool spooky_pack_create(FILE * fp, const spooky_pack_content_entry * content, si
   long spdb_len = ftell(fp);
   assert(spdb_len > 0 && spdb_len <= LONG_MAX);
 
-  size_t expected_len = 
+  size_t expected_len =
     sizeof spf  /* header */
     + (((SPOOKY_CONTENT_OFFSET - sizeof spf)) + spf.content_len + index_len)  /* offset of content - header */
     + ((sizeof(uint64_t) + sizeof SPOOKY_FOOTER)) /* (file length + footer marker) */
@@ -1038,7 +1037,7 @@ errno_t spooky_pack_print_resources(FILE * dest, FILE * fp) {
   uint64_t index_entries = 0;
   uint64_t index_offset = 0;
   uint64_t index_len = 0;
-  
+
   unsigned char content_hash[crypto_generichash_BYTES] = { 0 };
   unsigned char read_content_hash[crypto_generichash_BYTES] = { 0 };
 
@@ -1069,13 +1068,13 @@ errno_t spooky_pack_print_resources(FILE * dest, FILE * fp) {
     char * content_hash_out = spooky_pack_encode_binary_data(content_hash, sizeof content_hash / sizeof content_hash[0]);
     /* fprintf(dest, "Saved hash: <%s>\n", content_hash_out); */
     free(content_hash_out), content_hash_out = NULL;
- 
+
     fseek(fp, pak_offset + (long)content_offset, SEEK_SET);
-    { 
+    {
       /* generate read content hash */
       unsigned char * buf = calloc(content_len, sizeof * buf);
       if(!buf) { abort(); }
-      
+
       size_t hir = fread(buf, sizeof * buf, content_len, fp);
       assert(hir && hir == content_len);
       if(!(hir > 0 && ferror(fp) == 0)) { abort(); }
@@ -1101,7 +1100,7 @@ errno_t spooky_pack_print_resources(FILE * dest, FILE * fp) {
     assert(magic == SPOOKY_ITEM_MAGIC);
 
     /* fprintf(dest, "Magic: 0x%" PRIx64 "\n", magic); */
-    
+
     spooky_pack_print_file_stats(fp);
     spooky_pack_print_file_stats(fp);
     //spooky_pack_print_file_stats(fp);
@@ -1167,12 +1166,12 @@ void spooky_pack_print_file_stats(FILE * fp) {
 
   char * encoded_decompressed_hash = spooky_pack_encode_binary_data(file.decompressed_hash, sizeof file.decompressed_hash / sizeof file.decompressed_hash[0]);
   char * encoded_compressed_hash = spooky_pack_encode_binary_data(file.compressed_hash, sizeof file.compressed_hash / sizeof file.compressed_hash[0]);
-  
+
   fprintf(stdout, "%s@%s [%lu -> %lu] <%s>; <%s>\n", file.key, file.file_path, (size_t)file.decompressed_len, (size_t)file.compressed_len, encoded_decompressed_hash, encoded_compressed_hash);
-  
+
   free(encoded_decompressed_hash), encoded_decompressed_hash = NULL;
   free(encoded_compressed_hash), encoded_compressed_hash = NULL;
-  
+
   return;
 
 err:
@@ -1194,7 +1193,7 @@ errno_t spooky_pack_is_valid_pak_file(FILE * fp, long * pak_offset, uint64_t * c
     .index_len = 0,
     .hash = { 0 }
   };
- 
+
   long pak_file_offset = spooky_pack_get_offset(fp);
   if(pak_file_offset < 0) { goto err; }
   if(pak_offset) { *pak_offset = pak_file_offset; }
@@ -1226,7 +1225,7 @@ errno_t spooky_pack_is_valid_pak_file(FILE * fp, long * pak_offset, uint64_t * c
   if(!spooky_read_hash(fp, content_hash, crypto_generichash_BYTES)) goto err;
 
   fseek(fp, *pak_offset + (long)(spf.content_offset), SEEK_SET);
-  { 
+  {
     /* generate read content hash */
     unsigned char * buf = calloc(spf.content_len, sizeof * buf);
     if(!buf) { abort(); }
@@ -1256,7 +1255,7 @@ errno_t spooky_pack_is_valid_pak_file(FILE * fp, long * pak_offset, uint64_t * c
   *index_entries = spf.index_entries;
   *index_offset = spf.index_offset;
   *index_len = spf.index_len;
-  
+
   return SP_SUCCESS;
 
 err:
@@ -1265,13 +1264,13 @@ err:
 
 long spooky_pack_get_offset(FILE * fp) {
   fseek(fp, 0, SEEK_END);
-  
+
   long file_len = ftell(fp);
   assert(file_len >= 0 && (size_t)file_len <= SIZE_MAX);
 
   fseek(fp, file_len - (long)(sizeof SPOOKY_FOOTER), SEEK_SET);
   if(!spooky_read_footer(fp)) goto err;
-  
+
   fseek(fp, file_len - (long)(sizeof SPOOKY_FOOTER + sizeof(uint64_t)), SEEK_SET);
 
   uint64_t pak_file_len = 0;
@@ -1292,9 +1291,9 @@ errno_t spooky_pack_verify(FILE * fp, const spooky_hash_table * hash) {
 
   SPOOKY_SET_BINARY_MODE(fp);
 
-  uint64_t content_offset = 0;  
+  uint64_t content_offset = 0;
   uint64_t content_len = 0;
- 
+
   uint64_t index_entries = 0;
   uint64_t index_offset = 0;
   uint64_t index_len = 0;
@@ -1302,7 +1301,7 @@ errno_t spooky_pack_verify(FILE * fp, const spooky_hash_table * hash) {
   long pak_offset = -1;
   errno_t is_valid = spooky_pack_is_valid_pak_file(fp, &pak_offset, &content_offset, &content_len, &index_entries, &index_offset, &index_len);
   if(is_valid != SP_SUCCESS) { goto err5; }
- 
+
   fseek(fp, pak_offset + (long)content_offset, SEEK_SET);
 
   uint64_t magic = 0;
@@ -1361,7 +1360,7 @@ static void spooky_write_char_tests() {
 
   FILE * fp = fmemopen(buf, sizeof(unsigned char) * 2, "rb+");
   assert(fp);
- 
+
   uint64_t content_len = 0;
   spooky_write_uint8(0xff, fp, &content_len);
   spooky_write_char(0x01, fp, &content_len);
@@ -1380,7 +1379,7 @@ static void spooky_write_uint8_tests() {
 
   FILE * fp = fmemopen(buf, sizeof(uint8_t), "rb+");
   assert(fp);
- 
+
   uint64_t content_len = 0;
   spooky_write_uint8(0xff, fp, &content_len);
 
@@ -1397,7 +1396,7 @@ static void spooky_write_int8_tests() {
 
   FILE * fp = fmemopen(buf, sizeof(int8_t), "rb+");
   assert(fp);
- 
+
   uint64_t content_len = 0;
   spooky_write_int8((int8_t)0xff, fp, &content_len);
 
@@ -1414,7 +1413,7 @@ static void spooky_write_uint16_tests() {
 
   FILE * fp = fmemopen(buf, sizeof(uint16_t), "rb+");
   assert(fp);
- 
+
   uint64_t content_len = 0;
   bool res = spooky_write_uint16(0x0d0c, fp, &content_len);
   assert(res);
@@ -1432,7 +1431,7 @@ static void spooky_write_int16_tests() {
 
   FILE * fp = fmemopen(buf, sizeof(int16_t), "rb+");
   assert(fp);
- 
+
   uint64_t content_len = 0;
   bool res = spooky_write_int16(0x0d0c, fp, &content_len);
   assert(res);
@@ -1450,7 +1449,7 @@ static void spooky_write_uint32_tests() {
 
   FILE * fp = fmemopen(buf, sizeof(uint32_t), "rb+");
   assert(fp);
- 
+
   uint64_t content_len = 0;
   spooky_write_uint32(0x0d0c0b0a, fp, &content_len);
 
@@ -1470,7 +1469,7 @@ static void spooky_write_int32_tests() {
 
   FILE * fp = fmemopen(buf, sizeof(int32_t), "rb+");
   assert(fp);
- 
+
   uint64_t content_len = 0;
   spooky_write_int32(0x0d0c0b0a, fp, &content_len);
 
@@ -1490,7 +1489,7 @@ static void spooky_write_uint64_tests() {
 
   FILE * fp = fmemopen(buf, sizeof(uint64_t), "rb+");
   assert(fp);
- 
+
   uint64_t content_len = 0;
   spooky_write_uint64(0x0d0c0b0affeeddcc, fp, &content_len);
 
@@ -1514,7 +1513,7 @@ static void spooky_write_int64_tests() {
 
   FILE * fp = fmemopen(buf, sizeof(int64_t), "rb+");
   assert(fp);
- 
+
   uint64_t content_len = 0;
   spooky_write_int64(0x0d0c0b0affeeddcc, fp, &content_len);
 
@@ -1535,11 +1534,11 @@ static void spooky_write_int64_tests() {
 
 static void spooky_write_string_tests() {
   static const char hello_world[] = "Hello, world!";
-  
+
   char buf[MAX_TEST_STACK_BUFFER_SZ] = { 0 };
   FILE * fp = fmemopen(buf, MAX_TEST_STACK_BUFFER_SZ, "rb+");
   assert(fp);
- 
+
   uint64_t content_len = 0;
   spooky_write_string(hello_world, fp, &content_len);
   assert(fflush(fp) == 0);
@@ -1550,14 +1549,14 @@ static void spooky_write_string_tests() {
   size_t len;
   memcpy(&len, buf, sizeof len);
   assert(len == strlen(hello_world));
-  
+
   char * p = (buf + sizeof(size_t));
 
   char * result = malloc((sizeof(char) * len) + 1);
   memcpy(result, p, (sizeof(char) * len) + 1);
   result[len] = '\0';
 
-  assert(result); 
+  assert(result);
   assert(strcmp(hello_world, result) == 0);
 
   free(result), result = NULL;
@@ -1565,11 +1564,11 @@ static void spooky_write_string_tests() {
 
 static void spooky_write_string_empty_tests() {
   static const char * empty = (const char *)"";
-  
+
   char buf[MAX_TEST_STACK_BUFFER_SZ] = { 0 };
   FILE * fp = fmemopen(buf, MAX_TEST_STACK_BUFFER_SZ, "rb+");
   assert(fp);
-  
+
   uint64_t content_len = 0;
   spooky_write_string(empty, fp, &content_len);
   assert(fflush(fp) == 0);
@@ -1581,10 +1580,10 @@ static void spooky_write_string_empty_tests() {
   memcpy(&len, buf, sizeof len);
   assert(len == 0);
   assert(len == strlen((const char *)empty));
-  
+
   char * p = &buf[sizeof(size_t)];
   char * result = (char *)strdup(p);
-  assert(result); 
+  assert(result);
   assert(strcmp((const char *)empty, (const char *)result) == 0);
 
   free(result), result = NULL;
@@ -1592,11 +1591,11 @@ static void spooky_write_string_empty_tests() {
 
 static void spooky_write_fixed_width_string_tests() {
   static const char * hello_world = (const char *)"Hello, world!";
-  
+
   char buf[MAX_TEST_STACK_BUFFER_SZ] = { 0 };
   FILE * fp = fmemopen(buf, MAX_TEST_STACK_BUFFER_SZ, "rb+");
   assert(fp);
- 
+
   uint64_t content_len = 0;
   bool res = spooky_write_fixed_width_string(hello_world, 128, fp, &content_len);
   assert(res);
@@ -1608,13 +1607,13 @@ static void spooky_write_fixed_width_string_tests() {
   size_t len;
   memcpy(&len, buf, sizeof len);
   assert(len == strlen(hello_world));
-  
+ 
   char * p = buf + sizeof(size_t);
   char * result = malloc(sizeof(char) * len + 1);
   memcpy(result, p, sizeof(char) * len + 1);
   result[len] = '\0';
 
-  assert(result); 
+  assert(result);
   assert(strcmp(hello_world, result) == 0);
 
   free(result), result = NULL;
@@ -1663,7 +1662,7 @@ static void spooky_write_float_tests() {
   char buf[MAX_TEST_STACK_BUFFER_SZ] = { 0 };
   FILE * fp = fmemopen(buf, MAX_TEST_STACK_BUFFER_SZ, "rb+");
   assert(fp);
- 
+
   uint64_t content_len = 0;
   spooky_write_float(expected, fp, &content_len);
   assert(fflush(fp) == 0);
@@ -1683,7 +1682,7 @@ static void spooky_read_uint8_tests() {
 
   uint8_t buf = 0xd0;
   FILE * fp = fmemopen(&buf, sizeof buf, "rb");
-  
+
   uint8_t result;
   bool ret = spooky_read_uint8(fp, &result);
 	assert(fflush(fp) == 0);
@@ -1698,7 +1697,7 @@ void spooky_read_int8_tests() {
 
   int8_t buf = 0x70;
   FILE * fp = fmemopen(&buf, sizeof buf, "rb");
-  
+
   int8_t result;
   bool ret = spooky_read_int8(fp, &result);
 	assert(fflush(fp) == 0);
@@ -1714,7 +1713,7 @@ static void spooky_read_uint16_tests() {
   /* uint16_ts stored in little endian; flip the bits */
   char buf[2] = { 0x0c, 0x0d };
   FILE * fp = fmemopen(&buf, 2, "rb");
-  
+
   uint16_t result;
   bool ret = spooky_read_uint16(fp, &result);
   assert(fclose(fp) == 0);
@@ -1729,7 +1728,7 @@ static void spooky_read_int16_tests() {
   /* int16_ts stored in little endian; flip the bits */
   char buf[2] = { 0x0c, 0x0d };
   FILE * fp = fmemopen(&buf, 2, "rb");
-  
+
   int16_t result;
   bool ret = spooky_read_int16(fp, &result);
   assert(fclose(fp) == 0);
@@ -1744,7 +1743,7 @@ static void spooky_read_uint32_tests() {
   /* uint16_ts stored in little endian; flip the bits */
   char buf[sizeof(uint32_t)] = { 0x0a, 0x0b, 0x0c, 0x0d };
   FILE * fp = fmemopen(&buf, sizeof(uint32_t), "rb");
-  
+
   uint32_t result;
   bool ret = spooky_read_uint32(fp, &result);
   assert(fclose(fp) == 0);
@@ -1759,7 +1758,7 @@ static void spooky_read_int32_tests() {
   /* uint16_ts stored in little endian; flip the bits */
   char buf[sizeof(int32_t)] = { 0x0a, 0x0b, 0x0c, 0x0d };
   FILE * fp = fmemopen(&buf, sizeof buf, "rb");
-  
+
   int32_t result;
   bool ret = spooky_read_int32(fp, &result);
   assert(fclose(fp) == 0);
@@ -1774,7 +1773,7 @@ static void spooky_read_uint64_tests() {
   /* uint16_ts stored in little endian; flip the bits */
   unsigned char buf[sizeof(uint64_t)] = { 0x66, 0x77, 0x88, 0x99, 0x0a, 0x0b, 0x0c, 0x0d };
   FILE * fp = fmemopen(&buf, sizeof(uint64_t), "rb");
-  
+
   uint64_t result;
   bool ret = spooky_read_uint64(fp, &result);
   assert(fclose(fp) == 0);
@@ -1789,7 +1788,7 @@ static void spooky_read_int64_tests() {
   /* stored in little endian; flip the bits */
   unsigned char buf[sizeof(int64_t)] = { 0xcc, 0xdd, 0xee, 0xff, 0x0a, 0x0b, 0x0c, 0x0d };
   FILE * fp = fmemopen(&buf, sizeof buf, "rb");
-  
+
   int64_t result;
   bool ret = spooky_read_int64(fp, &result);
 
@@ -1814,12 +1813,12 @@ void spooky_pack_tests() {
   spooky_write_uint64_tests();
   spooky_write_int64_tests();
 
-  spooky_write_string_tests(); 
+  spooky_write_string_tests();
   spooky_write_string_empty_tests();
 	spooky_write_fixed_width_string_tests();
 
   spooky_write_float_tests();
-  
+
   spooky_write_bool_tests();
   spooky_read_bool_tests();
 

@@ -161,7 +161,7 @@ const spooky_hash_table * spooky_hash_table_acquire() {
 }
 
 const spooky_hash_table * spooky_hash_table_cctor(const spooky_hash_table * self, size_t prime_index, spooky_string_buffer * buffers, spooky_string_buffer * current_buffer) {
-  spooky_hash_table_impl * impl = calloc(1, sizeof * self->impl); 
+  spooky_hash_table_impl * impl = calloc(1, sizeof * self->impl);
   if(!impl) goto err0;
 
   impl->keys_alloc = SPOOKY_HASH_DEFAULT_ATOM_ALLOC;
@@ -191,7 +191,7 @@ const spooky_hash_table * spooky_hash_table_cctor(const spooky_hash_table * self
       prev = buffer;
       i++;
     } while(i < max_buffers);
-    impl->buffers = first_buffer; 
+    impl->buffers = first_buffer;
     impl->current_buffer = impl->buffers;
   } else {
     impl->buffers = buffers;
@@ -316,7 +316,7 @@ static spooky_hash_bucket_item * spooky_hash_bucket_get_next_item(spooky_hash_bu
 static void spooky_hash_bucket_insert_item(spooky_hash_bucket_item * node, spooky_hash_bucket_item * item) {
   if(item->key.hash > node->key.hash) {
     // insert to the right
-    if(node->right) { 
+    if(node->right) {
       spooky_hash_bucket_insert_item(node->right, item);
     } else {
       node->right = item;
@@ -324,7 +324,7 @@ static void spooky_hash_bucket_insert_item(spooky_hash_bucket_item * node, spook
   }
   else if(item->key.hash < node->key.hash) {
     // insert to the left
-    if(node->left) { 
+    if(node->left) {
       spooky_hash_bucket_insert_item(node->left, item);
     } else {
       node->left = item;
@@ -383,7 +383,7 @@ void spooky_hash_rebalance(const spooky_hash_table * self) {
 
   if(load_factor > spooky_hash_default_load_factor) {
     uint64_t new_prime_index = old_impl->prime_index + 1;
-    if(new_prime_index > (sizeof spooky_hash_primes / sizeof spooky_hash_primes[0]) - 1) { 
+    if(new_prime_index > (sizeof spooky_hash_primes / sizeof spooky_hash_primes[0]) - 1) {
       return;
     }
 
@@ -427,7 +427,7 @@ void spooky_hash_rebalance(const spooky_hash_table * self) {
         free(old_bucket->items), old_bucket->items = NULL;
         old_bucket++;
       }
-      free(old_buckets), old_buckets = NULL; 
+      free(old_buckets), old_buckets = NULL;
     }
     free(old_impl), old_impl = NULL;
   }
@@ -460,7 +460,7 @@ errno_t spooky_hash_ensure_internal(const spooky_hash_table * self, const char *
     assert(bucket->root);
 
     if(spooky_hash_find_internal(bucket, s, s_len, hash, NULL) == SP_SUCCESS) {
-      return SP_SUCCESS; 
+      return SP_SUCCESS;
     }
 
     /* bucket exists but str wasn't found, above; allocate string and stuff it into a bucket */
@@ -490,12 +490,12 @@ static spooky_str * spooky_hash_key_alloc(const spooky_hash_table * self, spooky
   /* skip copy of s if we're rebalancing; our string pointers already point to our internal buffer */
   if(!skip_s_cp) {
     s_cp = spooky_hash_move_string_to_strings(self, s, s_len, out_len);
-  } else { 
+  } else {
     *out_len = s_len;
   }
 
   spooky_str_ref(s_cp, s_len, hash, key);
- 
+
   assert(bucket->root && item->key.str);
   spooky_hash_bucket_insert_item(bucket->root, item);
 
@@ -505,7 +505,7 @@ static spooky_str * spooky_hash_key_alloc(const spooky_hash_table * self, spooky
 static inline errno_t spooky_hash_bucket_item_tree_search(spooky_hash_bucket_item * node, uint64_t hash, spooky_hash_bucket_item ** out_item) {
   if(out_item) { *out_item = NULL; }
   if(!node) { return SP_FAILURE; }
-  if(node->key.hash == hash) { 
+  if(node->key.hash == hash) {
     if(out_item) { *out_item = node; }
     return SP_SUCCESS;
   }
@@ -565,7 +565,7 @@ errno_t spooky_hash_find(const spooky_hash_table * self, const char * s, size_t 
 
 const char * spooky_hash_move_string_to_strings(const spooky_hash_table * self, const char * s, size_t s_len, size_t * out_len) {
   spooky_hash_table_impl * impl = self->impl;
-  
+ 
   if(!s) { return NULL; }
   if(s_len <= 0) { return NULL; }
   if(s_len >= SPOOKY_MAX_STRING_LEN) { s_len = SPOOKY_MAX_STRING_LEN; }
@@ -594,7 +594,7 @@ const char * spooky_hash_move_string_to_strings(const spooky_hash_table * self, 
       if(!temp) { goto err0; }
       new_buffer->strings = temp;
     }
-    
+
     impl->current_buffer->next = new_buffer;
     impl->current_buffer = new_buffer;
     buffer = new_buffer;
@@ -679,4 +679,3 @@ char * spooky_hash_print_stats(const spooky_hash_table * self) {
 
   return result;
 }
-

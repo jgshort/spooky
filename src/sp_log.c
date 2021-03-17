@@ -1,4 +1,4 @@
-#define _POSIX_C_SOURCE 200809L 
+#define _POSIX_C_SOURCE 200809L
 
 #include <assert.h>
 #include <memory.h>
@@ -106,7 +106,7 @@ void spooky_log_list_prepend(spooky_log_entry * head, spooky_log_entry * line) {
 
 void spooky_log_prepend(const spooky_log * self, const char * line, spooky_log_severity severity) {
   spooky_log_impl * impl = (spooky_log_impl *)(uintptr_t)self;
-   
+
   spooky_log_entry * entry = calloc(1, sizeof * entry);
   entry->line = strndup(line, spooky_log_max_entry_capacity);
   entry->line_len = strnlen(line, spooky_log_max_entry_capacity);
@@ -138,9 +138,9 @@ void spooky_log_dump(const spooky_log * self, const spooky_console * console) {
     spooky_log_entry * t = impl->entries->head->next;
     while(t != impl->entries->head) {
       if(t->line != NULL) {
-        console->push_str(console, t->line); 
+        console->push_str(console, t->line);
       }
-      t = t->next; 
+      t = t->next;
     }
   }
 }
@@ -149,4 +149,3 @@ size_t spooky_log_get_entries_count(const spooky_log * self) {
   spooky_log_impl * impl = (spooky_log_impl *)(uintptr_t)self;
   return impl->entries->count;
 }
-

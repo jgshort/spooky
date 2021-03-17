@@ -144,7 +144,7 @@ errno_t spooky_str_isspace(int c, bool * out_space) {
   assert(!(NULL == out_space || (EOF != c  && (UCHAR_MAX < c || 0 > c))));
 
   if(NULL == out_space || (EOF != c  && (UCHAR_MAX < c || 0 > c))) {
-    return SP_FAILURE; 
+    return SP_FAILURE;
   }
 
   *out_space = isspace((unsigned char)c);
@@ -261,8 +261,7 @@ int spooky_str_compare(const spooky_str * left, const spooky_str * right) {
 
   size_t max_len = left_len < right_len ? left_len : right_len;
   if(max_len > SPOOKY_MAX_STRING_LEN) { max_len = SPOOKY_MAX_STRING_LEN; }
-  
+
   int diff = strncmp(left->str, right->str, max_len);
   return diff;
 }
-

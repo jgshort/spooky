@@ -55,8 +55,8 @@ typedef struct spooky_context_data {
   const spooky_hash_table * hash;
 
   size_t font_type_index;
-  size_t fonts_index; 
-  
+  size_t fonts_index;
+
   const spooky_font * font_current;
   const spooky_font fonts[SPOOKY_FONT_MAX_TYPES][MAX_FONT_LEN];
 
@@ -123,7 +123,7 @@ static bool spooky_context_get_is_paused(const spooky_context * context) {
 }
 
 static void spooky_context_set_is_paused(const spooky_context * context, bool is_paused) {
-  context->data->is_paused = is_paused;  
+  context->data->is_paused = is_paused;
 }
 
 static const spooky_hash_table * spooky_context_get_hash(const spooky_context * context) {
@@ -225,7 +225,7 @@ errno_t spooky_init_context(spooky_context * context, FILE * fp) {
   global_data.window_height = spooky_window_default_height;
 
   bool spooky_gui_is_fullscreen = false;
-  uint32_t window_flags = 
+  uint32_t window_flags =
     spooky_gui_is_fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0
     | SDL_WINDOW_OPENGL
     | SDL_WINDOW_HIDDEN
@@ -278,8 +278,8 @@ errno_t spooky_init_context(spooky_context * context, FILE * fp) {
   SDL_Texture * canvas = SDL_CreateTexture(renderer
       , SDL_PIXELFORMAT_RGBA8888
       , SDL_TEXTUREACCESS_TARGET
-      , spooky_window_default_logical_width 
-      , spooky_window_default_logical_height 
+      , spooky_window_default_logical_width
+      , spooky_window_default_logical_height
       );
   if(!canvas || spooky_is_sdl_error(SDL_GetError())) { goto err7; }
 
@@ -288,7 +288,7 @@ errno_t spooky_init_context(spooky_context * context, FILE * fp) {
   global_data.glContext = glContext;
   global_data.canvas = canvas;
 
-  /* This is a strange defect I can't figure out: 
+  /* This is a strange defect I can't figure out:
    * Fonts don't render until a call to SDL_ShowWindow. So calling ShowWindow here,
    * before the font ctor fixes the issue. I don't know why :(
    */
@@ -298,7 +298,7 @@ errno_t spooky_init_context(spooky_context * context, FILE * fp) {
   for(size_t i = 0; i < SPOOKY_FONT_MAX_TYPES; i++) {
     global_data.fonts_len[i] = max_font_len;
     const char * font_name = spooky_default_font_names[i];
-    for(size_t j = 0; j < max_font_len; ++j) {  
+    for(size_t j = 0; j < max_font_len; ++j) {
       const spooky_font * next = &(global_data.fonts[i][j]);
       int point_size = (int)spooky_font_sizes[j];
       assert(point_size > 0);
@@ -312,7 +312,7 @@ errno_t spooky_init_context(spooky_context * context, FILE * fp) {
       next = next->ctor(next, renderer, font->data, font->data_len, point_size);
     }
   }
-  
+
   global_data.fonts_index = 8;
   global_data.font_current = &global_data.fonts[0][global_data.fonts_index];
 
@@ -365,7 +365,7 @@ void spooky_release_context(spooky_context * context) {
     spooky_context_data * data = context->data;
 
     spooky_hash_table_release(data->hash, &spooky_index_item_free_item);
-    
+
     if(data->canvas) {
       SDL_ClearError();
       SDL_DestroyTexture(data->canvas), data->canvas = NULL;
@@ -429,7 +429,7 @@ errno_t spooky_quit_context(spooky_context * context) {
 errno_t spooky_test_resources(const spooky_context * context) {
   assert(!(context == NULL));
   if(context == NULL) { goto err0; }
- 
+
   spooky_context_data * data = context->data;
   assert(!(data->renderer == NULL));
   if(data->renderer == NULL) { goto err0; }
@@ -446,7 +446,7 @@ errno_t spooky_test_resources(const spooky_context * context) {
   SDL_ClearError();
   SDL_FreeSurface(test_surface), test_surface = NULL;
   if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
-  
+
   /* check texture method */
   SDL_Texture * test_texture = NULL;
   if(spooky_load_texture(renderer, "res/test0.png", 13, &test_texture) != SP_SUCCESS) { goto err0; }
@@ -454,7 +454,7 @@ errno_t spooky_test_resources(const spooky_context * context) {
   SDL_ClearError();
   SDL_DestroyTexture(test_texture), test_texture = NULL;
   if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
-  
+
   fprintf(stdout, " Done!\n");
   fflush(stdout);
   return SP_SUCCESS;
@@ -478,30 +478,30 @@ void spooky_context_next_font_type(spooky_context * context) {
 
 void spooky_context_scale_font_up(spooky_context * context, bool * is_done) {
   spooky_context_data * data = context->data;
-  
+
   data->fonts_index++;
-  
+
   if(data->fonts_index > max_font_len - 1) { data->fonts_index = max_font_len - 1; }
   if(data->fonts_index <= 0) { data->fonts_index = 0; }
 
   data->font_current = &(data->fonts[data->font_type_index][data->fonts_index]);
-  
-  *is_done = true; 
+
+  *is_done = true;
 }
 
 void spooky_context_scale_font_down(spooky_context * context, bool * is_done) {
   spooky_context_data * data = context->data;
- 
+
   if(data->fonts_index > 0) {
     data->fonts_index--;
-  } else { data->fonts_index = 0; } 
-  
+  } else { data->fonts_index = 0; }
+
   if(data->fonts_index > max_font_len - 1) { data->fonts_index = max_font_len - 1; }
   if(data->fonts_index <= 0) { data->fonts_index = 0; }
 
   data->font_current = &(data->fonts[data->font_type_index][data->fonts_index]);
-  
-  *is_done = true; 
+
+  *is_done = true;
 }
 
 bool spooky_context_get_is_running(const spooky_context * context) {
@@ -511,4 +511,3 @@ bool spooky_context_get_is_running(const spooky_context * context) {
 void spooky_context_set_is_running(const spooky_context * context, bool value) {
   context->data->is_running = value;
 }
-

@@ -5,7 +5,7 @@ const spooky_pool * spooky_pool_alloc() {
 }
 
 const spooky_pool * spooky_pool_init(spooky_pool * self) {
-  (void)self; 
+  (void)self;
   return NULL;
 }
 

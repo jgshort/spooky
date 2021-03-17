@@ -33,7 +33,7 @@ errno_t spooky_inflate_file(FILE * source, FILE * dest, size_t * dest_len) {
     .avail_in = 0,
     .next_in = Z_NULL
   };
-  
+
   ret = inflateInit(&strm);
   if(ret != Z_OK) { return ret; }
 
@@ -47,14 +47,14 @@ errno_t spooky_inflate_file(FILE * source, FILE * dest, size_t * dest_len) {
       return Z_ERRNO;
     }
 
-    strm.avail_in = (unsigned int)read; 
+    strm.avail_in = (unsigned int)read;
     if(ferror(source)) {
       inflateEnd(&strm);
       return Z_ERRNO;
     }
 
     if(strm.avail_in == 0) { break; }
-   
+
     int flush = 0;
     strm.next_in = in;
     flush = feof(source) ? Z_FINISH : Z_NO_FLUSH;
@@ -76,7 +76,7 @@ errno_t spooky_inflate_file(FILE * source, FILE * dest, size_t * dest_len) {
         default:
           break;
       }
-      
+
       have = SPOOKY_Z_CHUNK - strm.avail_out;
       size_t extracted = 0;
       if((extracted = fwrite(out, sizeof out[0], have, dest)) != have || ferror(dest)) {
@@ -108,13 +108,13 @@ errno_t spooky_deflate_file(FILE * source, FILE * dest, size_t * dest_len) {
   strm.zalloc = Z_NULL;
   strm.zfree = Z_NULL;
   strm.opaque = Z_NULL;
-  
+
   int ret = deflateInit(&strm, level);
   if (ret != Z_OK) { return ret; }
 
   int flush = -1;
   unsigned int have = 0;
-  
+
   size_t written = 0;
   do {
     unsigned long len = fread(in, 1, SPOOKY_Z_CHUNK, source);
@@ -122,7 +122,7 @@ errno_t spooky_deflate_file(FILE * source, FILE * dest, size_t * dest_len) {
     if(len > UINT_MAX) { goto err0; }
     strm.avail_in = (unsigned int)len;
     if(ferror(source)) { goto err0; }
-      
+
     flush = feof(source) ? Z_FINISH : Z_NO_FLUSH;
     strm.next_in = in;
     do {
@@ -144,11 +144,10 @@ errno_t spooky_deflate_file(FILE * source, FILE * dest, size_t * dest_len) {
   /* clean up and return */
   deflateEnd(&strm);
   if(dest_len) { *dest_len = written; }
-  
+
   return Z_OK;
 
 err0:
   deflateEnd(&strm);
   return Z_ERRNO;
 }
-

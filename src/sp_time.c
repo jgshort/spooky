@@ -19,7 +19,7 @@ void sp_sleep(uint32_t delay_in_ms) {
 int64_t sp_get_time_in_us() {
 	struct timespec tp;
 	int status = clock_gettime(CLOCK_MONOTONIC, &tp);
-  
+
 	assert(!status);
 	if(status) { abort(); }
 
@@ -27,4 +27,3 @@ int64_t sp_get_time_in_us() {
 
 	return result;
 }
-

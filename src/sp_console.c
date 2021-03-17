@@ -131,13 +131,13 @@ const spooky_console * spooky_console_ctor(const spooky_console * self, const sp
 
   spooky_console_impl * impl = calloc(1, sizeof * impl);
   if(!impl) { abort(); }
- 
+
   impl->context = context;
   impl->direction = -spooky_console_animation_speed;
   impl->show_console = false;
   impl->is_animating = false;
   impl->hide_cursor = true;
-  
+
   impl->lines = calloc(1, sizeof * impl->lines);
   impl->lines->head = NULL;
   impl->lines->count = 0;
@@ -204,12 +204,12 @@ bool spooky_console_handle_event(const spooky_base * self, SDL_Event * event) {
             char * temp = realloc(impl->text, impl->text_capacity * sizeof * impl->text);
             if(temp == NULL) {
               abort();
-            } 
+            }
             impl->text = temp;
           }
-          
+
           strncat(impl->text, event->text.text, spooky_console_max_input_len);
-          
+
           size_t new_len = input_len + impl->text_len;
           impl->text_len = new_len;
           assert(impl->text_len <= spooky_console_max_input_len);
@@ -221,19 +221,19 @@ bool spooky_console_handle_event(const spooky_base * self, SDL_Event * event) {
     }
     return true;
   }
- 
+
 why_not:
   if(close_console || (!impl->show_console && event->type == SDL_KEYUP && event->key.keysym.sym == SDLK_BACKQUOTE)) {
     if(!impl->is_animating) { impl->show_console = !impl->show_console; }
     impl->direction = impl->direction < 0 ? spooky_console_animation_speed : -spooky_console_animation_speed;
-    const SDL_Rect * rect = self->get_rect(self); 
+    const SDL_Rect * rect = self->get_rect(self);
     impl->is_animating = rect->y + rect->h > 0 || rect->y + rect->h < rect->h;
     return true;
   }
-  
+
   if(event->type == SDL_WINDOWEVENT && (
-               event->window.event == SDL_WINDOWEVENT_SIZE_CHANGED 
-            || event->window.event == SDL_WINDOWEVENT_MOVED 
+               event->window.event == SDL_WINDOWEVENT_SIZE_CHANGED
+            || event->window.event == SDL_WINDOWEVENT_MOVED
             || event->window.event == SDL_WINDOWEVENT_RESIZED
             || event->window.event == SDL_WINDOWEVENT_SIZE_CHANGED
             || event->window.event == SDL_WINDOWEVENT_EXPOSED
@@ -259,7 +259,7 @@ void spooky_console_handle_delta(const spooky_base * self, int64_t last_update_t
   if(impl->show_console) {
     const SDL_Rect * rect = self->get_rect(self);
     SDL_Rect r = { .x = rect->x, .y = rect->y, .w = rect->w, .h = rect->h };
-    r.y += (int)floor((double)impl->direction * interpolation); 
+    r.y += (int)floor((double)impl->direction * interpolation);
 
     if(r.y < 0 - r.h) { r.y = 0 - r.h; }
     if(r.y > 0) { r.y = 0; }
@@ -279,12 +279,12 @@ void spooky_console_render(const spooky_base * self, SDL_Renderer * renderer) {
 
     SDL_BlendMode blend_mode;
     SDL_GetRenderDrawBlendMode(renderer, &blend_mode);
-   
+
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 173);
     const SDL_Rect * rect = self->get_rect(self);
     SDL_RenderFillRect(renderer, rect);
-   
+
     SDL_SetRenderDrawBlendMode(renderer, blend_mode);
     SDL_SetRenderDrawColor(renderer, r, g, b, a);
 
@@ -294,9 +294,9 @@ void spooky_console_render(const spooky_base * self, SDL_Renderer * renderer) {
     assert(impl->lines->count < INT_MAX);
 
     static const SDL_Color color = { .r = 0, .g = 255, .b = 0, .a = 255};
-    
+
     int line_next = 2;
-    
+
     spooky_console_line * t = impl->lines->head;
     while(t != NULL) {
       t = t->prev;
@@ -307,7 +307,7 @@ void spooky_console_render(const spooky_base * self, SDL_Renderer * renderer) {
           int command_width;
           font->write_to_renderer(font, renderer, &text_dest, &command_color, "> ", &command_width, NULL);
           text_dest.x += command_width;
-   
+
           int line_w, line_h;
           font->measure_text(font, t->line, &line_w, &line_h);
 
@@ -322,7 +322,7 @@ void spooky_console_render(const spooky_base * self, SDL_Renderer * renderer) {
 
           size_t max_rect_width = (size_t)(rect->w /* - ((font->get_m_dash(font)) * 3) */);
           size_t max_chars = (size_t)((float)max_rect_width / ((float)line_w / (float)t->line_len)) - 3; /* -3 for '...' */
-         
+
           if(t->line_len < max_chars) {
             font->write_to_renderer(font, renderer, &text_dest, &color, t->line, NULL, NULL);
           } else {
@@ -342,7 +342,7 @@ void spooky_console_render(const spooky_base * self, SDL_Renderer * renderer) {
 
     /* Draw command accumulator */
     static const SDL_Color command_color = { .r = 255, .g = 255, .b = 0, .a = 255 };
-    
+
     int text_w, text_h;
     font->measure_text(font, impl->text, &text_w, &text_h);
 
@@ -358,7 +358,7 @@ void spooky_console_render(const spooky_base * self, SDL_Renderer * renderer) {
         int chevron_w;
         font->write_to_renderer(font, renderer, &dest, &chevron_color, "<<<", &chevron_w, NULL);
         dest.x += chevron_w;
-       
+
         {
           char * text = calloc(SPOOKY_MAX_STRING_LEN, sizeof * text);
           if(!text) { abort(); }
@@ -376,7 +376,7 @@ void spooky_console_render(const spooky_base * self, SDL_Renderer * renderer) {
     }
 
     /* Draw blinking cursor */
-    if(impl->hide_cursor) { 
+    if(impl->hide_cursor) {
     } else {
       font->write_to_renderer(font, renderer, &dest, &command_color, "_", NULL, NULL);
     }
@@ -404,7 +404,7 @@ void spooky_console_push_str_impl(const spooky_console * self, const char * s, b
   size_t s_len = strnlen(s, SPOOKY_MAX_STRING_LEN);
   char * str = NULL;
   size_t str_len = 0;
-  if(spooky_str_trim(s, s_len, SPOOKY_MAX_STRING_LEN, &str, &str_len) != SP_SUCCESS) { abort(); }  
+  if(spooky_str_trim(s, s_len, SPOOKY_MAX_STRING_LEN, &str, &str_len) != SP_SUCCESS) { abort(); }
 
   char * working_str = strndup(str, SPOOKY_MAX_STRING_LEN);
   char * save_ptr = NULL, * token = NULL;
@@ -420,7 +420,7 @@ void spooky_console_push_str_impl(const spooky_console * self, const char * s, b
     }
     assert(split_count < strings_capacity);
     /* duped string[sc] freed in dtor; copied below on line->line = string: */
-    strings[split_count] = strndup(token, SPOOKY_MAX_STRING_LEN); 
+    strings[split_count] = strndup(token, SPOOKY_MAX_STRING_LEN);
     split_count++;
     ws = NULL;
   }
@@ -481,4 +481,3 @@ void spooky_console_clear_console(const spooky_console * self) {
   impl->text = calloc(impl->text_capacity, sizeof * impl->text);
   impl->text_len = 0;
 }
-

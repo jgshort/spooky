@@ -31,4 +31,3 @@ int spooky_int_max(int left, int right) {
 int spooky_int_min(int left, int right) {
   return left < right ? left : right;
 }
-

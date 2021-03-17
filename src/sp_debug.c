@@ -49,7 +49,7 @@ const spooky_debug * spooky_debug_init(spooky_debug * self) {
 
 const spooky_debug * spooky_debug_alloc() {
   spooky_debug * self = calloc(1, sizeof * self);
-  if(self == NULL) { 
+  if(self == NULL) {
     fprintf(stderr, "Unable to allocate memory.");
     abort();
   }
@@ -69,7 +69,6 @@ const spooky_debug * spooky_debug_ctor(const spooky_debug * self, const spooky_c
   spooky_debug_data * data = calloc(1, sizeof * data);
   if(!data) { abort(); }
 
- 
   data->context = context;
   data->show_debug = false;
 
@@ -78,7 +77,7 @@ const spooky_debug * spooky_debug_ctor(const spooky_debug * self, const spooky_c
   /* initial position */
   const spooky_ex * ex = NULL;
   self->super.set_rect((const spooky_base *)self, &rect, &ex);
- 
+
   return self;
 }
 
@@ -139,11 +138,11 @@ void spooky_debug_render(const spooky_base * self, SDL_Renderer * renderer) {
   static char debug[1920] = { 0 };
 
   spooky_debug_data * data = ((const spooky_debug *)self)->data;
-  
+
   if(!data->show_debug) { return; }
 
   static_assert(sizeof(debug) == 1920, "HUD buffer must be 1920 bytes.");
-  
+
   int mouse_x = 0, mouse_y = 0;
   SDL_GetMouseState(&mouse_x, &mouse_y);
 
@@ -175,10 +174,9 @@ void spooky_debug_render(const spooky_base * self, SDL_Renderer * renderer) {
     );
 
   assert(debug_out > 0 && (size_t)debug_out < sizeof(debug));
-  
+
   const SDL_Point debug_point = { .x = self->get_rect(self)->x, .y = self->get_rect(self)->y };
   const SDL_Color debug_fore_color = { .r = 255, .g = 255, .b = 255, .a = 255};
 
   font->write_to_renderer(font, renderer, &debug_point, &debug_fore_color, debug, NULL, NULL);
 }
-
