@@ -12,6 +12,7 @@
 #include <sys/resource.h>
 
 #include "config.h"
+#include "sp_types.h"
 #include "sp_str.h"
 #include "sp_error.h"
 #include "sp_math.h"
@@ -163,7 +164,33 @@ int main(int argc, char **argv) {
 #endif
   }
 
-  spooky_db_create_storage(NULL);
+  /* TODO: Saving and Loading Game State:
+  spooky_save_game_v1 state = {
+    .base.name = "hello, world",
+    .base.save_game_version = 1,
+    .deaths = 10,
+    .seed = 123456,
+    .turns = 100,
+    .x = 1.53566,
+    .y = 2.83883,
+    .z = 3.98383
+  };
+  if(db->save_game(db, ((spooky_save_game *)&state)) != 0) {
+    fprintf(stderr, "Unable to save state\n");
+    abort();
+  }
+  spooky_save_game_v1 state_0;
+  memset(&state_0, 0, sizeof state_0);
+  if(db->load_game(db, "hello, world", ((spooky_save_game *)&state_0)) != 0) {
+    fprintf(stderr, "Unable to load state\n");
+    abort();
+  } else {
+    fprintf(stdout, "Loaded state:\n");
+    fprintf(stdout, "%s: version %i save id %i\n", state_0.base.name, state_0.base.save_game_version, state_0.base.v1_id);
+    fprintf(stdout, "deaths: %i, seed: %i, turns: %i\n", state_0.deaths, state_0.seed, state_0.turns);
+    fprintf(stdout, "x: %f, y: %f, z: %f\n", state_0.x, state_0.y, state_0.z);
+  }
+  */
 
   if(spooky_loop(&context, &ex) != SP_SUCCESS) { goto err1; }
   if(spooky_quit_context(&context) != SP_SUCCESS) { goto err2; }
@@ -210,6 +237,17 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
           seconds_since_start = 0;
 
   uint64_t last_second_time = (uint64_t) (last_update_time / BILLION);
+
+  const spooky_db * db = spooky_db_acquire();
+  db = db->ctor(db, "spooky.db");
+  if(db->create(db) != 0) {
+    fprintf(stderr, "Unable to initialize save game storage. Sorry :(\n");
+    return EXIT_FAILURE;
+  }
+  if(db->open(db) != 0) {
+    fprintf(stderr, "Unable to open save game storage. Sorry :(\n");
+    return EXIT_FAILURE;
+  }
 
   SDL_Window * window = context->get_window(context);
   assert(window);
@@ -275,6 +313,7 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
   log->prepend(log, "Logging enabled\n", SLS_INFO);
   int x_dir = 30, y_dir = 30;
   double interpolation = 0.0;
+  int seconds_to_save = 0;
   while(spooky_context_get_is_running(context)) {
     SDL_Rect debug_rect = { 0 };
     int update_loops = 0;
@@ -493,6 +532,13 @@ render_pipeline:
     frame_count++;
 
     if(this_second > last_second_time) {
+      seconds_to_save++;
+      if(seconds_to_save >= 300) {
+        /* Autosave every 5 minutes */
+        log->prepend(log, "Autosaving...", SLS_INFO);
+        db->save_game(db, "(Autosave)", NULL/* TODO: (spooky_save_game *)&state */);
+        seconds_to_save = 0;
+      }
       /* Every second, update FPS: */
       char buf[80] = { 0 };
       snprintf(buf, sizeof buf, "Delta: %f, FPS: %i", interpolation, (int)fps);
@@ -512,6 +558,10 @@ render_pipeline:
 end_of_running_loop: ;
   } /* >> while(spooky_context_get_is_running(context)) */
 
+  if(db->close(db) != 0) {
+    fprintf(stderr, "Unable to close save game storage; something broke but this is not catastrophic.\n");
+  };
+
   if(background != NULL) { SDL_DestroyTexture(background), background = NULL; }
   if(letterbox_background != NULL) { SDL_DestroyTexture(letterbox_background), letterbox_background = NULL; }
 
@@ -519,6 +569,7 @@ end_of_running_loop: ;
   spooky_console_release(console);
   spooky_log_release(log);
   spooky_wm_release(wm);
+  spooky_db_release(db);
 
   return SP_SUCCESS;
 
