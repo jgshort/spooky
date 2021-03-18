@@ -28,6 +28,7 @@
 #include "sp_log.h"
 #include "sp_limits.h"
 #include "sp_time.h"
+#include "sp_db.h"
 
 static errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex);
 static errno_t spooky_command_parser(spooky_context * context, const spooky_console * console, const spooky_log * log, const char * command) ;
@@ -161,6 +162,8 @@ int main(int argc, char **argv) {
     spooky_pack_print_resources(stdout, fp);
 #endif
   }
+
+  spooky_db_create_storage(NULL);
 
   if(spooky_loop(&context, &ex) != SP_SUCCESS) { goto err1; }
   if(spooky_quit_context(&context) != SP_SUCCESS) { goto err2; }
@@ -477,7 +480,6 @@ render_pipeline:
       const spooky_base * obj = *render_iter;
       if(obj->render != NULL) { obj->render(obj, renderer); }
     } while(++render_iter < last);
-
 
     {
       (void)debug_rect;
