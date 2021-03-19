@@ -828,7 +828,7 @@ void spooky_font_measure_text(const spooky_font * self, const spooky_text * text
 
   const char * eos = text + text_len;
   const char * s = text;
-  int x = 0, y = 0, max_x = 0;
+  int x = 0, y = spooky_font_get_line_skip(self), max_x = 0;
   while(s < eos && s && *s != '\0') {
     int skip = 0;
     if(*s == '\n') {
@@ -883,6 +883,7 @@ void spooky_font_measure_text(const spooky_font * self, const spooky_text * text
     if(s >= eos) { break; }
   }
 
+  if(max_x == 0) { max_x = x; }
   if(h) { *h = y; }
   if(w) { *w = max_x; }
 }
