@@ -475,7 +475,10 @@ int spooky_font_putchar(const spooky_font * self, const SDL_Point * destination,
 int spooky_font_putchar_renderer(const spooky_font * self, SDL_Renderer * renderer, const SDL_Point * destination, const SDL_Color * color, spooky_font_line_adornment adornment, const spooky_text * text, int * advance) {
   int bytes_skip = 0, text_skip = 0;
 
-  if(advance) { *advance = 0; }
+  if(advance) { *advance = 1; }
+
+  if(!text) { return 0; }
+  if(*text == '\0') { return 1; }
 
   spooky_text glyph_to_find[4] = { '\0' };
   bytes_skip = spooky_font_string_to_bytes(text, glyph_to_find, &text_skip);
@@ -486,6 +489,8 @@ int spooky_font_putchar_renderer(const spooky_font * self, SDL_Renderer * render
   if(code_point_skip < bytes_skip) { code_point_skip = bytes_skip; }
 
   const spooky_glyph * g = spooky_font_search_glyph_index(self, glyph_to_find);
+  /* TODO: Figure out why this is needed: */
+  if(glyph_to_find[0] == 0 && glyph_to_find[1] == 0 && glyph_to_find[2] == 0 && glyph_to_find[3] == 0) { return 1; }
 
   SDL_Point point = { .x = destination->x, .y = destination->y };
 

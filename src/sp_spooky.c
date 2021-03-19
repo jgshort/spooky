@@ -523,7 +523,6 @@ render_pipeline:
     {
       (void)debug_rect;
       SDL_SetRenderDrawColor(renderer, 255, 255, 0, 255);
-      //SDL_RenderDrawRect(renderer, &debug_rect);
     }
 
     SDL_RenderPresent(renderer);
