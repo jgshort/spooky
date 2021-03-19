@@ -117,17 +117,6 @@ const spooky_console * spooky_console_ctor(const spooky_console * self, const sp
   assert(context != NULL && renderer != NULL);
 
   SDL_Rect origin = { .x = 0, .y = 0, .w = 0, .h = 0 };
-  int w, h;
-  if(SDL_GetRendererOutputSize(context->get_renderer(context), &w, &h) == 0) {
-    /* max width = renderer_width - some_margin */
-    const spooky_font * font = context->get_font(context);
-    int margin = (font->get_m_dash(font) - 1) * 5;
-    origin.w = w - (margin * 2);
-    origin.h = h - (margin / 2);
-    origin.y = -origin.h;
-    origin.x = margin;
-  }
-
   self = (spooky_console *)(uintptr_t)spooky_base_ctor((spooky_base *)(uintptr_t)self, origin);
 
   spooky_console_impl * impl = calloc(1, sizeof * impl);
@@ -151,6 +140,14 @@ const spooky_console * spooky_console_ctor(const spooky_console * self, const sp
   const spooky_ex * ex = NULL;
   ((const spooky_base *)self)->set_rect((const spooky_base *)self, &origin, &ex);
   ((spooky_console *)(uintptr_t)self)->impl = impl;
+
+  int w, h;
+  if(SDL_GetRendererOutputSize(self->impl->context->get_renderer(self->impl->context), &w, &h) == 0) {
+    self->as_base(self)->set_w(self->as_base(self), (int)(floor((float)w * .75)));
+    self->as_base(self)->set_x(self->as_base(self), (w / 2) - (self->as_base(self)->get_w(self->as_base(self)) / 2));
+    self->as_base(self)->set_h(self->as_base(self), (int)(floor((float)h * .75)));
+    self->as_base(self)->set_y(self->as_base(self), -((int)(floor((float)h * .75))));
+  }
 
   return self;
 }
@@ -264,7 +261,8 @@ void spooky_console_handle_delta(const spooky_base * self, int64_t last_update_t
     if(r.y < -r.h) {
       r.y = -r.h;
       impl->is_animating = false;
-    } else if(r.y > 0) {
+    }
+    if(r.y > 0) {
       r.y = 0;
       impl->is_animating = false;
     }

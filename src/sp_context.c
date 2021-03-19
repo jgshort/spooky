@@ -317,7 +317,7 @@ errno_t spooky_init_context(spooky_context * context, FILE * fp) {
     }
   }
 
-  global_data.fonts_index = 8;
+  global_data.fonts_index = 11;
   global_data.font_current = &global_data.fonts[0][global_data.fonts_index];
 
   fprintf(stdout, " Done!\n");
