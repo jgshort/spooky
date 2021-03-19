@@ -1,5 +1,7 @@
 #define _POSIX_C_SOURCE 200809L
 
+// ENABLE orthographic ligatures: #define SPOOKY_FONT_ORTHOGRAPHIC_LIGATURE
+
 #include <stdlib.h>
 #include <limits.h>
 #include <assert.h>
@@ -77,7 +79,8 @@ typedef struct spooky_font_data {
   int drop_x;
   int drop_y;
   bool is_drop_shadow;
-  char padding[7]; /* not portable */
+  bool enable_orthographic_ligatures;
+  char padding[6]; /* not portable */
   /* glyph array */
   size_t glyphs_capacity;
   size_t glyphs_count;
@@ -85,7 +88,7 @@ typedef struct spooky_font_data {
 } spooky_font_data;
 
 static const spooky_glyph * spooky_font_add_glyph(const spooky_font * self, int skip, spooky_text glyph_to_find[4]);
-static int spooky_font_string_to_bytes(const spooky_text * text, spooky_text bytes[4], int * text_skip);
+static int spooky_font_string_to_bytes(const spooky_font * self, const spooky_text * text, spooky_text bytes[4], int * text_skip);
 const spooky_font * spooky_font_cctor(const spooky_font * self, SDL_Renderer * renderer, int point_size, const void * memory, size_t memory_len, SDL_RWops * stream, TTF_Font * ttf_font, TTF_Font * ttf_font_outline);
 static void parse_chunk_lines(const spooky_text * text, size_t text_len, spooky_font_line_chunk * chunks, size_t chunks_len);
 static int spooky_font_get_point_size(const spooky_font * self);
@@ -115,6 +118,8 @@ static void spooky_font_set_font_attributes(const spooky_font * self);
 
 static bool spooky_font_get_is_drop_shadow(const spooky_font * self);
 static void spooky_font_set_is_drop_shadow(const spooky_font * self, bool is_drop_shadow);
+static bool spooky_font_get_enable_orthographic_ligatures(const spooky_font * self);
+static void spooky_font_set_enable_orthographic_ligatures(const spooky_font * self, bool enable_orthographic_ligatures);
 static void spooky_font_set_drop_x(const spooky_font * self, int drop_x);
 static int spooky_font_get_drop_x(const spooky_font * self);
 static void spooky_font_set_drop_y(const spooky_font * self, int drop_y);
@@ -161,6 +166,8 @@ const spooky_font * spooky_font_init(spooky_font * self) {
   self->measure_text = &spooky_font_measure_text;
   self->get_is_drop_shadow = &spooky_font_get_is_drop_shadow;
   self->set_is_drop_shadow = &spooky_font_set_is_drop_shadow;
+  self->get_enable_orthographic_ligatures = &spooky_font_get_enable_orthographic_ligatures;
+  self->set_enable_orthographic_ligatures = &spooky_font_set_enable_orthographic_ligatures;
   self->set_drop_x = &spooky_font_set_drop_x;
   self->get_drop_x = &spooky_font_get_drop_x;
   self->set_drop_y = &spooky_font_set_drop_y;
@@ -200,6 +207,7 @@ const spooky_font * spooky_font_cctor(const spooky_font * self, SDL_Renderer * r
   data->m_dash = 0;
 
   data->is_drop_shadow = true;
+  data->enable_orthographic_ligatures = true;
   data->drop_x = 1;
   data->drop_y = 1;
 
@@ -344,7 +352,7 @@ int spooky_glyph_binary_search(const spooky_glyph * haystack, int low, int n, co
 static const spooky_glyph * spooky_font_search_glyph_index(const spooky_font * self, const spooky_text * c) {
   spooky_font_data * data = self->data;
 
-  int n = (int)data->glyphs_count; 
+  int n = (int)data->glyphs_count;
   int index = spooky_glyph_binary_search(data->glyphs, 0, n, c);
 
   return index > -1 ? &(data->glyphs[index]) : NULL;
@@ -354,38 +362,40 @@ static int spooky_font_get_glyph_advance(const spooky_font * self, const spooky_
   static const spooky_glyph * M = NULL;
   if(!M) { M = spooky_font_search_glyph_index(self, "M"); }
 
-  const spooky_glyph * glyph = spooky_font_search_glyph_index(self, text); 
+  const spooky_glyph * glyph = spooky_font_search_glyph_index(self, text);
   if(glyph) {
     return glyph->advance;
   } else { return M->advance; }
 }
 
-static int spooky_font_string_to_bytes(const spooky_text * text, spooky_text bytes[4], int * text_skip) {
+static int spooky_font_string_to_bytes(const spooky_font * self, const spooky_text * text, spooky_text bytes[4], int * text_skip) {
   int bytes_skip = 0;
   bool use_x = false;
   wchar_t x[8] = { '\0' };
 
-  /* Find orthographic ligatures */
-  if(strncmp(text, "ffi", 3) == 0) {
-    wcsncpy(x, L"ﬃ", 8);
-    use_x = true;
-    *text_skip = 3;
-  } else if(strncmp(text, "ffl", 3) == 0) {
-    wcsncpy(x, L"ﬄ", 8);
-    use_x = true;
-    *text_skip = 3;
-  } else if(strncmp(text, "ff", 2) == 0) {
-    wcsncpy(x, L"ﬀ", 8);
-    use_x = true;
-    *text_skip = 2;
-  } else if(strncmp(text, "fl", 2)  == 0) {
-    wcsncpy(x, L"ﬂ", 8);
-    use_x = true;
-    *text_skip = 2;
-  } else if(strncmp(text, "fi", 2) == 0) {
-    wcsncpy(x, L"ﬁ", 8);
-    use_x = true;
-    *text_skip = 2;
+  if(self->data->enable_orthographic_ligatures) {
+    /* Find orthographic ligatures */
+    if(strncmp(text, "ffi", 3) == 0) {
+      wcsncpy(x, L"ﬃ", 8);
+      use_x = true;
+      *text_skip = 3;
+    } else if(strncmp(text, "ffl", 3) == 0) {
+      wcsncpy(x, L"ﬄ", 8);
+      use_x = true;
+      *text_skip = 3;
+    } else if(strncmp(text, "ff", 2) == 0) {
+      wcsncpy(x, L"ﬀ", 8);
+      use_x = true;
+      *text_skip = 2;
+    } else if(strncmp(text, "fl", 2)  == 0) {
+      wcsncpy(x, L"ﬂ", 8);
+      use_x = true;
+      *text_skip = 2;
+    } else if(strncmp(text, "fi", 2) == 0) {
+      wcsncpy(x, L"ﬁ", 8);
+      use_x = true;
+      *text_skip = 2;
+    }
   }
 
   if(use_x) {
@@ -481,7 +491,7 @@ int spooky_font_putchar_renderer(const spooky_font * self, SDL_Renderer * render
   if(*text == '\0') { return 1; }
 
   spooky_text glyph_to_find[4] = { '\0' };
-  bytes_skip = spooky_font_string_to_bytes(text, glyph_to_find, &text_skip);
+  bytes_skip = spooky_font_string_to_bytes(self, text, glyph_to_find, &text_skip);
   assert(text_skip > 0);
 
   int code_point_skip = 0;
@@ -828,7 +838,7 @@ void spooky_font_measure_text(const spooky_font * self, const spooky_text * text
       skip = 1;
     } else {
       spooky_text glyph_to_find[4] = { '\0' };
-      bytes_skip = spooky_font_string_to_bytes(text, glyph_to_find, &text_skip);
+      bytes_skip = spooky_font_string_to_bytes(self, text, glyph_to_find, &text_skip);
       assert(text_skip > 0);
 
       int code_point_skip = 0;
@@ -878,13 +888,19 @@ void spooky_font_measure_text(const spooky_font * self, const spooky_text * text
 }
 
 bool spooky_font_get_is_drop_shadow(const spooky_font * self) {
-  spooky_font_data * data = self->data;
-  return data->is_drop_shadow;
+  return self->data->is_drop_shadow;
 }
 
 void spooky_font_set_is_drop_shadow(const spooky_font * self, bool is_drop_shadow) {
-  spooky_font_data * data = self->data;
-  data->is_drop_shadow = is_drop_shadow;
+  self->data->is_drop_shadow = is_drop_shadow;
+}
+
+static bool spooky_font_get_enable_orthographic_ligatures(const spooky_font * self) {
+  return self->data->enable_orthographic_ligatures;
+}
+
+static void spooky_font_set_enable_orthographic_ligatures(const spooky_font * self, bool enable_orthographic_ligatures) {
+  self->data->enable_orthographic_ligatures = enable_orthographic_ligatures;
 }
 
 void spooky_font_set_drop_x(const spooky_font * self, int drop_x) {

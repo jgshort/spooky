@@ -144,8 +144,8 @@ const spooky_console * spooky_console_ctor(const spooky_console * self, const sp
 
   impl->current_command = NULL;
   impl->text_len = 0;
-  impl->text_capacity = SPOOKY_MAX_STRING_LEN;
-  impl->text = calloc(impl->text_capacity, sizeof * impl->text);;
+  impl->text_capacity = 0; //SPOOKY_MAX_STRING_LEN;
+  impl->text = NULL;// calloc(impl->text_capacity, sizeof * impl->text);;
 
   const spooky_ex * ex = NULL;
   ((const spooky_base *)self)->set_rect((const spooky_base *)self, &origin, &ex);
@@ -175,18 +175,50 @@ void spooky_console_release(const spooky_console * self) {
   self->free(self->dtor(self));
 }
 
+void spooky_console_copy_text_to_buffer(const spooky_console * self, const char * text, size_t text_len) {
+  spooky_console_impl * impl = self->impl;
+  if(!impl->text) {
+    impl->text = calloc(spooky_console_max_input_len, sizeof *impl->text);
+    impl->text_capacity = spooky_console_max_input_len;
+    impl->text_len = 0;
+  }
+  if(impl->text_len + text_len < spooky_console_max_input_len) {
+    char * dest = impl->text + impl->text_len;
+    const char * src = text;
+    const char * src_end = src + text_len;
+    while (src < src_end && *src != '\0')
+    {
+      *dest = *src;
+      dest++;
+      src++;
+      impl->text_len++;
+    }
+  }
+}
+
 bool spooky_console_handle_event(const spooky_base * self, SDL_Event * event) {
   spooky_console_impl * impl = ((const spooky_console *)self)->impl;
 
-  bool close_console = false;
-  if(impl->show_console) {
-    if(event->type == SDL_KEYDOWN && event->key.keysym.sym == SDLK_BACKSPACE) {
+  bool toggled = false;
+  if(event->type == SDL_KEYDOWN && SDL_GetModState() & KMOD_CTRL && event->key.keysym.sym == SDLK_BACKQUOTE) {
+    impl->show_console = !impl->show_console;
+    toggled = true;
+  }
+  else if(impl->show_console && !impl->is_animating) {
+    if(event->type == SDL_TEXTINPUT) {
+      /* accumulate command text*/
+      size_t input_len = strnlen(event->text.text, spooky_console_max_input_len);
+      spooky_console_copy_text_to_buffer((const spooky_console *)self, event->text.text, input_len);
+    }
+    else if(event->type == SDL_KEYDOWN && event->key.keysym.sym == SDLK_BACKSPACE) {
       if(impl->text_len > 0) {
+        impl->text[impl->text_len - 1] = '\0';
         impl->text_len--;
-        impl->text[impl->text_len] = '\0';
+        if(impl->text_len < 0) { impl->text_len = 0; }
       }
     }
     else if(event->type == SDL_KEYDOWN && event->key.keysym.sym == SDLK_RETURN) {
+      if(impl->current_command) { free(impl->current_command), impl->current_command = NULL; }
       impl->current_command = strndup(impl->text, spooky_console_max_input_len);
       spooky_console_push_str_impl((const spooky_console *)self, impl->text, true);
       free(impl->text), impl->text = NULL;
@@ -194,40 +226,24 @@ bool spooky_console_handle_event(const spooky_base * self, SDL_Event * event) {
       impl->text_capacity = spooky_console_max_input_len;
       impl->text = calloc(impl->text_capacity, sizeof * impl->text);
     }
-    else if(event->type == SDL_TEXTINPUT) {
-      /* accumulate command text*/
-      if(event->text.text[0] != '`') {
-        size_t input_len = strnlen(event->text.text, spooky_console_max_input_len);
-        if(!impl->text) {
-          impl->text = calloc(spooky_console_max_input_len, sizeof * impl->text);
-          impl->text_capacity = spooky_console_max_input_len;
-          impl->text_len = 0;
+    else if(event->type == SDL_KEYDOWN && event->key.keysym.sym == SDLK_v && (SDL_GetModState() & KMOD_CTRL || SDL_GetModState() & KMOD_GUI)) {
+      if(SDL_HasClipboardText()) {
+        /* handle paste */
+        const char * clipboard = SDL_GetClipboardText();
+        if(clipboard) {
+          size_t clipboard_len = strnlen(clipboard, spooky_console_max_input_len);
+          spooky_console_copy_text_to_buffer((const spooky_console *)self, clipboard, clipboard_len);
         }
-        if(impl->text_len + input_len < spooky_console_max_input_len) {
-          char * dest = impl->text + impl->text_len;
-          char * src = event->text.text;
-          const char * src_end = event->text.text + input_len + 1;
-          do {
-            *dest = *src;
-             dest++; src++;
-          } while(src < src_end);
-          impl->text_len += input_len;
-          dest[impl->text_len] = '\0';
-        }
-      } else {
-        close_console = true;
-        goto why_not;
       }
     }
+
     return true;
   }
 
-why_not:
-  if(close_console || (!impl->show_console && event->type == SDL_KEYUP && event->key.keysym.sym == SDLK_BACKQUOTE)) {
-    if(!impl->is_animating) { impl->show_console = !impl->show_console; }
+  if(toggled) {
     impl->direction = impl->direction < 0 ? spooky_console_animation_speed : -spooky_console_animation_speed;
-    const SDL_Rect * rect = self->get_rect(self);
-    impl->is_animating = rect->y + rect->h > 0 || rect->y + rect->h < rect->h;
+    impl->is_animating = true;
+    self->set_focus(self, !impl->is_animating && impl->show_console);
     return true;
   }
 
@@ -256,24 +272,30 @@ why_not:
 void spooky_console_handle_delta(const spooky_base * self, int64_t last_update_time, double interpolation) {
   spooky_console_impl * impl = ((const spooky_console *)self)->impl;
 
-  if(impl->show_console) {
+  if(impl->is_animating) {
     const SDL_Rect * rect = self->get_rect(self);
     SDL_Rect r = { .x = rect->x, .y = rect->y, .w = rect->w, .h = rect->h };
     r.y += (int)floor((double)impl->direction * interpolation);
 
-    if(r.y < 0 - r.h) { r.y = 0 - r.h; }
-    if(r.y > 0) { r.y = 0; }
+    if(r.y < -r.h) {
+      r.y = -r.h;
+      impl->is_animating = false;
+    } else if(r.y > 0) {
+      r.y = 0;
+      impl->is_animating = false;
+    }
 
     const spooky_ex * ex = NULL;
     self->set_rect(self, &r, &ex);
-    impl->hide_cursor = (last_update_time / 650000000) % 2 == 0;
   }
+
+  impl->hide_cursor = (last_update_time / 650000000) % 2 == 0;
 }
 
 void spooky_console_render(const spooky_base * self, SDL_Renderer * renderer) {
   spooky_console_impl * impl = ((const spooky_console *)self)->impl;
 
-  if(impl->show_console) {
+  if(impl->show_console || impl->is_animating) {
     uint8_t r, g, b, a;
     SDL_GetRenderDrawColor(renderer, &r, &g, &b, &a);
 
@@ -298,6 +320,9 @@ void spooky_console_render(const spooky_base * self, SDL_Renderer * renderer) {
     int line_next = 2;
 
     spooky_console_line * t = impl->lines->head;
+    /* disable the presentation of orthographic ligatures as it negatively impacts the way text entry is performed */
+    bool enable_orthographic_ligatures = font->get_enable_orthographic_ligatures(font);
+    font->set_enable_orthographic_ligatures(font, false);
     while(t != NULL) {
       t = t->prev;
       if(t->line_len > 0 && t->line != NULL) {
@@ -391,6 +416,8 @@ void spooky_console_render(const spooky_base * self, SDL_Renderer * renderer) {
     if(!impl->hide_cursor) {
       font->write_to_renderer(font, renderer, &dest, &command_color, "_", strlen("_"), NULL, NULL);
     }
+
+    font->set_enable_orthographic_ligatures(font, enable_orthographic_ligatures);
   }
 }
 
@@ -475,20 +502,19 @@ void spooky_console_clear_current_command(const spooky_console * self) {
 
 void spooky_console_clear_console(const spooky_console * self) {
   spooky_console_impl * impl = self->impl;
-
-  spooky_console_line * t = impl->lines->head->next;
-  while(t != impl->lines->head) {
-    if(t->line != NULL) {
-      free(t->line), t->line = NULL;
+  if(impl && impl->lines && impl->lines->head) {
+    spooky_console_line * t = impl->lines->head->next;
+    while(t != impl->lines->head) {
+      if(t->line != NULL) {
+        free(t->line), t->line = NULL;
+      }
+      spooky_console_line * old = t;
+      t = t->next;
+      free(old), old = NULL;
     }
-    spooky_console_line * old = t;
-    t = t->next;
-    free(old), old = NULL;
+    free(impl->lines->head), impl->lines->head = NULL;
   }
-  free(impl->lines->head), impl->lines->head = NULL;
-
   free(impl->text), impl->text = NULL;
-  impl->text_capacity =SPOOKY_MAX_STRING_LEN;
-  impl->text = calloc(impl->text_capacity, sizeof * impl->text);
+  impl->text_capacity = spooky_console_max_input_len;
   impl->text_len = 0;
 }

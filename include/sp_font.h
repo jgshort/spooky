@@ -73,6 +73,8 @@ typedef struct spooky_font {
   void (*measure_text)(const spooky_font * self, const char * text, size_t text_len, int * width, int * height);
   bool (*get_is_drop_shadow)(const spooky_font * self);
   void (*set_is_drop_shadow)(const spooky_font * self, bool is_drop_shadow);
+  bool (*get_enable_orthographic_ligatures)(const spooky_font * self);
+  void (*set_enable_orthographic_ligatures)(const spooky_font * self, bool enable_orthographic_ligatures);
   void (*set_drop_x)(const spooky_font * self, int drop_x);
   int  (*get_drop_x)(const spooky_font * self);
   void (*set_drop_y)(const spooky_font * self, int drop_y);

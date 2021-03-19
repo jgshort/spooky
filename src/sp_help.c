@@ -150,11 +150,11 @@ void spooky_help_render(const spooky_base * self, SDL_Renderer * renderer) {
 
   int help_out = snprintf(help, sizeof(help),
     "               > HELP <                 \n"
-    " h or ? or F1 : Help                    \n"
+    " ? or F1 : Help                         \n"
     "                                        \n"
-    " ` : Debug Console                      \n"
-    " Ctrl + : Text size up                  \n"
-    " Ctrl - : Text size down                \n"
+    " Ctrl `  : Debug Console                \n"
+    " Ctrl +  : Text size up                 \n"
+    " Ctrl -  : Text size down               \n"
     "                                        \n"
     " F3: HUD            F12: Full screen    \n"
     "                                        \n"

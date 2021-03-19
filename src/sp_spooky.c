@@ -350,6 +350,7 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
           context->set_window_height(context, h);
         }
 
+        /* Handle top-level global events */
         switch(evt.type) {
           case SDL_QUIT:
             spooky_context_set_is_running(context, false);
@@ -427,7 +428,7 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
           const spooky_base * obj = *event_iter;
           if(obj != NULL && obj->handle_event != NULL) {
             if(obj->handle_event(obj, &evt)) {
-              goto render_pipeline;
+              break;
             }
           }
         } while(--event_iter >= first);
@@ -436,7 +437,7 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
       {
         /* check the console command; execute it if it exists */
         const char * command;
-        if((command = console->get_current_command(console)) != NULL) {
+        if(console->as_base(console)->get_focus(console->as_base(console)) && (command = console->get_current_command(console)) != NULL) {
           spooky_command_parser(context, console, log, command);
           console->clear_current_command(console);
         }
@@ -479,7 +480,7 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
       /* handle base deltas */
     } /* >> while ((now - last_update_time ... */
 
-render_pipeline:
+// render_pipeline:
     interpolation = fmin(1.0f, (double)(now - last_update_time) / (double)(TIME_BETWEEN_UPDATES));
     if (now - last_update_time > TIME_BETWEEN_UPDATES) {
       last_update_time = now - TIME_BETWEEN_UPDATES;
