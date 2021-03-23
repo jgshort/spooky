@@ -18,10 +18,10 @@ typedef struct spooky_context {
 
   int (*get_window_width)(const spooky_context * context);
   void (*set_window_width)(const spooky_context * context, int window_width);
-  
+
   int (*get_window_height)(const spooky_context * context);
   void (*set_window_height)(const spooky_context * context, int window_height);
-  
+
   bool (*get_is_fullscreen)(const spooky_context * context);
   void (*set_is_fullscreen)(const spooky_context * context, bool is_fullscreen);
 

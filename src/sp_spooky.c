@@ -308,7 +308,7 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
 
   bool is_done = false, is_up = false, is_down = false;
 
-  if(((const spooky_base *)debug)->add_child((const spooky_base *)debug, (const spooky_base *)help, ex) != SP_SUCCESS) { goto err1; }
+  if(debug->as_base(debug)->add_child(debug->as_base(debug), help->as_base(help), ex) != SP_SUCCESS) { goto err1; }
 
   log->prepend(log, "Logging enabled\n", SLS_INFO);
   int x_dir = 30, y_dir = 30;
@@ -466,21 +466,11 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
         if(obj->handle_delta != NULL) { obj->handle_delta(obj, last_update_time, interpolation); }
       } while(++delta_iter < last);
 
-      //bouncing console... for reasons:
-      /*
-      const SDL_Rect * r = ((const spooky_base *)debug)->get_rect((const spooky_base *)debug);
-      SDL_Rect rr = { .x = r->x, .y =r->y, .w = r->w, .h = r->h };
-      rr.x += x_dir * (int)floor((double)5 * interpolation);
-      rr.y += y_dir * (int)floor((double)5 * interpolation);
-      if(((const spooky_base *)debug)->set_rect((const spooky_base *)debug, &rr, ex) != SP_SUCCESS) { goto err1; }
-      */
       last_update_time += TIME_BETWEEN_UPDATES;
       update_loops++;
 
-      /* handle base deltas */
     } /* >> while ((now - last_update_time ... */
 
-// render_pipeline:
     interpolation = fmin(1.0f, (double)(now - last_update_time) / (double)(TIME_BETWEEN_UPDATES));
     if (now - last_update_time > TIME_BETWEEN_UPDATES) {
       last_update_time = now - TIME_BETWEEN_UPDATES;
@@ -500,19 +490,11 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
     {
       SDL_Color saved_color = { 0 };
       SDL_GetRenderDrawColor(renderer, &saved_color.r, &saved_color.g, &saved_color.b, &saved_color.a);
-      /** If not rendering non-scaled background below, render the letterbox color instead:
-      *** const SDL_Color bg = { .r = 20, .g = 1, .b = 36, .a = 255 };
-      *** SDL_SetRenderDrawColor(renderer, bg.r, bg.g, bg.b, bg.a);
-      *** SDL_RenderClear(renderer); // letterbox color
-      */
       const SDL_Color c = { .r = 1, .g = 20, .b = 36, .a = 255 };
       SDL_SetRenderDrawColor(renderer, c.r, c.g, c.b, c.a);
       SDL_RenderFillRect(renderer, NULL); /* screen color */
       SDL_SetRenderDrawColor(renderer, saved_color.r, saved_color.g, saved_color.b, saved_color.a);
     }
-
-    /* Placeholder background */
-    /* SDL_RenderCopy(renderer, background, NULL, NULL); */
 
     /* render bases */
     const spooky_base ** render_iter = first;
@@ -540,9 +522,6 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
         seconds_to_save = 0;
       }
       /* Every second, update FPS: */
-      char buf[80] = { 0 };
-      snprintf(buf, sizeof buf, "Delta: %f, FPS: %i", interpolation, (int)fps);
-
       fps = frame_count;
       frame_count = 0;
       last_second_time = this_second;

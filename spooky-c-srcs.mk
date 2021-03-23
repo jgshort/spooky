@@ -13,6 +13,7 @@ spooky_SOURCES = \
 								 sp_context.c \
 								 sp_base.c \
 								 sp_wm.c \
+								 sp_box.c \
 								 sp_console.c \
 								 sp_log.c \
 								 sp_debug.c \

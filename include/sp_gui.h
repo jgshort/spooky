@@ -16,7 +16,7 @@ extern "C" {
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpadded"
 #include <SDL2/SDL.h>
-#pragma GCC diagnostic pop 
+#pragma GCC diagnostic pop
 
 #include <SDL2/SDL_opengl.h>
 #include <SDL2/SDL_image.h>
@@ -29,6 +29,9 @@ extern const int spooky_window_default_width;
 extern const int spooky_window_default_height;
 extern const int spooky_window_default_logical_width;
 extern const int spooky_window_default_logical_height;
+extern const int spooky_ratcliff_factor;
+
+float get_ui_scale_factor();
 
 #ifdef __cplusplus
 }

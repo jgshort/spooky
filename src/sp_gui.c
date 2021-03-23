@@ -1,6 +1,8 @@
 #include <assert.h>
 #include "sp_gui.h"
 
+const int spooky_ratcliff_factor = 7;
+
 const int spooky_window_default_width = 320;
 const int spooky_window_default_height = 200;
 
@@ -67,3 +69,5 @@ err0:
   fprintf(stderr, "This is a fatal error. Check the resources path and restart.\n");
   abort();
 }
+
+float get_ui_scale_factor() { return 1.f; }

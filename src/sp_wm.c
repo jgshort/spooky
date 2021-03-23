@@ -202,7 +202,7 @@ static void spooky_wm_activate_window(const spooky_wm * self, const spooky_base 
 static int spooky_wm_get_max_z_order(const spooky_wm * self) {
   spooky_wm_data * data = self->data;
   assert(data->objects_index < INT_MAX);
-  return (int)data->objects_index; 
+  return (int)data->objects_index;
 }
 
 typedef struct spooky_window_iter {
