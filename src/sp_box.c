@@ -12,6 +12,127 @@
 #include "sp_box.h"
 #include "sp_limits.h"
 
+typedef struct spooky_box_data {
+  const char * name;
+  size_t name_len;
+} spooky_box_data;
+
+static bool spooky_box_handle_event(const spooky_base * self, SDL_Event * event);
+static void spooky_box_handle_delta(const spooky_base * self, int64_t last_update_time, double interpolation);
+static void spooky_box_render(const spooky_base * self, SDL_Renderer * renderer);
+
+const spooky_base * spooky_box_as_base(const spooky_box * self) {
+  return (const spooky_base *)self;
+}
+
+const spooky_box * spooky_box_alloc() {
+  spooky_box * self = calloc(1, sizeof * self);
+  return self;
+}
+
+
+const spooky_box * spooky_box_init(spooky_box * self) {
+  assert(self);
+  if(!self) { abort(); }
+
+  self = (spooky_box *)(uintptr_t)spooky_base_init((spooky_base *)(uintptr_t)self);
+
+  self->as_base = &spooky_box_as_base;
+  self->ctor = &spooky_box_ctor;
+  self->dtor = &spooky_box_dtor;
+  self->free = &spooky_box_free;
+  self->release = &spooky_box_release;
+
+  self->super.handle_event = &spooky_box_handle_event;
+  self->super.handle_delta = &spooky_box_handle_delta;
+  self->super.render = &spooky_box_render;
+
+  return self;
+}
+
+const spooky_box * spooky_box_acquire() {
+  return spooky_box_init((spooky_box *)(uintptr_t)spooky_box_alloc());
+}
+
+const spooky_box * spooky_box_ctor(const spooky_box * self) {
+  assert(self);
+  if(!self) { abort(); }
+
+  SDL_Rect origin = { .x = 0, .y = 0, .w = 0, .h = 0 };
+  self = (spooky_box *)(uintptr_t)spooky_base_ctor((spooky_base *)(uintptr_t)self, origin);
+
+  spooky_box_data * data = calloc(1, sizeof * data);
+
+  ((spooky_box *)(uintptr_t)self)->data = data;
+
+  return self;
+}
+
+const spooky_box * spooky_box_dtor(const spooky_box * self) {
+  if(!self) { return self; }
+
+  free(((spooky_box *)(uintptr_t)self)->data), ((spooky_box *)(uintptr_t)self)->data = NULL;
+
+  return self;
+}
+
+void spooky_box_free(const spooky_box * self) {
+  free((void *)(uintptr_t)self), self = NULL;
+}
+
+void spooky_box_release(const spooky_box * self) {
+  self->free(self->dtor(self));
+}
+
+static bool spooky_box_handle_event(const spooky_base * self, SDL_Event * event) {
+  if(self->get_children_count(self) > 0) {
+    const spooky_iter * it = self->get_iterator(self);
+    it->reset(it);
+    while(it->next(it)) {
+      const spooky_base * object = it->current(it);
+      if(object && object->handle_event) {
+        bool handled = object->handle_event(object, event);
+        if(handled) { return handled; }
+      }
+    }
+  }
+
+  return false;
+}
+
+static void spooky_box_handle_delta(const spooky_base * self, int64_t last_update_time, double interpolation) {
+  if(self->get_children_count(self) > 0) {
+    const spooky_iter * it = self->get_iterator(self);
+    it->reset(it);
+    while(it->next(it)) {
+      const spooky_base * object = it->current(it);
+      if(object && object->handle_delta) {
+        object->handle_delta(object, last_update_time,interpolation);
+      }
+    }
+  }
+}
+
+static void spooky_box_render(const spooky_base * self, SDL_Renderer * renderer) {
+  if(self->get_children_count(self) > 0) {
+    const spooky_iter * it = self->get_iterator(self);
+    it->reset(it);
+    while(it->next(it)) {
+      const spooky_base * object = it->current(it);
+      if(object && object->render) {
+        object->render(object, renderer);
+      }
+    }
+  }
+
+  uint8_t r, g, b, a;
+  SDL_GetRenderDrawColor(renderer, &r, &g, &b, &a);
+  SDL_SetRenderDrawColor(renderer, 255, 0, 0, 0);
+  SDL_RenderDrawRect(renderer, self->get_rect(self));
+  SDL_SetRenderDrawColor(renderer, r, g, b, a);
+}
+
+#if 1 == 2
 static int spooky_gui_y_padding = 10;
 static int spooky_gui_x_padding = 10;
 
@@ -2059,3 +2180,4 @@ static void spooky_box_set_direction(const spooky_box * self, spooky_box_scroll_
 #undef WIDTH
 #undef HEIGHT
 
+#endif /* if 1 == 2 */

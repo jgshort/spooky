@@ -30,6 +30,7 @@
 #include "sp_limits.h"
 #include "sp_time.h"
 #include "sp_db.h"
+#include "sp_box.h"
 
 static errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex);
 static errno_t spooky_command_parser(spooky_context * context, const spooky_console * console, const spooky_log * log, const char * command) ;
@@ -310,6 +311,18 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
 
   if(debug->as_base(debug)->add_child(debug->as_base(debug), help->as_base(help), ex) != SP_SUCCESS) { goto err1; }
 
+  SDL_Rect box0_rect = { .x = 100, .y = 100, .w = 100, .h = 100 };
+  const spooky_box * box0 = spooky_box_acquire();
+  box0 = box0->ctor(box0);
+  box0->as_base(box0)->set_rect(box0->as_base(box0), &box0_rect, NULL);
+
+  SDL_Rect box1_rect = { .x = 200, .y = 200, .w = 200, .h = 200 };
+  const spooky_box * box1 = spooky_box_acquire();
+  box1 = box1->ctor(box1);
+  box1->as_base(box1)->set_rect(box1->as_base(box1), &box1_rect, NULL);
+
+  box0->as_base(box0)->add_child(box0->as_base(box0), box1->as_base(box1), NULL);
+
   log->prepend(log, "Logging enabled\n", SLS_INFO);
   int x_dir = 30, y_dir = 30;
   double interpolation = 0.0;
@@ -495,6 +508,12 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
       SDL_RenderFillRect(renderer, NULL); /* screen color */
       SDL_SetRenderDrawColor(renderer, saved_color.r, saved_color.g, saved_color.b, saved_color.a);
     }
+
+    box0->
+      as_base(box0)->
+        render(
+          box0->as_base(box0), renderer
+        );
 
     /* render bases */
     const spooky_base ** render_iter = first;

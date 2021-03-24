@@ -1,6 +1,40 @@
 #ifndef SPOOKY_BOX__H
 #define SPOOKY_BOX__H
 
+typedef struct spooky_box spooky_box;
+typedef struct spooky_box_data spooky_box_data;
+
+typedef struct spooky_box {
+  spooky_base super;
+  const spooky_box * (*ctor)(const spooky_box * /* self */);
+  const spooky_box * (*dtor)(const spooky_box * /* self */);
+  void (*free)(const spooky_box * /* self */);
+  void (*release)(const spooky_box * /* self */);
+  const spooky_base * (*as_base)(const spooky_box * /* self */);
+
+  spooky_box_data * data;
+} spooky_box;
+
+const spooky_base * spooky_box_as_base(const spooky_box * /* self */);
+
+/* Allocate (malloc) interface */
+const spooky_box * spooky_box_alloc();
+/* Initialize interface methods */
+const spooky_box * spooky_box_init(spooky_box * /* self */);
+/* Allocate and initialize interface methods */
+const spooky_box * spooky_box_acquire();
+/* Construct data */
+const spooky_box * spooky_box_ctor(const spooky_box * /* self */);
+/* Destruct (dtor) data */
+const spooky_box * spooky_box_dtor(const spooky_box * /* self */);
+/* Free interface */
+void spooky_box_free(const spooky_box * /* self */);
+/* Destruct and free interface */
+void spooky_box_release(const spooky_box * /* self */);
+
+
+#if 1 == 2
+
 #include "sp_base.h"
 #include "sp_types.h"
 #include "sp_gui.h"
@@ -99,6 +133,8 @@ void spooky_box_release(const spooky_box * self);
 inline bool spooky_box_intersect(const SDL_Rect * const r, int x, int y) {
   return (x >= r->x) && (x < r->x + r->w) && (y >= r->y) && (y <= r->y + r->h);
 }
+
+#endif /* if 1 == 2 */
 
 #endif /* SPOOKY_BOX__H */
 

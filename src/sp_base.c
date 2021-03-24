@@ -42,6 +42,10 @@ static void spooky_base_set_w(const spooky_base * self, int w);
 static int spooky_base_get_h(const spooky_base * self);
 static void spooky_base_set_h(const spooky_base * self, int h);
 
+static size_t spooky_base_get_children_count(const spooky_base * self);
+static size_t spooky_base_get_children_capacity(const spooky_base * self);
+static const spooky_iter * spooky_base_get_iterator(const spooky_base * self);
+
 static errno_t spooky_base_children_iter(const spooky_base * self, const spooky_iter ** out_it, const spooky_ex ** ex);
 static errno_t spooky_base_add_child(const spooky_base * self, const spooky_base * child, const spooky_ex ** ex);
 static errno_t spooky_base_set_rect_relative(const spooky_base * self, const SDL_Rect * from_rect, const spooky_ex ** ex);
@@ -75,6 +79,11 @@ static const spooky_base spooky_base_funcs = {
 
   .set_z_order = &spooky_base_set_z_order,
   .get_z_order = &spooky_base_get_z_order,
+
+  .get_children_capacity = &spooky_base_get_children_capacity,
+  .get_children_count = &spooky_base_get_children_count,
+  .get_iterator = &spooky_base_get_iterator,
+
   .children_iter = &spooky_base_children_iter,
   .add_child = &spooky_base_add_child,
   .set_rect_relative = &spooky_base_set_rect_relative ,
@@ -190,7 +199,6 @@ void spooky_base_release(const spooky_base * self) {
 }
 
 errno_t spooky_base_get_rect_relative(const spooky_base * self, const SDL_Rect * from_rect, SDL_Rect * out_rect, const spooky_ex ** ex) {
-
   assert(self && from_rect && out_rect);
 
   if(!self || !from_rect || !out_rect) { goto err0; }
@@ -359,6 +367,18 @@ bool spooky_base_get_focus(const spooky_base * self) {
 
 void spooky_base_set_focus(const spooky_base * self, bool is_focus) {
     self->impl->is_focus = is_focus;
+}
+
+static size_t spooky_base_get_children_count(const spooky_base * self) {
+  return self->impl->children_count;
+}
+
+static size_t spooky_base_get_children_capacity(const spooky_base * self) {
+  return self->impl->children_capacity;
+}
+
+static const spooky_iter * spooky_base_get_iterator(const spooky_base * self) {
+  return self->impl->it;
 }
 
 typedef struct spooky_children_iter {
