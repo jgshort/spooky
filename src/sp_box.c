@@ -30,7 +30,6 @@ const spooky_box * spooky_box_alloc() {
   return self;
 }
 
-
 const spooky_box * spooky_box_init(spooky_box * self) {
   assert(self);
   if(!self) { abort(); }
