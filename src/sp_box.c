@@ -11,15 +11,24 @@
 #include "sp_wm.h"
 #include "sp_box.h"
 #include "sp_limits.h"
+#include "sp_sprite.h"
 
 typedef struct spooky_box_data {
   const char * name;
   size_t name_len;
+
+  const spooky_sprite * sprite;
 } spooky_box_data;
 
 static bool spooky_box_handle_event(const spooky_base * self, SDL_Event * event);
 static void spooky_box_handle_delta(const spooky_base * self, int64_t last_update_time, double interpolation);
 static void spooky_box_render(const spooky_base * self, SDL_Renderer * renderer);
+
+static void spooky_box_set_name(const spooky_box * self, const char * name);
+static const char * spooky_box_get_name(const spooky_box * self);
+
+static void spooky_box_set_sprite(const spooky_box * self, const spooky_sprite * sprite);
+static const spooky_sprite * spooky_box_get_sprite(const spooky_box * self);
 
 const spooky_base * spooky_box_as_base(const spooky_box * self) {
   return (const spooky_base *)self;
@@ -46,6 +55,12 @@ const spooky_box * spooky_box_init(spooky_box * self) {
   self->super.handle_delta = &spooky_box_handle_delta;
   self->super.render = &spooky_box_render;
 
+  self->set_name = &spooky_box_set_name;
+  self->get_name = &spooky_box_get_name;
+
+  self->set_sprite = &spooky_box_set_sprite;
+  self->get_sprite = &spooky_box_get_sprite;
+
   return self;
 }
 
@@ -61,6 +76,10 @@ const spooky_box * spooky_box_ctor(const spooky_box * self) {
   self = (spooky_box *)(uintptr_t)spooky_base_ctor((spooky_base *)(uintptr_t)self, origin);
 
   spooky_box_data * data = calloc(1, sizeof * data);
+
+  data->name = NULL;
+  data->name_len = 0;
+  data->sprite = NULL;
 
   ((spooky_box *)(uintptr_t)self)->data = data;
 
@@ -83,6 +102,24 @@ void spooky_box_release(const spooky_box * self) {
   self->free(self->dtor(self));
 }
 
+static void spooky_box_set_name(const spooky_box * self, const char * name) {
+  size_t name_len = strnlen(name, SPOOKY_MAX_STRING_LEN);
+  self->data->name_len = name_len;
+  self->data->name = name;
+}
+
+static const char * spooky_box_get_name(const spooky_box * self) {
+  return self->data->name;
+}
+
+static void spooky_box_set_sprite(const spooky_box * self, const spooky_sprite * sprite) {
+  self->data->sprite = sprite;
+}
+
+static const spooky_sprite * spooky_box_get_sprite(const spooky_box * self) {
+  return self->data->sprite;
+}
+
 static bool spooky_box_handle_event(const spooky_base * self, SDL_Event * event) {
   if(self->get_children_count(self) > 0) {
     const spooky_iter * it = self->get_iterator(self);
@@ -94,6 +131,13 @@ static bool spooky_box_handle_event(const spooky_base * self, SDL_Event * event)
         if(handled) { return handled; }
       }
     }
+  }
+
+  spooky_box_data * data = ((const spooky_box *)(uintptr_t)self)->data;
+  if(data->sprite && data->sprite->handle_event) {
+    bool handled = data->sprite->handle_event(data->sprite, event);
+    /* should ALWAYS be false */
+    if(handled) { return handled; }
   }
 
   return false;
@@ -110,6 +154,11 @@ static void spooky_box_handle_delta(const spooky_base * self, int64_t last_updat
       }
     }
   }
+
+  spooky_box_data * data = ((const spooky_box *)(uintptr_t)self)->data;
+  if(data->sprite && data->sprite->handle_delta) {
+    data->sprite->handle_delta(data->sprite, last_update_time, interpolation);
+  }
 }
 
 static void spooky_box_render(const spooky_base * self, SDL_Renderer * renderer) {
@@ -122,6 +171,11 @@ static void spooky_box_render(const spooky_base * self, SDL_Renderer * renderer)
         object->render(object, renderer);
       }
     }
+  }
+
+  spooky_box_data * data = ((const spooky_box *)(uintptr_t)self)->data;
+  if(data->sprite && data->sprite->render) {
+    data->sprite->render(data->sprite, renderer);
   }
 
   uint8_t r, g, b, a;

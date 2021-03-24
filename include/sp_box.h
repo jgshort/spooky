@@ -1,6 +1,8 @@
 #ifndef SPOOKY_BOX__H
 #define SPOOKY_BOX__H
 
+#include "sp_sprite.h"
+
 typedef struct spooky_box spooky_box;
 typedef struct spooky_box_data spooky_box_data;
 
@@ -11,6 +13,12 @@ typedef struct spooky_box {
   void (*free)(const spooky_box * /* self */);
   void (*release)(const spooky_box * /* self */);
   const spooky_base * (*as_base)(const spooky_box * /* self */);
+
+  void (*set_name)(const spooky_box * /* self */, const char * /* name */);
+  const char * (*get_name)(const spooky_box * /* self */);
+
+  void (*set_sprite)(const spooky_box * /* self */, const spooky_sprite * /* sprite */);
+  const spooky_sprite * (*get_sprite)(const spooky_box * /* self */);
 
   spooky_box_data * data;
 } spooky_box;

@@ -21,12 +21,8 @@ typedef struct spooky_sprite_data {
 } spooky_sprite_data;
 
 // Not utilized yet: static bool spooky_sprite_handle_event(const spooky_base * self, SDL_Event * event);
-static void spooky_sprite_handle_delta(const spooky_base * self, int64_t last_update_time, double interpolation);
-static void spooky_sprite_render(const spooky_base * self, SDL_Renderer * renderer);
-
-const spooky_base * spooky_sprite_as_base(const spooky_sprite * self) {
-  return (const spooky_base *)self;
-}
+static void spooky_sprite_handle_delta(const spooky_sprite * self, int64_t last_update_time, double interpolation);
+static void spooky_sprite_render(const spooky_sprite * self, SDL_Renderer * renderer);
 
 const spooky_sprite * spooky_sprite_alloc() {
   spooky_sprite * self = calloc(1, sizeof * self);
@@ -40,15 +36,14 @@ const spooky_sprite * spooky_sprite_init(spooky_sprite * self) {
 
   self = (spooky_sprite *)(uintptr_t)spooky_base_init((spooky_base *)(uintptr_t)self);
 
-  self->as_base = &spooky_sprite_as_base;
   self->ctor = &spooky_sprite_ctor;
   self->dtor = &spooky_sprite_dtor;
   self->free = &spooky_sprite_free;
   self->release = &spooky_sprite_release;
 
   // Not utilized yet: self->super.handle_event = &spooky_sprite_handle_event;
-  self->super.handle_delta = &spooky_sprite_handle_delta;
-  self->super.render = &spooky_sprite_render;
+  self->handle_delta = &spooky_sprite_handle_delta;
+  self->render = &spooky_sprite_render;
 
   return self;
 }
@@ -97,15 +92,15 @@ void spooky_sprite_release(const spooky_sprite * self) {
 }
 
 /* Not utilized yet:
-static bool spooky_sprite_handle_event(const spooky_base * self, SDL_Event * event) {
+static bool spooky_sprite_handle_event(const spooky_sprite * self, SDL_Event * event) {
   (void)self;
   (void)event;
   return false;
 }
 */
 
-static void spooky_sprite_handle_delta(const spooky_base * self, int64_t last_update_time, double interpolation) {
-  spooky_sprite_data * data = ((const spooky_sprite *)(uintptr_t)self)->data;
+static void spooky_sprite_handle_delta(const spooky_sprite * self, int64_t last_update_time, double interpolation) {
+  spooky_sprite_data * data = self->data;
 
   (void)last_update_time;
   (void)interpolation;
@@ -118,8 +113,8 @@ static void spooky_sprite_handle_delta(const spooky_base * self, int64_t last_up
   (void)interpolation;
 }
 
-static void spooky_sprite_render(const spooky_base * self, SDL_Renderer * renderer) {
-  spooky_sprite_data * data = ((const spooky_sprite *)(uintptr_t)self)->data;
+static void spooky_sprite_render(const spooky_sprite * self, SDL_Renderer * renderer) {
+  spooky_sprite_data * data = self->data;
 
   if(!data->is_visible) { return; }
 
