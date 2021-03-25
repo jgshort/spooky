@@ -3,6 +3,7 @@
 #ifndef SPOOKY_SPRITE__H
 #define SPOOKY_SPRITE__H
 
+#include <stdbool.h>
 #include "sp_base.h"
 
 typedef struct spooky_sprite spooky_sprite;
@@ -17,6 +18,13 @@ typedef struct spooky_sprite {
   bool (*handle_event)(const spooky_sprite * /* self */, SDL_Event * /* event */);
   void (*handle_delta)(const spooky_sprite * /* self */, int64_t /* last_update_time */, double /* interpolation */);
   void (*render)(const spooky_sprite * /* self */, SDL_Renderer * /* renderer */);
+
+  void (*set_sheet)(const spooky_sprite * /* self */, int /* sheet */);
+  void (*next_sheet)(const spooky_sprite * /* self */);
+  void (*prev_sheet)(const spooky_sprite * /* self */);
+
+  bool (*get_is_visible)(const spooky_sprite * /* self */);
+  void (*set_is_visible)(const spooky_sprite * /* self */, bool /* is_visible */);
 
   spooky_sprite_data * data;
 } spooky_sprite;
