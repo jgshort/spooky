@@ -75,7 +75,7 @@ static const spooky_console spooky_console_funcs = {
 };
 
 const spooky_base * spooky_console_as_base(const spooky_console * self) {
-  return SP_AS_BASE(self);
+  return (const spooky_base *)self;
 }
 
 const spooky_console * spooky_console_alloc() {

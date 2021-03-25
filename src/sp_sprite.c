@@ -57,7 +57,7 @@ const spooky_sprite * spooky_sprite_ctor(const spooky_sprite * self, SDL_Texture
   if(!data) abort();
 
   SDL_Rect origin = { .x = 0, .y = 0, .w = 0, .h = 0 };
-  self = (const spooky_sprite *)(uintptr_t)spooky_base_ctor((spooky_base *)(uintptr_t)self, origin);
+  spooky_base_ctor((spooky_base *)(uintptr_t)self, origin);
 
   data->texture = texture;
   data->current_frame = 0;

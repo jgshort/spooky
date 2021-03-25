@@ -5,9 +5,7 @@
 #include "sp_iter.h"
 #include "sp_gui.h"
 
-#define SP_AS_BASE(obj) ((const spooky_base *)(obj))
-
-struct spooky_base_impl;
+struct spooky_base_data;
 typedef struct spooky_base spooky_base;
 typedef struct spooky_base {
   const spooky_base * (*ctor)(const spooky_base * /* self */, SDL_Rect /* origin */);
@@ -48,7 +46,7 @@ typedef struct spooky_base {
   bool (*get_focus)(const spooky_base * /* self */);
   void (*set_focus)(const spooky_base * /* self */, bool /* is_focus */);
 
-  struct spooky_base_impl * impl;
+  struct spooky_base_data * data;
 } spooky_base;
 
 const spooky_base * spooky_base_init(spooky_base * /* self */);
@@ -62,4 +60,3 @@ void spooky_base_release(const spooky_base * /* self */);
 void spooky_base_z_sort(const spooky_base ** /* items */, size_t /* items_count */);
 
 #endif /* SP_BASE__H */
-

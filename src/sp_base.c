@@ -6,7 +6,7 @@
 #include "sp_iter.h"
 #include "sp_base.h"
 
-typedef struct spooky_base_impl {
+typedef struct spooky_base_data {
   const spooky_iter * it;
   const spooky_base ** children;
   const spooky_base * parent;
@@ -25,7 +25,7 @@ typedef struct spooky_base_impl {
   size_t z_order;
   bool is_focus;
   char padding[7];
-} spooky_base_impl;
+} spooky_base_data;
 
 static void spooky_base_set_z_order(const spooky_base * self, size_t z_order);
 static size_t spooky_base_get_z_order(const spooky_base * self);
@@ -120,26 +120,26 @@ const spooky_base * spooky_base_ctor(const spooky_base * self, SDL_Rect origin) 
   errno_t res = SP_FAILURE;
   const spooky_ex * ex = NULL;
 
-  spooky_base_impl * impl = calloc(1, sizeof * impl);
-  if(!impl) { goto err0; }
+  spooky_base_data * data = calloc(1, sizeof * data);
+  if(!data) { goto err0; }
 
-  impl->z_order = 0;
-  impl->children = NULL;
-  impl->parent = NULL;
-  impl->prev = NULL;
-  impl->next = NULL;
-  impl->rect = (SDL_Rect){ 0 };
-  impl->origin = origin;
+  data->z_order = 0;
+  data->children = NULL;
+  data->parent = NULL;
+  data->prev = NULL;
+  data->next = NULL;
+  data->rect = (SDL_Rect){ 0 };
+  data->origin = origin;
 
-  ((spooky_base *)(uintptr_t)self)->impl = impl;
+  ((spooky_base *)(uintptr_t)self)->data = data;
 
-  if((res = self->children_iter(self, &(impl->it), &ex)) != SP_SUCCESS) { goto err1; };
-  assert(impl->it);
+  if((res = self->children_iter(self, &(data->it), &ex)) != SP_SUCCESS) { goto err1; };
+  assert(data->it);
 
   return self;
 
 err1:
-  free(impl), impl = NULL;
+  free(data), data = NULL;
   ex = &spooky_null_ref_ex;
 
 err0:
@@ -148,36 +148,36 @@ err0:
 }
 
 const spooky_base * spooky_base_dtor(const spooky_base * self) {
-  spooky_base_impl * my = self->impl;
-  self->impl->it->free(self->impl->it);
+  spooky_base_data * my = self->data;
+  self->data->it->free(self->data->it);
   /* children pointers are owned elsewhere. Likewise for parent, prev, and next */
   free(my->children), my->children = NULL;
-  free(self->impl), ((spooky_base *)(uintptr_t)self)->impl = NULL;
+  free(self->data), ((spooky_base *)(uintptr_t)self)->data = NULL;
   return self;
 }
 
 errno_t spooky_base_add_child(const spooky_base * self, const spooky_base * child, const spooky_ex ** ex) {
   errno_t res = SP_FAILURE;
 
-  spooky_base_impl * impl = self->impl;
-  if(!impl->children) {
-    impl->children_count = 0;
-    impl->children_capacity = 16;
-    impl->children = calloc(impl->children_capacity, sizeof * impl->children);
-    if(!impl->children) { goto err0; }
+  spooky_base_data * data = self->data;
+  if(!data->children) {
+    data->children_count = 0;
+    data->children_capacity = 16;
+    data->children = calloc(data->children_capacity, sizeof * data->children);
+    if(!data->children) { goto err0; }
   }
 
-  if(impl->children_count + 1 > impl->children_capacity) {
-    impl->children_capacity += 16;
-    const spooky_base ** temp = realloc(impl->children, impl->children_capacity * sizeof * impl->children);
+  if(data->children_count + 1 > data->children_capacity) {
+    data->children_capacity += 16;
+    const spooky_base ** temp = realloc(data->children, data->children_capacity * sizeof * data->children);
     if(!temp) { goto err1; }
-    impl->children = temp;
+    data->children = temp;
   }
-  impl->children[impl->children_count] = child;
-  impl->children_count++;
+  data->children[data->children_count] = child;
+  data->children_count++;
 
-  child->impl->parent = self;
-  if((res = child->set_rect_relative(child, &(impl->rect), ex)) != SP_SUCCESS) { goto err2; };
+  child->data->parent = self;
+  if((res = child->set_rect_relative(child, &(data->rect), ex)) != SP_SUCCESS) { goto err2; };
 
   return SP_SUCCESS;
 
@@ -203,14 +203,14 @@ errno_t spooky_base_get_rect_relative(const spooky_base * self, const SDL_Rect *
 
   if(!self || !from_rect || !out_rect) { goto err0; }
 
-  spooky_base_impl * impl = self->impl;
-  int from_x = impl->origin.x + from_rect->x;
-  int from_y = impl->origin.y + from_rect->y;
+  spooky_base_data * data = self->data;
+  int from_x = data->origin.x + from_rect->x;
+  int from_y = data->origin.y + from_rect->y;
 
   out_rect->x = from_x;
   out_rect->y = from_y;
-  out_rect->w = impl->origin.w;
-  out_rect->h = impl->origin.h;
+  out_rect->w = data->origin.w;
+  out_rect->h = data->origin.h;
 
   return SP_SUCCESS;
 
@@ -224,12 +224,12 @@ errno_t spooky_base_set_rect_relative(const spooky_base * self, const SDL_Rect *
 
   if(!self || !from_rect) { goto err0; }
 
-  spooky_base_impl * impl = self->impl;
-  int from_x = impl->origin.x + from_rect->x;
-  int from_y = impl->origin.y + from_rect->y;
+  spooky_base_data * data = self->data;
+  int from_x = data->origin.x + from_rect->x;
+  int from_y = data->origin.y + from_rect->y;
 
-  impl->rect.x = from_x;
-  impl->rect.y = from_y;
+  data->rect.x = from_x;
+  data->rect.y = from_y;
 
   return SP_SUCCESS;
 
@@ -242,19 +242,19 @@ errno_t spooky_base_get_bounds(const spooky_base * self, SDL_Rect * out_bounds, 
   assert(self && out_bounds);
   if(!self || !out_bounds) { goto err0; }
 
-  spooky_base_impl * impl = self->impl;
-  out_bounds->x = impl->rect.x;
-  out_bounds->y = impl->rect.y;
-  out_bounds->w = impl->origin.w;
-  out_bounds->h = impl->origin.h;
+  spooky_base_data * data = self->data;
+  out_bounds->x = data->rect.x;
+  out_bounds->y = data->rect.y;
+  out_bounds->w = data->origin.w;
+  out_bounds->h = data->origin.h;
 
-  if(impl->children_count > 0) {
-    const spooky_iter * it = self->impl->it;
+  if(data->children_count > 0) {
+    const spooky_iter * it = self->data->it;
     it->reset(it);
     while(it->next(it)) {
       const spooky_base * object = it->current(it);
       if(object) {
-        SDL_Rect object_origin = object->impl->origin;
+        SDL_Rect object_origin = object->data->origin;
         out_bounds->w += object_origin.x + object_origin.w;
         out_bounds->h += object_origin.y + object_origin.h;
       }
@@ -269,16 +269,16 @@ err0:
 }
 
 void spooky_base_set_z_order(const spooky_base * self, size_t z_order) {
-  self->impl->z_order = z_order;
+  self->data->z_order = z_order;
 }
 
 size_t spooky_base_get_z_order(const spooky_base * self) {
-  return self->impl->z_order;
+  return self->data->z_order;
 }
 
 static int spooky_base_z_compare(const void * a, const void * b) {
-  const spooky_base_impl * l = (*(const spooky_base * const *)a)->impl;
-  const spooky_base_impl * r = (*(const spooky_base * const *)b)->impl;
+  const spooky_base_data * l = (*(const spooky_base * const *)a)->data;
+  const spooky_base_data * r = (*(const spooky_base * const *)b)->data;
   if(l->z_order < r->z_order) { return -1; }
   if(l->z_order > r->z_order) { return 1; }
   else { return 0; }
@@ -289,7 +289,7 @@ void spooky_base_z_sort(const spooky_base ** items, size_t items_count) {
 }
 
 const SDL_Rect * spooky_base_get_rect(const spooky_base * self) {
-  return &(self->impl->rect);
+  return &(self->data->rect);
 }
 
 errno_t spooky_base_set_rect(const spooky_base * self, const SDL_Rect * new_rect, const spooky_ex ** ex) {
@@ -298,23 +298,23 @@ errno_t spooky_base_set_rect(const spooky_base * self, const SDL_Rect * new_rect
   if(!self || !new_rect) { goto err0; }
 
   errno_t res = SP_FAILURE;
-  assert(self->impl);
-  spooky_base_impl * impl = self->impl;
-  SDL_Rect * impl_rect = &(impl->rect);
-  impl_rect->x = new_rect->x;
-  impl_rect->y = new_rect->y;
-  impl_rect->w = new_rect->w;
-  impl_rect->h = new_rect->h;
+  assert(self->data);
+  spooky_base_data * data = self->data;
+  SDL_Rect * data_rect = &(data->rect);
+  data_rect->x = new_rect->x;
+  data_rect->y = new_rect->y;
+  data_rect->w = new_rect->w;
+  data_rect->h = new_rect->h;
 
-  if(impl->children_count > 0) {
-    assert(impl->it);
-    const spooky_iter * it = impl->it;
+  if(data->children_count > 0) {
+    assert(data->it);
+    const spooky_iter * it = data->it;
     it->reset(it);
     while(it->next(it)) {
       const spooky_base * child = it->current(it);
       assert(child);
       if(child) {
-        if((res = child->set_rect_relative(child, impl_rect, ex)) != SP_SUCCESS) { goto err1; }
+        if((res = child->set_rect_relative(child, data_rect, ex)) != SP_SUCCESS) { goto err1; }
       }
     }
   }
@@ -330,55 +330,55 @@ err0:
 }
 
 int spooky_base_get_x(const spooky_base * self) {
-  return self->impl->rect.x;
+  return self->data->rect.x;
 }
 
 void spooky_base_set_x(const spooky_base * self, int x) {
-  self->impl->rect.x = x;
+  self->data->rect.x = x;
 }
 
 int spooky_base_get_y(const spooky_base * self) {
-  return self->impl->rect.y;
+  return self->data->rect.y;
 }
 
 void spooky_base_set_y(const spooky_base * self, int y) {
-  self->impl->rect.y = y;
+  self->data->rect.y = y;
 }
 
 int spooky_base_get_w(const spooky_base * self) {
-  return self->impl->rect.w;
+  return self->data->rect.w;
 }
 
 void spooky_base_set_w(const spooky_base * self, int w) {
-  self->impl->rect.w = w;
+  self->data->rect.w = w;
 }
 
 int spooky_base_get_h(const spooky_base * self) {
-  return self->impl->rect.h;
+  return self->data->rect.h;
 }
 
 void spooky_base_set_h(const spooky_base * self, int h) {
-  self->impl->rect.h = h;
+  self->data->rect.h = h;
 }
 
 bool spooky_base_get_focus(const spooky_base * self) {
-  return self->impl->rect.h;
+  return self->data->rect.h;
 }
 
 void spooky_base_set_focus(const spooky_base * self, bool is_focus) {
-    self->impl->is_focus = is_focus;
+    self->data->is_focus = is_focus;
 }
 
 static size_t spooky_base_get_children_count(const spooky_base * self) {
-  return self->impl->children_count;
+  return self->data->children_count;
 }
 
 static size_t spooky_base_get_children_capacity(const spooky_base * self) {
-  return self->impl->children_capacity;
+  return self->data->children_capacity;
 }
 
 static const spooky_iter * spooky_base_get_iterator(const spooky_base * self) {
-  return self->impl->it;
+  return self->data->it;
 }
 
 typedef struct spooky_children_iter {
@@ -392,18 +392,18 @@ typedef struct spooky_children_iter {
 
 static bool spooky_iter_next(const spooky_iter * it) {
   spooky_children_iter * this_it = (spooky_children_iter *)(uintptr_t)it;
-  spooky_base_impl * impl = this_it->base->impl;
+  spooky_base_data * data = this_it->base->data;
   if(!this_it->reverse) {
     ++(this_it->index);
-    return this_it->index <= impl->children_count;
+    return this_it->index <= data->children_count;
   }
   return false;
 }
 
 static const void * spooky_iter_current(const spooky_iter * it) {
   spooky_children_iter * this_it = (spooky_children_iter *)(uintptr_t)it;
-  spooky_base_impl * impl = this_it->base->impl;
-  return impl->children[this_it->index - 1];
+  spooky_base_data * data = this_it->base->data;
+  return data->children[this_it->index - 1];
 }
 
 static void spooky_iter_reset(const spooky_iter * it) {

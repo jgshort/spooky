@@ -29,7 +29,7 @@ static const spooky_debug spooky_debug_funcs = {
 };
 
 const spooky_base * spooky_debug_as_base(const spooky_debug * self) {
-  return SP_AS_BASE(self);
+  return (const spooky_base *)self;
 }
 
 const spooky_debug * spooky_debug_init(spooky_debug * self) {

@@ -23,7 +23,7 @@ static const spooky_help spooky_help_funcs = {
 };
 
 const spooky_base * spooky_help_as_base(const spooky_help * self) {
-  return SP_AS_BASE(self);
+  return (const spooky_base *)self;
 }
 
 const spooky_help * spooky_help_init(spooky_help * self) {
