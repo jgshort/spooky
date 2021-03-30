@@ -14,7 +14,15 @@ typedef struct spooky_context {
   SDL_Window * (*get_window)(const spooky_context * context);
   SDL_Renderer * (*get_renderer)(const spooky_context * context);
   SDL_Texture * (*get_canvas)(const spooky_context * context);
+  void (*set_canvas)(const spooky_context * context, SDL_Texture * texture);
+
   const spooky_font * (*get_font)(const spooky_context * context);
+
+  const SDL_Rect * (*get_native_rect)(const spooky_context * context);
+  void (*set_native_rect)(const spooky_context * context, const SDL_Rect * rect);
+
+  const SDL_Rect * (*get_scaled_rect)(const spooky_context * context);
+  void (*set_scaled_rect)(const spooky_context * context, const SDL_Rect * rect);
 
   int (*get_window_width)(const spooky_context * context);
   void (*set_window_width)(const spooky_context * context, int window_width);
@@ -35,6 +43,12 @@ typedef struct spooky_context {
 
   const spooky_hash_table * (*get_hash)(const spooky_context * context);
   int (*get_display_index)(const spooky_context * context);
+
+  float (*get_scale_w)(const spooky_context * context);
+  void (*set_scale_w)(const spooky_context * context, float w);
+
+  float (*get_scale_h)(const spooky_context * context);
+  void (*set_scale_h)(const spooky_context * context, float h);
 
   struct spooky_context_data * data;
 } spooky_context;

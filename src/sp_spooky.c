@@ -325,7 +325,10 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
   int x_dir = 30, y_dir = 30;
   double interpolation = 0.0;
   int seconds_to_save = 0;
+
   while(spooky_context_get_is_running(context)) {
+    SDL_SetRenderTarget(renderer, context->get_canvas(context));
+
     SDL_Rect debug_rect = { 0 };
     int update_loops = 0;
     now = sp_get_time_in_us();
@@ -354,11 +357,35 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
         ))
 #endif
         {
-          int w = 0, h = 0;
-          SDL_GetWindowSize(window, &w, &h);
+          SDL_SetRenderTarget(renderer, NULL);
+          int w, h;
+          SDL_GetRendererOutputSize(renderer, &w, &h);
           assert(w > 0 && h > 0);
-          context->set_window_width(context, w);
-          context->set_window_height(context, h);
+          SDL_Rect new_window_size = {
+            .x = 0,
+            .y = 0,
+            .w = w,
+            .h = h
+          };
+
+          float scale_ratio_w = (float)w / (float)context->get_window_width(context);
+          float scale_ratio_h = (float)h / (float)context->get_window_height(context);
+
+          context->set_scale_w(context, scale_ratio_w);
+          context->set_scale_h(context, scale_ratio_h);
+
+          //context->set_native_rect(context, &new_window_size);
+
+          //context->set_window_width(context, w);
+          //context->set_window_height(context, h);
+          SDL_Texture * canvas = SDL_CreateTexture(renderer, SDL_GetWindowPixelFormat(window), SDL_TEXTUREACCESS_TARGET, w, h);
+          context->set_canvas(context, canvas);
+          SDL_Rect view_port;
+          SDL_RenderGetViewport(renderer, &view_port);
+          if (view_port.w != w || view_port.h != h) {
+            SDL_RenderSetViewport(renderer, &new_window_size);
+          }
+          SDL_SetRenderTarget(renderer, context->get_canvas(context));
         }
 
         /* Handle top-level global events */
@@ -527,6 +554,9 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
       SDL_SetRenderDrawColor(renderer, 255, 255, 0, 255);
     }
 
+    SDL_SetRenderTarget(renderer, NULL);
+
+    SDL_RenderCopy(renderer, context->get_canvas(context), context->get_native_rect(context), context->get_scaled_rect(context));
     SDL_RenderPresent(renderer);
 
     last_render_time = now;
@@ -667,4 +697,8 @@ static errno_t spooky_parse_args(int argc, char ** argv, spooky_options * option
 
 err0:
   return SP_FAILURE;
+}
+
+void Resize() {
+  
 }

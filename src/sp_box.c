@@ -17,7 +17,7 @@ typedef struct spooky_box_data {
   const spooky_context * context;
   const char * name;
   size_t name_len;
-
+  SDL_Rect rect;
   const spooky_sprite * sprite;
 } spooky_box_data;
 
@@ -77,6 +77,7 @@ const spooky_box * spooky_box_ctor(const spooky_box * self, const spooky_context
 
   spooky_box_data * data = calloc(1, sizeof * data);
 
+  data->rect = origin;
   data->context = context;
   data->name = NULL;
   data->name_len = 0;
@@ -135,16 +136,17 @@ static bool spooky_box_handle_event(const spooky_base * self, SDL_Event * event)
   }
 
   spooky_box_data * data = ((const spooky_box *)(uintptr_t)self)->data;
+
   if(data->sprite && data->sprite->handle_event) {
     bool handled = data->sprite->handle_event(data->sprite, event);
     /* should ALWAYS be false */
     if(handled) { return handled; }
   }
 
-  SDL_Point p = { 0 };
+  SDL_Point p;
   SDL_GetMouseState(&p.x, &p.y);
 
-  bool intersected = SDL_PointInRect(&p, self->get_rect(self));
+  bool intersected = SDL_PointInRect(&p, &(data->rect));
   self->set_focus(self, intersected);
 
   return false;
@@ -193,7 +195,7 @@ static void spooky_box_render(const spooky_base * self, SDL_Renderer * renderer)
   } else {
     SDL_SetRenderDrawColor(renderer, 255, 0, 0, 0);
   }
-  SDL_RenderDrawRect(renderer, self->get_rect(self));
+  SDL_RenderDrawRect(renderer, &(data->rect)/* self->get_rect(self) */);
   SDL_SetRenderDrawColor(renderer, r, g, b, a);
 }
 
