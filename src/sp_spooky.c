@@ -311,15 +311,13 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
 
   if(debug->as_base(debug)->add_child(debug->as_base(debug), help->as_base(help), ex) != SP_SUCCESS) { goto err1; }
 
-  SDL_Rect box0_rect = { .x = 100, .y = 100, .w = 100, .h = 100 };
+  SDL_Rect box0_rect = { .x = 100, .y = 100, .w = 300, .h = 300 };
   const spooky_box * box0 = spooky_box_acquire();
-  box0 = box0->ctor(box0);
-  box0->as_base(box0)->set_rect(box0->as_base(box0), &box0_rect, NULL);
+  box0 = box0->ctor(box0, context, box0_rect);
 
-  SDL_Rect box1_rect = { .x = 200, .y = 200, .w = 200, .h = 200 };
+  SDL_Rect box1_rect = { .x = 200, .y = 200, .w = 50, .h = 50 };
   const spooky_box * box1 = spooky_box_acquire();
-  box1 = box1->ctor(box1);
-  box1->as_base(box1)->set_rect(box1->as_base(box1), &box1_rect, NULL);
+  box1 = box1->ctor(box1, context, box1_rect);
 
   box0->as_base(box0)->add_child(box0->as_base(box0), box1->as_base(box1), NULL);
 
@@ -445,6 +443,8 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
             }
           }
         } while(--event_iter >= first);
+
+        box0->as_base(box0)->handle_event(box0->as_base(box0), &evt);
       } /* >> while(SDL_PollEvent(&evt)) */
 
       {

@@ -128,8 +128,9 @@ const spooky_base * spooky_base_ctor(const spooky_base * self, SDL_Rect origin) 
   data->parent = NULL;
   data->prev = NULL;
   data->next = NULL;
-  data->rect = (SDL_Rect){ 0 };
+  data->rect = origin;
   data->origin = origin;
+  data->is_focus = false;
 
   ((spooky_base *)(uintptr_t)self)->data = data;
 
@@ -362,7 +363,7 @@ void spooky_base_set_h(const spooky_base * self, int h) {
 }
 
 bool spooky_base_get_focus(const spooky_base * self) {
-  return self->data->rect.h;
+  return self->data->is_focus;
 }
 
 void spooky_base_set_focus(const spooky_base * self, bool is_focus) {

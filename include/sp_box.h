@@ -1,6 +1,7 @@
 #ifndef SPOOKY_BOX__H
 #define SPOOKY_BOX__H
 
+#include "sp_context.h"
 #include "sp_sprite.h"
 
 typedef struct spooky_box spooky_box;
@@ -8,7 +9,7 @@ typedef struct spooky_box_data spooky_box_data;
 
 typedef struct spooky_box {
   spooky_base super;
-  const spooky_box * (*ctor)(const spooky_box * /* self */);
+  const spooky_box * (*ctor)(const spooky_box * /* self */, const spooky_context * /* context */, SDL_Rect /* origin */);
   const spooky_box * (*dtor)(const spooky_box * /* self */);
   void (*free)(const spooky_box * /* self */);
   void (*release)(const spooky_box * /* self */);
@@ -32,7 +33,7 @@ const spooky_box * spooky_box_init(spooky_box * /* self */);
 /* Allocate and initialize interface methods */
 const spooky_box * spooky_box_acquire();
 /* Construct data */
-const spooky_box * spooky_box_ctor(const spooky_box * /* self */);
+const spooky_box * spooky_box_ctor(const spooky_box * /* self */, const spooky_context * /* context */, SDL_Rect /* origin */);
 /* Destruct (dtor) data */
 const spooky_box * spooky_box_dtor(const spooky_box * /* self */);
 /* Free interface */

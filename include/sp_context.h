@@ -34,6 +34,7 @@ typedef struct spooky_context {
   void (*next_font_type)(spooky_context * context);
 
   const spooky_hash_table * (*get_hash)(const spooky_context * context);
+  int (*get_display_index)(const spooky_context * context);
 
   struct spooky_context_data * data;
 } spooky_context;

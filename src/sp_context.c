@@ -65,11 +65,12 @@ typedef struct spooky_context_data {
 
   int window_width;
   int window_height;
+  int display_index;
 
   bool is_fullscreen;
   bool is_paused;
   bool is_running;
-  char padding[5]; /* not portable */
+  char padding[1]; /* not portable */
 
   size_t turns;
 
@@ -124,6 +125,10 @@ static bool spooky_context_get_is_paused(const spooky_context * context) {
   return context->data->is_paused;
 }
 
+static int spooky_context_get_display_index(const spooky_context * context) {
+  return context->data->display_index;
+}
+
 static void spooky_context_set_is_paused(const spooky_context * context, bool is_paused) {
   context->data->is_paused = is_paused;
 }
@@ -166,6 +171,7 @@ errno_t spooky_init_context(spooky_context * context, FILE * fp) {
   context->set_is_running = &spooky_context_set_is_running;
   context->next_font_type = &spooky_context_next_font_type;
   context->get_hash = &spooky_context_get_hash;
+  context->get_display_index = &spooky_context_get_display_index;
 
   context->data = &global_data;
 
@@ -256,12 +262,16 @@ errno_t spooky_init_context(spooky_context * context, FILE * fp) {
   if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
   if(window == NULL || spooky_is_sdl_error(SDL_GetError())) { goto err4; }
 
+  global_data.display_index = SDL_GetWindowDisplayIndex(window);
+
   uint32_t renderer_flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC;
   SDL_ClearError();
   const int default_driver = -1;
   SDL_Renderer * renderer = SDL_CreateRenderer(window, default_driver, renderer_flags);
   if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
   if(renderer == NULL || spooky_is_sdl_error(SDL_GetError())) { goto err5; }
+
+  SDL_RenderSetLogicalSize(renderer, global_data.window_width, global_data.window_height);
 
   SDL_Color c0 = { 0 };
   SDL_GetRenderDrawColor(renderer, &c0.r, &c0.g, &c0.b, & c0.a);

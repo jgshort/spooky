@@ -14,6 +14,7 @@
 #include "sp_sprite.h"
 
 typedef struct spooky_box_data {
+  const spooky_context * context;
   const char * name;
   size_t name_len;
 
@@ -68,15 +69,15 @@ const spooky_box * spooky_box_acquire() {
   return spooky_box_init((spooky_box *)(uintptr_t)spooky_box_alloc());
 }
 
-const spooky_box * spooky_box_ctor(const spooky_box * self) {
+const spooky_box * spooky_box_ctor(const spooky_box * self, const spooky_context * context, SDL_Rect origin) {
   assert(self);
   if(!self) { abort(); }
 
-  SDL_Rect origin = { .x = 0, .y = 0, .w = 0, .h = 0 };
   self = (spooky_box *)(uintptr_t)spooky_base_ctor((spooky_base *)(uintptr_t)self, origin);
 
   spooky_box_data * data = calloc(1, sizeof * data);
 
+  data->context = context;
   data->name = NULL;
   data->name_len = 0;
   data->sprite = NULL;
@@ -140,6 +141,12 @@ static bool spooky_box_handle_event(const spooky_base * self, SDL_Event * event)
     if(handled) { return handled; }
   }
 
+  SDL_Point p = { 0 };
+  SDL_GetMouseState(&p.x, &p.y);
+
+  bool intersected = SDL_PointInRect(&p, self->get_rect(self));
+  self->set_focus(self, intersected);
+
   return false;
 }
 
@@ -180,7 +187,12 @@ static void spooky_box_render(const spooky_base * self, SDL_Renderer * renderer)
 
   uint8_t r, g, b, a;
   SDL_GetRenderDrawColor(renderer, &r, &g, &b, &a);
-  SDL_SetRenderDrawColor(renderer, 255, 0, 0, 0);
+
+  if(self->get_focus(self)) {
+    SDL_SetRenderDrawColor(renderer, 255, 255, 0, 0);
+  } else {
+    SDL_SetRenderDrawColor(renderer, 255, 0, 0, 0);
+  }
   SDL_RenderDrawRect(renderer, self->get_rect(self));
   SDL_SetRenderDrawColor(renderer, r, g, b, a);
 }
