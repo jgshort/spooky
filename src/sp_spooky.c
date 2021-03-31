@@ -528,12 +528,13 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
     uint64_t this_second = (uint64_t)(last_update_time / BILLION);
 
     {
-      SDL_Color saved_color = { 0 };
-      SDL_GetRenderDrawColor(renderer, &saved_color.r, &saved_color.g, &saved_color.b, &saved_color.a);
-      const SDL_Color c = { .r = 1, .g = 20, .b = 36, .a = 255 };
-      SDL_SetRenderDrawColor(renderer, c.r, c.g, c.b, c.a);
-      SDL_RenderFillRect(renderer, NULL); /* screen color */
-      SDL_SetRenderDrawColor(renderer, saved_color.r, saved_color.g, saved_color.b, saved_color.a);
+      const spooky_gui_rgba_context * rgba = spooky_gui_push_draw_color(renderer);
+      {
+        const SDL_Color c = { .r = 1, .g = 20, .b = 36, .a = 255 };
+        SDL_SetRenderDrawColor(renderer, c.r, c.g, c.b, c.a);
+        SDL_RenderFillRect(renderer, NULL); /* screen color */
+        spooky_gui_pop_draw_color(rgba);
+      }
     }
 
     box0->

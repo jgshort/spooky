@@ -187,16 +187,16 @@ static void spooky_box_render(const spooky_base * self, SDL_Renderer * renderer)
     data->sprite->render(data->sprite, renderer);
   }
 
-  uint8_t r, g, b, a;
-  SDL_GetRenderDrawColor(renderer, &r, &g, &b, &a);
-
-  if(self->get_focus(self)) {
-    SDL_SetRenderDrawColor(renderer, 255, 255, 0, 0);
-  } else {
-    SDL_SetRenderDrawColor(renderer, 255, 0, 0, 0);
+  const spooky_gui_rgba_context *  rgba = spooky_gui_push_draw_color(renderer);
+  {
+    if(self->get_focus(self)) {
+      SDL_SetRenderDrawColor(renderer, 255, 255, 0, 0);
+    } else {
+      SDL_SetRenderDrawColor(renderer, 255, 0, 0, 0);
+    }
+    SDL_RenderDrawRect(renderer, &(data->rect)/* self->get_rect(self) */);
+    spooky_gui_pop_draw_color(rgba);
   }
-  SDL_RenderDrawRect(renderer, &(data->rect)/* self->get_rect(self) */);
-  SDL_SetRenderDrawColor(renderer, r, g, b, a);
 }
 
 #if 1 == 2

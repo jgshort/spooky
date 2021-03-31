@@ -697,28 +697,30 @@ errno_t spooky_font_glyph_create_texture(const spooky_font * self, const char * 
 
   assert(fg_texture != NULL && bg_texture != NULL && texture != NULL);
 
-  uint8_t r, g, b, a;
-  SDL_GetRenderDrawColor(renderer, &r, &g, &b, &a);
-  /* make texture a temporary render target */
-  SDL_SetRenderTarget(renderer, texture);
+  const spooky_gui_rgba_context * rgba = spooky_gui_push_draw_color(renderer);
+  { 
+    /* make texture a temporary render target */
+    SDL_SetRenderTarget(renderer, texture);
 
-  /* clear the texture render target */
-  SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
-  SDL_RenderFillRect(renderer, NULL); /* screen color */
-  SDL_RenderClear(renderer);
+    /* clear the texture render target */
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
+    SDL_RenderFillRect(renderer, NULL); /* screen color */
+    SDL_RenderClear(renderer);
 
-  /* render the outline */
-  SDL_Rect bg_rect = {.x = 0, .y = 0, .w = bg_surface->w, .h = bg_surface->h}; 
+    /* render the outline */
+    SDL_Rect bg_rect = {.x = 0, .y = 0, .w = bg_surface->w, .h = bg_surface->h};
 
-  SDL_RenderCopy(renderer, bg_texture, NULL, &bg_rect);
+    SDL_RenderCopy(renderer, bg_texture, NULL, &bg_rect);
 
-  /* render the text */
-  SDL_Rect fg_rect = {.x = 1, .y = 1, .w = fg_surface->w, .h = fg_surface->h }; 
-  SDL_RenderCopy(renderer, fg_texture, NULL, &fg_rect);
+    /* render the text */
+    SDL_Rect fg_rect = {.x = 1, .y = 1, .w = fg_surface->w, .h = fg_surface->h };
+    SDL_RenderCopy(renderer, fg_texture, NULL, &fg_rect);
 
-  /* reset the render target */
-  SDL_SetRenderTarget(renderer, NULL);
-  SDL_SetRenderDrawColor(renderer, r, g, b, a);
+    /* reset the render target */
+    SDL_SetRenderTarget(renderer, NULL);
+
+    spooky_gui_pop_draw_color(rgba);
+  }
 
   SDL_FreeSurface(bg_surface), bg_surface = NULL;
   SDL_FreeSurface(fg_surface), fg_surface = NULL;

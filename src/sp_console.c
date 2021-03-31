@@ -285,19 +285,19 @@ void spooky_console_render(const spooky_base * self, SDL_Renderer * renderer) {
   spooky_console_impl * impl = ((const spooky_console *)self)->impl;
 
   if(impl->show_console || impl->is_animating) {
-    uint8_t r, g, b, a;
-    SDL_GetRenderDrawColor(renderer, &r, &g, &b, &a);
-
-    SDL_BlendMode blend_mode;
-    SDL_GetRenderDrawBlendMode(renderer, &blend_mode);
-
-    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 173);
     const SDL_Rect * rect = self->get_rect(self);
-    SDL_RenderFillRect(renderer, rect);
+    const spooky_gui_rgba_context * rgba = spooky_gui_push_draw_color(renderer);
+    {
+      SDL_BlendMode blend_mode;
+      SDL_GetRenderDrawBlendMode(renderer, &blend_mode);
 
-    SDL_SetRenderDrawBlendMode(renderer, blend_mode);
-    SDL_SetRenderDrawColor(renderer, r, g, b, a);
+      SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+      SDL_SetRenderDrawColor(renderer, 0, 0, 0, 173);
+      SDL_RenderFillRect(renderer, rect);
+
+      SDL_SetRenderDrawBlendMode(renderer, blend_mode);
+      spooky_gui_pop_draw_color(rgba);
+    }
 
     const spooky_font * font = impl->context->get_font(impl->context);
     int line_skip = font->get_line_skip(font);

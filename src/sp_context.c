@@ -341,12 +341,14 @@ errno_t spooky_init_context(spooky_context * context, FILE * fp) {
 
   SDL_RenderSetLogicalSize(renderer, global_data.scaled_window_size.w, global_data.scaled_window_size.h);
 
-  SDL_Color c0 = { 0 };
-  SDL_GetRenderDrawColor(renderer, &c0.r, &c0.g, &c0.b, & c0.a);
-  const SDL_Color c = { .r = 1, .g = 20, .b = 36, .a = 255 };
-  SDL_SetRenderDrawColor(renderer, c.r, c.g, c.b, c.a);
-  SDL_RenderFillRect(renderer, NULL);
-  SDL_SetRenderDrawColor(renderer, c0.r, c0.g, c0.b, c0.a);
+  const spooky_gui_rgba_context  * rgba = spooky_gui_push_draw_color(renderer);
+  {
+    const SDL_Color c = { .r = 1, .g = 20, .b = 36, .a = 255 };
+    SDL_SetRenderDrawColor(renderer, c.r, c.g, c.b, c.a);
+    SDL_RenderFillRect(renderer, NULL);
+    spooky_gui_pop_draw_color(rgba);
+  }
+
   SDL_RenderPresent(renderer);
 
   SDL_ClearError();

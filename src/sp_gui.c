@@ -9,6 +9,20 @@ const int spooky_window_default_height = 768;
 const int spooky_window_default_logical_width = 1024;
 const int spooky_window_default_logical_height = 768;
 
+typedef struct spooky_gui_rgba_context {
+  SDL_Renderer * renderer;
+  uint8_t r;
+  uint8_t g;
+  uint8_t b;
+  uint8_t a;
+  char padding[4];
+} spooky_gui_rgba_context;
+
+#define SPOOKY_GUI_MAX_DRAW_CONTEXTS 64
+static spooky_gui_rgba_context spooky_gui_draw_contexts[SPOOKY_GUI_MAX_DRAW_CONTEXTS];
+static size_t spooky_gui_next_draw_context = 0;
+static const spooky_gui_rgba_context * spooky_gui_last_draw_context = spooky_gui_draw_contexts + SPOOKY_GUI_MAX_DRAW_CONTEXTS;
+
 errno_t spooky_load_image(const char * file_path, size_t file_path_len, SDL_Surface ** out_surface) {
   assert(!(file_path == NULL || file_path_len <= 0));
 
@@ -71,3 +85,24 @@ err0:
 }
 
 float get_ui_scale_factor() { return 1.f; }
+
+const spooky_gui_rgba_context * spooky_gui_push_draw_color(SDL_Renderer * renderer) {
+  if(spooky_gui_next_draw_context + 1 >= SPOOKY_GUI_MAX_DRAW_CONTEXTS) {
+    /* abort? */
+    return NULL;
+  }
+
+  spooky_gui_rgba_context * context = &spooky_gui_draw_contexts[spooky_gui_next_draw_context];
+  assert(context < spooky_gui_last_draw_context);
+
+  spooky_gui_next_draw_context++;
+  SDL_GetRenderDrawColor(renderer, &context->r, &context->g, &context->b, &context->a);
+  context->renderer = renderer;
+  return context;
+}
+
+void spooky_gui_pop_draw_color(const spooky_gui_rgba_context * context) {
+  SDL_SetRenderDrawColor(context->renderer, context->a, context->g, context->b, context->a);
+  spooky_gui_next_draw_context--;
+  if(spooky_gui_next_draw_context < 1) { spooky_gui_next_draw_context = 0; }
+}
