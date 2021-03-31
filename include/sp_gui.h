@@ -25,11 +25,18 @@ extern "C" {
 errno_t spooky_load_image(const char * /* file_path */, size_t /* file_path_len */, SDL_Surface ** /* surface_out */);
 errno_t spooky_load_texture(SDL_Renderer * /* renderer */, const char * /* file_path */, size_t /* file_path_len */, SDL_Texture ** /* out_texture */);
 
-extern const int spooky_window_default_width;
-extern const int spooky_window_default_height;
-extern const int spooky_window_default_logical_width;
-extern const int spooky_window_default_logical_height;
-extern const int spooky_ratcliff_factor;
+extern const float spooky_gui_canvas_scale_factor;
+extern const bool spooky_gui_is_fullscreen;
+extern const uint32_t spooky_gui_window_flags;
+extern const uint32_t spooky_gui_renderer_flags;
+extern const float spooky_gui_default_aspect_ratio;
+extern const int spooky_gui_window_default_width;
+extern const int spooky_gui_window_default_height;
+extern const int spooky_gui_window_min_width;
+extern const int spooky_gui_window_min_height;
+extern const int spooky_gui_window_default_logical_width;
+extern const int spooky_gui_window_default_logical_height;
+extern const int spooky_gui_ratcliff_factor;
 
 float get_ui_scale_factor();
 

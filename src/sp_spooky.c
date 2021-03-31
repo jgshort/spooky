@@ -348,6 +348,7 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
              evt.window.event == SDL_WINDOWEVENT_SIZE_CHANGED
           || evt.window.event == SDL_WINDOWEVENT_MOVED
           || evt.window.event == SDL_WINDOWEVENT_RESIZED
+          || evt.window.event == SDL_WINDOWEVENT_SHOWN
           /* Only happens when clicking About in OS X Mojave */
           || evt.window.event == SDL_WINDOWEVENT_FOCUS_LOST
         ))
@@ -358,9 +359,23 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
 #endif
         {
           SDL_SetRenderTarget(renderer, NULL);
-          int w, h;
+
+          int w, h, window_w, window_h;
+          SDL_GetWindowSize(window, &window_w, &window_h);
           SDL_GetRendererOutputSize(renderer, &w, &h);
+          if(window_w <= spooky_gui_window_min_width || window_h <= spooky_gui_window_min_height) {
+            if(window_w <= spooky_gui_window_min_width) {
+              window_w = spooky_gui_window_min_width;
+            }
+            if(window_h <= spooky_gui_window_min_height) {
+              window_h = spooky_gui_window_min_height;
+            }
+            SDL_SetWindowSize(window, window_w, window_h);
+
+            SDL_GetRendererOutputSize(renderer, &w, &h);
+          }
           assert(w > 0 && h > 0);
+
           SDL_Rect new_window_size = {
             .x = 0,
             .y = 0,
@@ -368,24 +383,42 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
             .h = h
           };
 
-          float scale_ratio_w = (float)w / (float)context->get_window_width(context);
-          float scale_ratio_h = (float)h / (float)context->get_window_height(context);
+          context->set_native_rect(context, &new_window_size);
 
-          context->set_scale_w(context, scale_ratio_w);
-          context->set_scale_h(context, scale_ratio_h);
+          int scaled_width = spooky_gui_window_default_logical_width;
+          int scaled_height = spooky_gui_window_default_logical_height;
 
-          //context->set_native_rect(context, &new_window_size);
+          const int max_tries = 5;
+          int tries = 0;
+          while (scaled_width * spooky_gui_canvas_scale_factor <= w - (spooky_gui_ratcliff_factor * 2)) {
+            scaled_width *= spooky_gui_canvas_scale_factor;
+            if(tries++ >= max_tries) { break; }
+          }
 
-          //context->set_window_width(context, w);
-          //context->set_window_height(context, h);
-          SDL_Texture * canvas = SDL_CreateTexture(renderer, SDL_GetWindowPixelFormat(window), SDL_TEXTUREACCESS_TARGET, w, h);
+          scaled_height = (int)floor((float)scaled_width * spooky_gui_default_aspect_ratio);
+
+          int new_canvas_width = scaled_width;
+          int new_canvas_height = scaled_height;
+          SDL_Texture * canvas = SDL_CreateTexture(renderer, SDL_GetWindowPixelFormat(window), SDL_TEXTUREACCESS_TARGET, new_canvas_width, new_canvas_height);
+          SDL_Rect new_canvas_rect = {
+            .x = 0,
+            .y = 0,
+            .w = new_canvas_width,
+            .h = new_canvas_height
+          };
+          context->set_scaled_rect(context, &new_canvas_rect);
           context->set_canvas(context, canvas);
+
+          context->set_scale_w(context, spooky_gui_default_aspect_ratio);
+          context->set_scale_h(context, spooky_gui_default_aspect_ratio);
+
           SDL_Rect view_port;
           SDL_RenderGetViewport(renderer, &view_port);
           if (view_port.w != w || view_port.h != h) {
             SDL_RenderSetViewport(renderer, &new_window_size);
           }
           SDL_SetRenderTarget(renderer, context->get_canvas(context));
+          goto end_of_running_loop;
         }
 
         /* Handle top-level global events */
@@ -557,13 +590,20 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
 
     SDL_SetRenderTarget(renderer, NULL);
 
-    SDL_RenderCopy(renderer, context->get_canvas(context), context->get_native_rect(context), context->get_scaled_rect(context));
+    SDL_Rect center_rect;
+    context->get_center_rect(context, &center_rect);
+    SDL_RenderCopy(renderer, context->get_canvas(context), NULL, &center_rect);
     SDL_RenderPresent(renderer);
 
     last_render_time = now;
     frame_count++;
 
     if(this_second > last_second_time) {
+      fprintf(stdout, "%i, %i, %i, %i--%i, %i, %i,%i--%i, %i, %i, %i\n",
+        context->get_scaled_rect(context)->x, context->get_scaled_rect(context)->y, context->get_scaled_rect(context)->w, context->get_scaled_rect(context)->h,
+        context->get_native_rect(context)->x, context->get_native_rect(context)->y, context->get_native_rect(context)->w, context->get_native_rect(context)->h,
+        center_rect.x, center_rect.y, center_rect.w, center_rect.h
+        );
       seconds_to_save++;
       if(seconds_to_save >= 300) {
         /* Autosave every 5 minutes */

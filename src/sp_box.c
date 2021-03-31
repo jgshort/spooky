@@ -136,6 +136,7 @@ static bool spooky_box_handle_event(const spooky_base * self, SDL_Event * event)
   }
 
   spooky_box_data * data = ((const spooky_box *)(uintptr_t)self)->data;
+  const spooky_context * context = data->context;
 
   if(data->sprite && data->sprite->handle_event) {
     bool handled = data->sprite->handle_event(data->sprite, event);
@@ -145,8 +146,19 @@ static bool spooky_box_handle_event(const spooky_base * self, SDL_Event * event)
 
   SDL_Point p;
   SDL_GetMouseState(&p.x, &p.y);
+  /* translate mouse coords to center rect coords */
+  SDL_Rect center;
+  context->get_center_rect(context, &center);
 
-  bool intersected = SDL_PointInRect(&p, &(data->rect));
+  p.x += center.x;
+  p.y += center.y;
+
+  SDL_Rect translated = data->rect;
+  translated.x += center.x;
+  translated.y += center.y;
+
+  fprintf(stdout, "Mouse: (%i, %i), Rect: (%i, %i, %i, %i)\n", p.x, p.y, translated.x, translated.y, translated.w, translated.h);
+  bool intersected = SDL_PointInRect(&p, &translated);
   self->set_focus(self, intersected);
 
   return false;
@@ -197,6 +209,28 @@ static void spooky_box_render(const spooky_base * self, SDL_Renderer * renderer)
     SDL_RenderDrawRect(renderer, &(data->rect)/* self->get_rect(self) */);
     spooky_gui_pop_draw_color(rgba);
   }
+
+//  spooky_box_data * data = ((const spooky_box *)(uintptr_t)self)->data;
+  const spooky_context * context = data->context;
+
+  SDL_Rect center;
+  context->get_center_rect(context, &center);
+
+  SDL_Point p;
+  SDL_GetMouseState(&p.x, &p.y);
+
+  /* translate mouse coords to center rect coords */
+  SDL_Rect translated = data->rect;
+  translated.x += center.x;
+  translated.y += center.y;
+  SDL_Rect point = {
+    .x = p.x,
+    .y = p.y,
+    .w = 10,
+    .h = 10
+  };
+  SDL_RenderDrawRect(renderer, &point);
+  SDL_RenderDrawRect(renderer, &translated);
 }
 
 #if 1 == 2

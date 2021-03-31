@@ -1,13 +1,33 @@
 #include <assert.h>
+#include <stdbool.h>
+#include <stdlib.h>
+
 #include "sp_gui.h"
 
-const int spooky_ratcliff_factor = 7;
+const bool spooky_gui_is_fullscreen = false;
+const float spooky_gui_canvas_scale_factor = 1.2f;
 
-const int spooky_window_default_width = 1024;
-const int spooky_window_default_height = 768;
+const uint32_t spooky_gui_window_flags =
+  spooky_gui_is_fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0
+    | SDL_WINDOW_OPENGL
+    | SDL_WINDOW_HIDDEN
+    | SDL_WINDOW_ALLOW_HIGHDPI
+    | SDL_WINDOW_RESIZABLE
+    ;
+const uint32_t spooky_gui_renderer_flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC;
 
-const int spooky_window_default_logical_width = 1024;
-const int spooky_window_default_logical_height = 768;
+const int spooky_gui_ratcliff_factor = 7;
+
+/* 4K UHD-1  3840 × 2160 */
+const int spooky_gui_window_default_width = 640 * 2;
+const int spooky_gui_window_default_height = 480 * 2;
+const int spooky_gui_window_min_width = 640 * 2;
+const int spooky_gui_window_min_height = 480 * 2;
+
+const int spooky_gui_window_default_logical_width = 640 * 2;
+const int spooky_gui_window_default_logical_height = 480 * 2;
+
+const float spooky_gui_default_aspect_ratio = (float)spooky_gui_window_default_logical_height / (float)spooky_gui_window_default_logical_width;
 
 typedef struct spooky_gui_rgba_context {
   SDL_Renderer * renderer;
@@ -102,7 +122,14 @@ const spooky_gui_rgba_context * spooky_gui_push_draw_color(SDL_Renderer * render
 }
 
 void spooky_gui_pop_draw_color(const spooky_gui_rgba_context * context) {
+  if(!context) {
+    return;
+  }
+
+  assert(context->renderer);
+
   SDL_SetRenderDrawColor(context->renderer, context->a, context->g, context->b, context->a);
+
   spooky_gui_next_draw_context--;
   if(spooky_gui_next_draw_context < 1) { spooky_gui_next_draw_context = 0; }
 }

@@ -24,11 +24,7 @@ typedef struct spooky_context {
   const SDL_Rect * (*get_scaled_rect)(const spooky_context * context);
   void (*set_scaled_rect)(const spooky_context * context, const SDL_Rect * rect);
 
-  int (*get_window_width)(const spooky_context * context);
-  void (*set_window_width)(const spooky_context * context, int window_width);
-
-  int (*get_window_height)(const spooky_context * context);
-  void (*set_window_height)(const spooky_context * context, int window_height);
+  void (*get_center_rect)(const spooky_context * context, SDL_Rect * rect);
 
   bool (*get_is_fullscreen)(const spooky_context * context);
   void (*set_is_fullscreen)(const spooky_context * context, bool is_fullscreen);
