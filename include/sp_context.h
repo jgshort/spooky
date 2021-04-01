@@ -18,6 +18,8 @@ typedef struct spooky_context {
 
   const spooky_font * (*get_font)(const spooky_context * context);
 
+  float (*get_renderer_to_window_scale_factor)(const spooky_context * context);
+
   const SDL_Rect * (*get_native_rect)(const spooky_context * context);
   void (*set_native_rect)(const spooky_context * context, const SDL_Rect * rect);
 
@@ -45,6 +47,10 @@ typedef struct spooky_context {
 
   float (*get_scale_h)(const spooky_context * context);
   void (*set_scale_h)(const spooky_context * context, float h);
+
+  void (*get_translated_mouse_state)(const spooky_context * context, uint32_t * state, int * x, int * y);
+  void (*translate_point)(const spooky_context * context, SDL_Point * point);
+  void (*translate_rect)(const spooky_context * context, SDL_Rect * rect);
 
   struct spooky_context_data * data;
 } spooky_context;

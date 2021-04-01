@@ -358,6 +358,7 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
         ))
 #endif
         {
+          #if 1 == 2
           SDL_SetRenderTarget(renderer, NULL);
 
           int w, h, window_w, window_h;
@@ -419,6 +420,7 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
           }
           SDL_SetRenderTarget(renderer, context->get_canvas(context));
           goto end_of_running_loop;
+          #endif
         }
 
         /* Handle top-level global events */

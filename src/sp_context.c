@@ -1,5 +1,5 @@
 #define _POSIX_C_SOURCE 200809L
-// #define SPOOKY_SCALE_UP 0
+#define SPOOKY_SCALE_UP 0
 
 #include <assert.h>
 #include <stdlib.h>
@@ -59,10 +59,13 @@ typedef struct spooky_context_data {
   size_t font_type_index;
   size_t fonts_index;
 
+  size_t turns;
+
   const spooky_font * font_current;
   const spooky_font fonts[SPOOKY_FONT_MAX_TYPES][MAX_FONT_LEN];
 
   float window_scale_factor;
+  float renderer_to_window_scale_factor;
   float reserved0;
   float scale_w;
   float scale_h;
@@ -75,9 +78,7 @@ typedef struct spooky_context_data {
   bool is_fullscreen;
   bool is_paused;
   bool is_running;
-  char padding[1]; /* not portable */
-
-  size_t turns;
+  char padding[5]; /* not portable */
 
   size_t fonts_len[SPOOKY_FONT_MAX_TYPES];
 } spooky_context_data;
@@ -86,6 +87,24 @@ typedef struct spooky_context_data {
 static spooky_context_data global_data = { 0 };
 
 static void spooky_context_next_font_type(spooky_context * context);
+
+static void spooky_context_translate_point(const spooky_context * context, SDL_Point * point) {
+  float scale_factor = context->data->renderer_to_window_scale_factor;
+  point->x = (int)floor((float)(point->x) * scale_factor);
+  point->y = (int)floor((float)(point->y) * scale_factor);
+}
+
+static void spooky_context_translate_rect(const spooky_context * context, SDL_Rect * rect) {
+  float scale_factor = context->data->renderer_to_window_scale_factor;
+  rect->x = (int)floor((float)(rect->x) * scale_factor);
+  rect->y = (int)floor((float)(rect->y) * scale_factor);
+  rect->w = (int)floor((float)(rect->w) * scale_factor);
+  rect->h = (int)floor((float)(rect->h) * scale_factor);
+}
+
+static float spooky_context_get_renderer_to_window_scale_factor(const spooky_context * context) {
+  return context->data->renderer_to_window_scale_factor;
+}
 
 static float spooky_context_get_scale_w(const spooky_context * context) {
   return context->data->scale_w;
@@ -168,19 +187,21 @@ static const spooky_hash_table * spooky_context_get_hash(const spooky_context * 
 
 static void spooky_context_get_center_rect(const spooky_context * context, SDL_Rect * rect) {
   spooky_context_data * data = context->data;
-  int scaled_width = (int)((float)data->scaled_window_size.w * data->scale_w);
-  int scaled_height = (int)((float)data->scaled_window_size.h * data->scale_h);
+  *rect = data->scaled_window_size;
+}
 
-  SDL_Rect center_rect = {
-    .x = data->scaled_window_size.x + ((data->native_window_size.w / 2) - (scaled_width / 2)),
-    .y = data->scaled_window_size.y + ((data->native_window_size.h / 2) - (scaled_height / 2)),
-    .w = scaled_width,
-    .h = scaled_height
-  };
-  if(center_rect.x < 0) { center_rect.x = 0; }
-  if(center_rect.y < 0) { center_rect.y = 0; }
+static void spooky_context_get_translated_mouse_state(const spooky_context * context, uint32_t * state, int * x, int * y) {
+  float scale_factor = context->data->renderer_to_window_scale_factor;
 
-  *rect = center_rect;
+  int temp_x = 0, temp_y = 0;
+  uint32_t temp_state = SDL_GetMouseState(&temp_x, &temp_y);
+
+  temp_x = (int)floor((float)(temp_x) * scale_factor);
+  temp_y = (int)floor((float)(temp_y) * scale_factor);
+
+  if(state) { *state = temp_state; }
+  if(x) { *x = temp_x; }
+  if(y) { *y = temp_y; }
 }
 
 static void spooky_index_item_free_item(void * item) {
@@ -224,6 +245,10 @@ errno_t spooky_init_context(spooky_context * context, FILE * fp) {
   context->get_scale_h = &spooky_context_get_scale_h;
   context->set_scale_h = &spooky_context_set_scale_h;
   context->get_center_rect = &spooky_context_get_center_rect;
+  context->get_renderer_to_window_scale_factor = &spooky_context_get_renderer_to_window_scale_factor;
+  context->get_translated_mouse_state = &spooky_context_get_translated_mouse_state;
+  context->translate_point = &spooky_context_translate_point;
+  context->translate_rect = &spooky_context_translate_rect;
 
   context->data = &global_data;
 
@@ -299,38 +324,25 @@ errno_t spooky_init_context(spooky_context * context, FILE * fp) {
   if(window == NULL || spooky_is_sdl_error(SDL_GetError())) { goto err4; }
 
   global_data.display_index = SDL_GetWindowDisplayIndex(window);
-  const int max_tries = 5;
-  int tries = 0;
+
 #ifdef SPOOKY_SCALE_UP
   if(!spooky_gui_is_fullscreen) {
     SDL_Rect window_bounds;
     SDL_ClearError();
     if(SDL_GetDisplayUsableBounds(global_data.display_index, &window_bounds) == 0) {
-      while(global_data.native_window_size.w * spooky_gui_canvas_scale_factor < window_bounds.w) {
-        global_data.native_window_size.w *= spooky_gui_canvas_scale_factor;
-        global_data.window_scale_factor += 1.0f;
-        if(tries++ >= max_tries) { break; }
+      {
+        const int max_tries = 5;
+        int tries = 0;
+        while(global_data.native_window_size.w * spooky_gui_canvas_scale_factor < window_bounds.w) {
+          global_data.native_window_size.w *= spooky_gui_canvas_scale_factor;
+          global_data.window_scale_factor += 1.0f;
+          if(tries++ >= max_tries) { break; }
+        }
       }
-      tries = 0;
-      while(global_data.native_window_size.h * spooky_gui_canvas_scale_factor < window_bounds.h) {
-        global_data.native_window_size.h *= spooky_gui_canvas_scale_factor;
-        if(tries++ >= max_tries) { break; }
-      }
+      global_data.native_window_size.h = (int)floor((float)global_data.native_window_size.w * spooky_gui_canvas_scale_factor);
     }
     if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
   }
-
-  int scaled_width = spooky_gui_window_default_logical_width;
-  int scaled_height = spooky_gui_window_default_logical_height;
-  tries = 0;
-  while(scaled_width * spooky_gui_canvas_scale_factor < global_data.native_window_size.w) {
-    scaled_width *= spooky_gui_canvas_scale_factor;
-    scaled_height *= spooky_gui_canvas_scale_factor;
-    if(tries++ >= max_tries) { break; }
-  }
-
-  global_data.scaled_window_size.w = scaled_width;
-  global_data.scaled_window_size.h = scaled_height;
 #endif /* SPOOKY_SCALE_UP */
 
   SDL_SetWindowSize(window, global_data.native_window_size.w, global_data.native_window_size.h);
@@ -342,6 +354,14 @@ errno_t spooky_init_context(spooky_context * context, FILE * fp) {
   if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
   if(renderer == NULL || spooky_is_sdl_error(SDL_GetError())) { goto err5; }
 
+
+  int renderer_w, renderer_h;
+  SDL_GetRendererOutputSize(renderer, &renderer_w, &renderer_h);
+  global_data.renderer_to_window_scale_factor = renderer_w / global_data.native_window_size.w;
+  global_data.scaled_window_size.w = renderer_w;
+  global_data.scaled_window_size.h = renderer_h;
+
+  SDL_RenderSetViewport(renderer, &global_data.scaled_window_size);
   const spooky_gui_rgba_context  * rgba = spooky_gui_push_draw_color(renderer);
   {
     const SDL_Color c = { .r = 1, .g = 20, .b = 36, .a = 255 };
@@ -365,6 +385,8 @@ errno_t spooky_init_context(spooky_context * context, FILE * fp) {
       , global_data.scaled_window_size.h
       );
   if(!canvas || spooky_is_sdl_error(SDL_GetError())) { goto err7; }
+
+  fprintf(stdout, "Window: (%i, %i), Renderer: (%i, %i), Scaled: (%i, %i)\n", global_data.native_window_size.w, global_data.native_window_size.h, renderer_w, renderer_h, global_data.scaled_window_size.w, global_data.scaled_window_size.h);
 
   global_data.renderer = renderer;
   global_data.window = window;
