@@ -22,8 +22,8 @@ extern "C" {
 #include <SDL2/SDL_image.h>
 #include <SDL2/SDL_ttf.h>
 
-errno_t spooky_load_image(const char * /* file_path */, size_t /* file_path_len */, SDL_Surface ** /* surface_out */);
-errno_t spooky_load_texture(SDL_Renderer * /* renderer */, const char * /* file_path */, size_t /* file_path_len */, SDL_Texture ** /* out_texture */);
+errno_t spooky_gui_load_image(const char * /* file_path */, size_t /* file_path_len */, SDL_Surface ** /* surface_out */);
+errno_t spooky_gui_load_texture(SDL_Renderer * /* renderer */, const char * /* file_path */, size_t /* file_path_len */, SDL_Texture ** /* out_texture */);
 
 extern const float spooky_gui_canvas_scale_factor;
 extern const bool spooky_gui_is_fullscreen;

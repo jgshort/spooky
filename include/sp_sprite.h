@@ -17,7 +17,7 @@ typedef struct spooky_sprite {
 
   bool (*handle_event)(const spooky_sprite * /* self */, SDL_Event * /* event */);
   void (*handle_delta)(const spooky_sprite * /* self */, int64_t /* last_update_time */, double /* interpolation */);
-  void (*render)(const spooky_sprite * /* self */, SDL_Renderer * /* renderer */);
+  void (*render)(const spooky_sprite * /* self */, SDL_Renderer * /* renderer */, const SDL_Rect * /* src */, const SDL_Rect * /* dest */);
 
   void (*set_sheet)(const spooky_sprite * /* self */, int /* sheet */);
   void (*next_sheet)(const spooky_sprite * /* self */);
@@ -25,6 +25,7 @@ typedef struct spooky_sprite {
 
   bool (*get_is_visible)(const spooky_sprite * /* self */);
   void (*set_is_visible)(const spooky_sprite * /* self */, bool /* is_visible */);
+  void (*set_texture)(const spooky_sprite * /* self */, SDL_Texture * /* texture */);
 
   spooky_sprite_data * data;
 } spooky_sprite;

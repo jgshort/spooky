@@ -32,6 +32,81 @@
 #include "sp_db.h"
 #include "sp_box.h"
 
+typedef enum spooky_tile_type {
+  STT_EMPTY,
+  STT_GROUND,
+  STT_TREE,
+  STT_EOE
+} spooky_tile_type;
+
+typedef struct spooky_tile {
+  spooky_tile_type type;
+} spooky_tile;
+
+static const spooky_tile tiles[16][16] = {
+  { { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
+    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
+    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
+    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND } },
+  { { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
+    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
+    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
+    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND } },
+{ { .type = STT_GROUND }, { .type = STT_TREE }, { .type = STT_TREE }, { .type = STT_TREE },
+    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
+    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
+    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND } },
+{ { .type = STT_GROUND }, { .type = STT_TREE }, { .type = STT_GROUND }, { .type = STT_TREE },
+    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
+    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
+    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND } },
+{ { .type = STT_GROUND }, { .type = STT_TREE }, { .type = STT_GROUND }, { .type = STT_TREE },
+    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
+    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
+    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND } },
+{ { .type = STT_GROUND }, { .type = STT_TREE }, { .type = STT_TREE }, { .type = STT_TREE },
+    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
+    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
+    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND } },
+{ { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
+    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
+    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
+    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND } },
+{ { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
+    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
+    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
+    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND } },
+{ { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
+    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
+    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
+    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND } },
+{ { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
+    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
+    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
+    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND } },
+{ { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
+    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
+    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
+    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND } },
+{ { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
+    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
+    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
+    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND } },
+{ { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
+    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
+    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
+    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND } },
+{ { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
+    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
+    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
+    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND } },
+{ { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
+    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
+    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
+    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND } },
+  { { 0 } }
+};
+
 static errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex);
 static errno_t spooky_command_parser(spooky_context * context, const spooky_console * console, const spooky_log * log, const char * command) ;
 
@@ -267,12 +342,12 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
 
   SDL_Texture * background = NULL;
   SDL_ClearError();
-  if(spooky_load_texture(renderer, "./res/bg3.png", 13, &background) != SP_SUCCESS) { goto err0; }
+  if(spooky_gui_load_texture(renderer, "./res/bg3.png", 13, &background) != SP_SUCCESS) { goto err0; }
   if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
 
   SDL_Texture * letterbox_background = NULL;
   SDL_ClearError();
-  if(spooky_load_texture(renderer, "./res/bg4.png", 13, &letterbox_background) != SP_SUCCESS) { goto err1; }
+  if(spooky_gui_load_texture(renderer, "./res/bg4.png", 13, &letterbox_background) != SP_SUCCESS) { goto err1; }
   if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
 
   assert(background != NULL && letterbox_background != NULL);
@@ -311,15 +386,28 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
 
   if(debug->as_base(debug)->add_child(debug->as_base(debug), help->as_base(help), ex) != SP_SUCCESS) { goto err1; }
 
-  SDL_Rect box0_rect = { .x = 100, .y = 100, .w = 300, .h = 300 };
+  SDL_Texture * sprite_texture = NULL;
+  spooky_gui_load_texture(renderer, "./res/dwarf.png", strlen("./res/dwarf.png"), &sprite_texture);
+
+  const spooky_sprite * sprite = spooky_sprite_acquire();
+  sprite = sprite->ctor(sprite, sprite_texture);
+
+  int temp_w, temp_h;
+  SDL_GetWindowSize(window, &temp_w, &temp_h);
+  int sprite_w = 8 * 4;
+  int sprite_h = 16 * 4;
+  int center_x = (temp_w / 2) - (sprite_w / 2);
+  int center_y = (temp_h / 4) - (sprite_h / 2);
+  SDL_Rect box0_rect = { .x = center_x, .y = center_y, .w = sprite_w, .h = sprite_h };
   const spooky_box * box0 = spooky_box_acquire();
   box0 = box0->ctor(box0, context, box0_rect);
+  // box0->set_sprite(box0, sprite);
 
-  SDL_Rect box1_rect = { .x = 200, .y = 200, .w = 50, .h = 50 };
-  const spooky_box * box1 = spooky_box_acquire();
-  box1 = box1->ctor(box1, context, box1_rect);
+  //SDL_Rect box1_rect = { .x = 200, .y = 200, .w = 50, .h = 50 };
+  //const spooky_box * box1 = spooky_box_acquire();
+  //box1 = box1->ctor(box1, context, box1_rect);
 
-  box0->as_base(box0)->add_child(box0->as_base(box0), box1->as_base(box1), NULL);
+  // box0->as_base(box0)->add_child(box0->as_base(box0), box1->as_base(box1), NULL);
 
   log->prepend(log, "Logging enabled\n", SLS_INFO);
   int x_dir = 30, y_dir = 30;
@@ -572,18 +660,49 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
       }
     }
 
-    box0->
-      as_base(box0)->
-        render(
-          box0->as_base(box0), renderer
-        );
-
     /* render bases */
     const spooky_base ** render_iter = first;
     do {
       const spooky_base * obj = *render_iter;
       if(obj->render != NULL) { obj->render(obj, renderer); }
     } while(++render_iter < last);
+
+    static const int W = 8;
+    static const int H = 8;
+    box0->as_base(box0)->set_w(box0->as_base(box0), W);
+    box0->as_base(box0)->set_h(box0->as_base(box0), H);
+    box0->as_base(box0)->set_x(box0->as_base(box0), 0);
+    box0->as_base(box0)->set_y(box0->as_base(box0), 0);
+
+    for(size_t i = 0; i < sizeof tiles / sizeof tiles[0]; i++) {
+      int new_y = box0->as_base(box0)->get_y(box0->as_base(box0));
+      for(size_t j = 0; j < sizeof tiles[0] / sizeof tiles[0][0]; j++) {
+        int new_x = box0->as_base(box0)->get_x(box0->as_base(box0));
+        const spooky_gui_rgba_context * tile_rgba = spooky_gui_push_draw_color(renderer);
+        {
+          if(tiles[i][j].type == STT_GROUND) {
+            SDL_SetRenderDrawColor(renderer, 55, 148, 110, 255);
+          }
+          else if(tiles[i][j].type == STT_TREE) {
+            SDL_SetRenderDrawColor(renderer, 102, 57, 49, 255);
+          } else {
+            SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+          }
+          box0->
+            as_base(box0)->
+              render(
+                box0->as_base(box0), renderer
+              );
+          spooky_gui_pop_draw_color(tile_rgba);
+        }
+        new_x += W;
+        box0->as_base(box0)->set_x(box0->as_base(box0), new_x);
+      }
+      box0->as_base(box0)->set_x(box0->as_base(box0), 0);
+
+      new_y += H;
+      box0->as_base(box0)->set_y(box0->as_base(box0), new_y);
+    }
 
     {
       (void)debug_rect;
@@ -601,11 +720,11 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
     frame_count++;
 
     if(this_second > last_second_time) {
-      fprintf(stdout, "%i, %i, %i, %i--%i, %i, %i,%i--%i, %i, %i, %i\n",
+      /*fprintf(stdout, "%i, %i, %i, %i--%i, %i, %i,%i--%i, %i, %i, %i\n",
         context->get_scaled_rect(context)->x, context->get_scaled_rect(context)->y, context->get_scaled_rect(context)->w, context->get_scaled_rect(context)->h,
         context->get_native_rect(context)->x, context->get_native_rect(context)->y, context->get_native_rect(context)->w, context->get_native_rect(context)->h,
         center_rect.x, center_rect.y, center_rect.w, center_rect.h
-        );
+        ); */
       seconds_to_save++;
       if(seconds_to_save >= 300) {
         /* Autosave every 5 minutes */

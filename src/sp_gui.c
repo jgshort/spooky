@@ -41,7 +41,7 @@ static spooky_gui_rgba_context spooky_gui_draw_contexts[SPOOKY_GUI_MAX_DRAW_CONT
 static size_t spooky_gui_next_draw_context = 0;
 static const spooky_gui_rgba_context * spooky_gui_last_draw_context = spooky_gui_draw_contexts + SPOOKY_GUI_MAX_DRAW_CONTEXTS;
 
-errno_t spooky_load_image(const char * file_path, size_t file_path_len, SDL_Surface ** out_surface) {
+errno_t spooky_gui_load_image(const char * file_path, size_t file_path_len, SDL_Surface ** out_surface) {
   assert(!(file_path == NULL || file_path_len <= 0));
 
   if(file_path == NULL || file_path_len <= 0) { goto err0; }
@@ -66,14 +66,14 @@ err0:
   abort();
 }
 
-errno_t spooky_load_texture(SDL_Renderer * renderer, const char * file_path, size_t file_path_len, SDL_Texture ** out_texture) {
+errno_t spooky_gui_load_texture(SDL_Renderer * renderer, const char * file_path, size_t file_path_len, SDL_Texture ** out_texture) {
   assert(!(*out_texture != NULL || renderer == NULL || file_path == NULL || file_path_len <= 0));
 
   if(*out_texture != NULL || renderer == NULL || file_path == NULL || file_path_len <= 0) { goto err0; }
 
 
   SDL_Surface * surface = NULL;
-  errno_t surface_error = spooky_load_image(file_path, file_path_len, &surface);
+  errno_t surface_error = spooky_gui_load_image(file_path, file_path_len, &surface);
   if(surface_error != SP_SUCCESS || surface == NULL) { goto err1; }
 
   SDL_ClearError();

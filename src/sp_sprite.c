@@ -25,7 +25,7 @@ typedef struct spooky_sprite_data {
 
 // Not utilized yet: static bool spooky_sprite_handle_event(const spooky_base * self, SDL_Event * event);
 static void spooky_sprite_handle_delta(const spooky_sprite * self, int64_t last_update_time, double interpolation);
-static void spooky_sprite_render(const spooky_sprite * self, SDL_Renderer * renderer);
+static void spooky_sprite_render(const spooky_sprite * self, SDL_Renderer * renderer, const SDL_Rect * src, const SDL_Rect * dest);
 
 static bool spooky_sprite_get_is_visible(const spooky_sprite * self);
 static void spooky_sprite_set_is_visible(const spooky_sprite * self, bool is_visible);
@@ -34,6 +34,8 @@ static void spooky_sprite_set_sheet(const spooky_sprite * self, int sheet);
 static void spooky_sprite_next_sheet(const spooky_sprite * self);
 static void spooky_sprite_prev_sheet(const spooky_sprite * self);
 static void spooky_sprite_validate_current_sheet(const spooky_sprite * self);
+
+static void spooky_sprite_set_texture(const spooky_sprite * self, SDL_Texture * texture);
 
 const spooky_sprite * spooky_sprite_alloc() {
   spooky_sprite * self = calloc(1, sizeof * self);
@@ -44,8 +46,6 @@ const spooky_sprite * spooky_sprite_alloc() {
 const spooky_sprite * spooky_sprite_init(spooky_sprite * self) {
   assert(self);
   if(!self) { abort(); }
-
-  self = (spooky_sprite *)(uintptr_t)spooky_base_init((spooky_base *)(uintptr_t)self);
 
   self->ctor = &spooky_sprite_ctor;
   self->dtor = &spooky_sprite_dtor;
@@ -62,6 +62,7 @@ const spooky_sprite * spooky_sprite_init(spooky_sprite * self) {
 
   self->set_is_visible = &spooky_sprite_set_is_visible;
   self->get_is_visible = &spooky_sprite_get_is_visible;
+  self->set_texture = &spooky_sprite_set_texture;
 
   return self;
 }
@@ -73,9 +74,6 @@ const spooky_sprite * spooky_sprite_acquire() {
 const spooky_sprite * spooky_sprite_ctor(const spooky_sprite * self, SDL_Texture * texture) {
   spooky_sprite_data * data = calloc(1, sizeof * data);
   if(!data) abort();
-
-  SDL_Rect origin = { .x = 0, .y = 0, .w = 0, .h = 0 };
-  spooky_base_ctor((spooky_base *)(uintptr_t)self, origin);
 
   data->texture = texture;
   data->current_frame = 0;
@@ -131,17 +129,17 @@ static void spooky_sprite_handle_delta(const spooky_sprite * self, int64_t last_
   (void)interpolation;
 }
 
-static void spooky_sprite_render(const spooky_sprite * self, SDL_Renderer * renderer) {
+static void spooky_sprite_render(const spooky_sprite * self, SDL_Renderer * renderer, const SDL_Rect * src, const SDL_Rect * dest) {
   spooky_sprite_data * data = self->data;
 
   if(!data->is_visible) { return; }
 
-  SDL_Rect src = data->src;
-  SDL_Rect dest = data->dest;
+  //SDL_Rect src = data->src;
+  //SDL_Rect dest = data->dest;
 
-  src.x = src.x + (data->current_frame * src.w);
+  //src.x = src.x + (data->current_frame * src.w);
 
-  SDL_RenderCopy(renderer, data->texture, &src, &dest);
+  SDL_RenderCopy(renderer, data->texture, src, dest);
 }
 
 static bool spooky_sprite_get_is_visible(const spooky_sprite * self) {
@@ -170,4 +168,8 @@ static void spooky_sprite_next_sheet(const spooky_sprite * self) {
 static void spooky_sprite_prev_sheet(const spooky_sprite * self) {
   self->data->current_sheet--;
   spooky_sprite_validate_current_sheet(self);
+}
+
+static void spooky_sprite_set_texture(const spooky_sprite * self, SDL_Texture * texture) {
+  self->data->texture = texture;
 }

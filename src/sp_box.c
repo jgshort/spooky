@@ -17,7 +17,7 @@ typedef struct spooky_box_data {
   const spooky_context * context;
   const char * name;
   size_t name_len;
-  SDL_Rect rect;
+  //SDL_Rect rect;
   const spooky_sprite * sprite;
 } spooky_box_data;
 
@@ -77,7 +77,6 @@ const spooky_box * spooky_box_ctor(const spooky_box * self, const spooky_context
 
   spooky_box_data * data = calloc(1, sizeof * data);
 
-  data->rect = origin;
   data->context = context;
   data->name = NULL;
   data->name_len = 0;
@@ -147,7 +146,7 @@ static bool spooky_box_handle_event(const spooky_base * self, SDL_Event * event)
   SDL_Point p;
   context->get_translated_mouse_state(context, NULL, &p.x, &p.y);
 
-  SDL_Rect translated = data->rect;
+  SDL_Rect translated = *self->get_rect(self);
   context->translate_rect(context, &translated);
 
   bool intersected = SDL_PointInRect(&p, &translated);
@@ -185,40 +184,27 @@ static void spooky_box_render(const spooky_base * self, SDL_Renderer * renderer)
       }
     }
   }
-
   spooky_box_data * data = ((const spooky_box *)(uintptr_t)self)->data;
-  if(data->sprite && data->sprite->render) {
-    data->sprite->render(data->sprite, renderer);
-  }
-
   const spooky_context * context = data->context;
-
-  SDL_Rect translated = data->rect;
+  SDL_Rect translated = *self->get_rect(self);
   context->translate_rect(context, &translated);
-  const spooky_gui_rgba_context *  rgba = spooky_gui_push_draw_color(renderer);
-  {
-    if(self->get_focus(self)) {
-      SDL_SetRenderDrawColor(renderer, 255, 255, 0, 0);
-    } else {
-      SDL_SetRenderDrawColor(renderer, 255, 0, 0, 0);
+
+  if(data->sprite && data->sprite->render) {
+    data->sprite->render(data->sprite, renderer, NULL, &translated);
+  } else {
+    const spooky_gui_rgba_context *  rgba = spooky_gui_push_draw_color(renderer);
+    {
+      /*
+      if(self->get_focus(self)) {
+        SDL_SetRenderDrawColor(renderer, 255, 255, 0, 0);
+      } else {
+        SDL_SetRenderDrawColor(renderer, 255, 0, 0, 0);
+      }*/
+
+      SDL_RenderFillRect(renderer, &translated);
+      spooky_gui_pop_draw_color(rgba);
     }
-    SDL_RenderDrawRect(renderer, &translated);
-    spooky_gui_pop_draw_color(rgba);
   }
-
-  SDL_Point p;
-  context->get_translated_mouse_state(context, NULL, &p.x, &p.y);
-
-  /* translate mouse coords to center rect coords */
-
-  SDL_Rect point = {
-    .x = p.x,
-    .y = p.y,
-    .w = 10,
-    .h = 10
-  };
-
-  SDL_RenderDrawRect(renderer, &point);
 }
 
 #if 1 == 2

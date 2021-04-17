@@ -275,7 +275,7 @@ errno_t spooky_init_context(spooky_context * context, FILE * fp) {
   if(!SDL_SetHint(SDL_HINT_VIDEO_HIGHDPI_DISABLED, "0")) { goto err0; }
   if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
 
-  if(!SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "2")) { goto err0; }
+  if(!SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0")) { goto err0; }
   if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
 
   SDL_ClearError();
@@ -548,7 +548,7 @@ errno_t spooky_test_resources(const spooky_context * context) {
 
   /* check surface resource path and method */
   SDL_Surface * test_surface = NULL;
-  if(spooky_load_image("res/test0.png", 13, &test_surface) != SP_SUCCESS) { goto err0; }
+  if(spooky_gui_load_image("res/test0.png", 13, &test_surface) != SP_SUCCESS) { goto err0; }
   if(test_surface == NULL) goto err0;
   SDL_ClearError();
   SDL_FreeSurface(test_surface), test_surface = NULL;
@@ -556,7 +556,7 @@ errno_t spooky_test_resources(const spooky_context * context) {
 
   /* check texture method */
   SDL_Texture * test_texture = NULL;
-  if(spooky_load_texture(renderer, "res/test0.png", 13, &test_texture) != SP_SUCCESS) { goto err0; }
+  if(spooky_gui_load_texture(renderer, "res/test0.png", 13, &test_texture) != SP_SUCCESS) { goto err0; }
   if(test_texture == NULL) { goto err0; }
   SDL_ClearError();
   SDL_DestroyTexture(test_texture), test_texture = NULL;
