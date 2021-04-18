@@ -34,6 +34,7 @@
 
 typedef enum spooky_tile_type {
   STT_EMPTY,
+  STT_WATER,
   STT_GROUND,
   STT_TREE,
   STT_EOE
@@ -43,6 +44,7 @@ typedef struct spooky_tile {
   spooky_tile_type type;
 } spooky_tile;
 
+/*
 static const spooky_tile tiles[16][16] = {
   { { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
     { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
@@ -106,6 +108,7 @@ static const spooky_tile tiles[16][16] = {
     { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND } },
   { { 0 } }
 };
+*/
 
 static errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex);
 static errno_t spooky_command_parser(spooky_context * context, const spooky_console * console, const spooky_log * log, const char * command) ;
@@ -303,6 +306,32 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
   const int64_t TIME_BETWEEN_UPDATES = (int64_t) (BILLION / HERTZ);
   const int MAX_UPDATES_BEFORE_RENDER = 5;
   const int TARGET_TIME_BETWEEN_RENDERS = BILLION / TARGET_FPS;
+
+  static const size_t tiles_row_len = 128;
+  static const size_t tiles_col_len = 128;
+  spooky_tile ** tiles = calloc(tiles_row_len, sizeof * tiles);
+
+  for(size_t i = 0; i < tiles_row_len; i++) {
+    tiles[i] = calloc(tiles_col_len, sizeof * tiles[i]);
+    for(size_t j = 0; j < tiles_col_len; j++) {
+      tiles[i][j].type = STT_GROUND;
+    }
+  }
+
+  size_t tiles_center_x = tiles_row_len / 2;
+  size_t tiles_center_y = tiles_col_len / 2;
+
+  tiles[tiles_center_x][tiles_center_y].type = STT_WATER;
+
+  unsigned int seed = 1234;
+  for(int points = 0; points < 5; points++) {
+    srand(seed);
+    size_t random_x = ((size_t)abs(rand()) % tiles_row_len);
+    size_t random_y = ((size_t)abs(rand()) % tiles_col_len);
+
+    tiles[random_x][random_y].type = STT_WATER;
+    seed += 100;
+  }
 
   int64_t now = 0;
   int64_t last_render_time = sp_get_time_in_us();
@@ -674,20 +703,30 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
     box0->as_base(box0)->set_x(box0->as_base(box0), 0);
     box0->as_base(box0)->set_y(box0->as_base(box0), 0);
 
-    for(size_t i = 0; i < sizeof tiles / sizeof tiles[0]; i++) {
+    for(size_t i = 0; i < tiles_row_len; i++) {
       int new_y = box0->as_base(box0)->get_y(box0->as_base(box0));
-      for(size_t j = 0; j < sizeof tiles[0] / sizeof tiles[0][0]; j++) {
+      for(size_t j = 0; j < tiles_col_len; j++) {
         int new_x = box0->as_base(box0)->get_x(box0->as_base(box0));
         const spooky_gui_rgba_context * tile_rgba = spooky_gui_push_draw_color(renderer);
         {
-          if(tiles[i][j].type == STT_GROUND) {
-            SDL_SetRenderDrawColor(renderer, 55, 148, 110, 255);
+          spooky_tile_type type = tiles[i][j].type;
+          switch(type) {
+            case STT_GROUND:
+              SDL_SetRenderDrawColor(renderer, 55, 148, 110, 255);
+              break;
+            case STT_WATER:
+              SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);
+              break;
+            case STT_TREE:
+              SDL_SetRenderDrawColor(renderer, 102, 57, 49, 255);
+              break;
+            case STT_EOE:
+            case STT_EMPTY:
+            default:
+              SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
+              break;
           }
-          else if(tiles[i][j].type == STT_TREE) {
-            SDL_SetRenderDrawColor(renderer, 102, 57, 49, 255);
-          } else {
-            SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-          }
+
           box0->
             as_base(box0)->
               render(
@@ -754,6 +793,11 @@ end_of_running_loop: ;
 
   if(background != NULL) { SDL_DestroyTexture(background), background = NULL; }
   if(letterbox_background != NULL) { SDL_DestroyTexture(letterbox_background), letterbox_background = NULL; }
+
+  for(size_t i = 0; i < tiles_row_len; i++) {
+    free(tiles[i]), tiles[i] = NULL;
+  }
+  free(tiles), tiles = NULL;
 
   spooky_help_release(help);
   spooky_console_release(console);
@@ -862,5 +906,5 @@ err0:
 }
 
 void Resize() {
-  
+
 }

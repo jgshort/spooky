@@ -127,10 +127,10 @@ int spooky_db_create_storage(const spooky_db * self) {
 	int res = sqlite3_open(path, &db);
 	if(res != SQLITE_OK) { goto err0; }
 
-  sql = calloc(2048, sizeof * sql);
+  sql = calloc(1024, sizeof * sql);
 
   /* See sp_types.h for spooky_save_game_v1 */
-	snprintf(sql, 2048,
+	snprintf(sql, 1024,
 		"pragma encoding = utf8;" \
     "pragma foreign_keys = on;" \
     "create table if not exists spooky_saves_v1 (" \
