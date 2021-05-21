@@ -10,6 +10,7 @@
 #include <errno.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <sodium.h>
 
 #include "config.h"
 #include "sp_types.h"
@@ -40,75 +41,25 @@ typedef enum spooky_tile_type {
   STT_EOE
 } spooky_tile_type;
 
-typedef struct spooky_tile {
+typedef struct spooky_tile_meta spooky_tile_meta;
+typedef struct spooky_tile_meta {
   spooky_tile_type type;
-} spooky_tile;
+} spooky_tile_meta;
 
-/*
-static const spooky_tile tiles[16][16] = {
-  { { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
-    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
-    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
-    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND } },
-  { { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
-    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
-    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
-    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND } },
-{ { .type = STT_GROUND }, { .type = STT_TREE }, { .type = STT_TREE }, { .type = STT_TREE },
-    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
-    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
-    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND } },
-{ { .type = STT_GROUND }, { .type = STT_TREE }, { .type = STT_GROUND }, { .type = STT_TREE },
-    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
-    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
-    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND } },
-{ { .type = STT_GROUND }, { .type = STT_TREE }, { .type = STT_GROUND }, { .type = STT_TREE },
-    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
-    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
-    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND } },
-{ { .type = STT_GROUND }, { .type = STT_TREE }, { .type = STT_TREE }, { .type = STT_TREE },
-    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
-    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
-    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND } },
-{ { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
-    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
-    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
-    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND } },
-{ { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
-    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
-    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
-    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND } },
-{ { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
-    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
-    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
-    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND } },
-{ { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
-    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
-    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
-    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND } },
-{ { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
-    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
-    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
-    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND } },
-{ { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
-    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
-    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
-    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND } },
-{ { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
-    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
-    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
-    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND } },
-{ { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
-    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
-    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
-    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND } },
-{ { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
-    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
-    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND },
-    { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND }, { .type = STT_GROUND } },
-  { { 0 } }
+static const spooky_tile_meta meta_definitions[4] = {
+  { .type = STT_EMPTY },
+  { .type = STT_WATER },
+  { .type = STT_GROUND },
+  { .type = STT_TREE }
 };
-*/
+
+typedef struct spooky_tile spooky_tile;
+typedef struct spooky_tile {
+  const spooky_tile_meta * meta;
+  double x;
+  double y;
+  double z;
+} spooky_tile;
 
 static errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex);
 static errno_t spooky_command_parser(spooky_context * context, const spooky_console * console, const spooky_log * log, const char * command) ;
@@ -314,23 +265,21 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
   for(size_t i = 0; i < tiles_row_len; i++) {
     tiles[i] = calloc(tiles_col_len, sizeof * tiles[i]);
     for(size_t j = 0; j < tiles_col_len; j++) {
-      tiles[i][j].type = STT_GROUND;
+      tiles[i][j].meta = &(meta_definitions[STT_GROUND]);
     }
   }
 
   size_t tiles_center_x = tiles_row_len / 2;
   size_t tiles_center_y = tiles_col_len / 2;
 
-  tiles[tiles_center_x][tiles_center_y].type = STT_WATER;
+  tiles[tiles_center_x][tiles_center_y].meta = &(meta_definitions[STT_WATER]);
 
-  unsigned int seed = 1234;
-  for(int points = 0; points < 5; points++) {
-    srand(seed);
-    size_t random_x = ((size_t)abs(rand()) % tiles_row_len);
-    size_t random_y = ((size_t)abs(rand()) % tiles_col_len);
+  uint32_t random = randombytes_random();
+  for(int points = 0; points < 100; points++) {
+    size_t random_x = random % tiles_row_len;
+    size_t random_y = random % tiles_col_len;
 
-    tiles[random_x][random_y].type = STT_WATER;
-    seed += 100;
+    tiles[random_x][random_y].meta = &(meta_definitions[STT_WATER]);
   }
 
   int64_t now = 0;
@@ -709,7 +658,7 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
         int new_x = box0->as_base(box0)->get_x(box0->as_base(box0));
         const spooky_gui_rgba_context * tile_rgba = spooky_gui_push_draw_color(renderer);
         {
-          spooky_tile_type type = tiles[i][j].type;
+          spooky_tile_type type = tiles[i][j].meta->type;
           switch(type) {
             case STT_GROUND:
               SDL_SetRenderDrawColor(renderer, 55, 148, 110, 255);
