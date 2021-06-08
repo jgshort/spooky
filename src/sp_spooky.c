@@ -33,6 +33,18 @@
 #include "sp_db.h"
 #include "sp_box.h"
 
+typedef enum spooky_biom {
+  SB_EMPTY,
+  SB_TUNDRA,
+  SB_CONIFEROUS_FOREST,
+  SB_TEMPERATE_DECIDUOUS_FOREST,
+  SB_GRASSLAND,
+  SB_DESERT,
+  SB_SHRUBLAND,
+  SB_RAINFOREST,
+  SB_EOE
+} spooky_biom;
+
 typedef enum spooky_tile_type {
   STT_EMPTY,
   STT_WATER,
@@ -43,19 +55,25 @@ typedef enum spooky_tile_type {
 
 typedef struct spooky_tile_meta spooky_tile_meta;
 typedef struct spooky_tile_meta {
-  spooky_tile_type type;
+  spooky_biom biom;
 } spooky_tile_meta;
 
-static const spooky_tile_meta meta_definitions[4] = {
-  { .type = STT_EMPTY },
-  { .type = STT_WATER },
-  { .type = STT_GROUND },
-  { .type = STT_TREE }
+static const spooky_tile_meta meta_definitions[] = {
+  { .biom = SB_EMPTY },
+  { .biom = SB_TUNDRA },
+  { .biom = SB_CONIFEROUS_FOREST },
+  { .biom = SB_TEMPERATE_DECIDUOUS_FOREST },
+  { .biom = SB_GRASSLAND },
+  { .biom = SB_DESERT },
+  { .biom = SB_SHRUBLAND },
+  { .biom = SB_RAINFOREST }
 };
 
 typedef struct spooky_tile spooky_tile;
 typedef struct spooky_tile {
   const spooky_tile_meta * meta;
+  spooky_tile_type type;
+  char padding[4]; /* not portable */
   double x;
   double y;
   double z;
@@ -258,30 +276,81 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
   const int MAX_UPDATES_BEFORE_RENDER = 5;
   const int TARGET_TIME_BETWEEN_RENDERS = BILLION / TARGET_FPS;
 
-  static const size_t tiles_row_len = 128;
-  static const size_t tiles_col_len = 128;
+  static const size_t tiles_row_len = 64;
+  static const size_t tiles_col_len = 64;
   spooky_tile ** tiles = calloc(tiles_row_len, sizeof * tiles);
 
+  /* basic biom layout */
   for(size_t i = 0; i < tiles_row_len; i++) {
+    spooky_biom biom = SB_EMPTY;
+    #define SP_ROUND(PERCENT) ((size_t)floor(((float)(tiles_row_len)) * (PERCENT)))
+    fprintf(stdout, "%lu -> ", i);
+    if(i <= SP_ROUND(0.05) || i >= SP_ROUND(0.98)) {
+      biom = SB_TUNDRA;
+    } else if(i <= SP_ROUND(0.10) || i >= SP_ROUND(0.90)) {
+      biom = SB_CONIFEROUS_FOREST;
+    } else if(i <= SP_ROUND(0.20) || i >= SP_ROUND(0.80)) {
+      biom = SB_TEMPERATE_DECIDUOUS_FOREST;
+    } else if(i <= SP_ROUND(0.30) || i >= SP_ROUND(0.70)) {
+      biom = SB_GRASSLAND;
+    } else if(i <= SP_ROUND(0.40) || i >= SP_ROUND(0.60)) {
+      biom = SB_SHRUBLAND;
+    } else if(i <= SP_ROUND(0.45) || i >= SP_ROUND(0.55)) {
+      biom = SB_RAINFOREST;
+    }
+    #undef SP_ROUND
     tiles[i] = calloc(tiles_col_len, sizeof * tiles[i]);
     for(size_t j = 0; j < tiles_col_len; j++) {
-      tiles[i][j].meta = &(meta_definitions[STT_GROUND]);
+      tiles[i][j].meta = &(meta_definitions[biom]);
     }
   }
 
+  /* nearest neighbor jitter */
+  for(size_t i = 0; i < tiles_row_len; i++) {
+    for(size_t j = 0; j < tiles_col_len; j++) {
+      uint32_t random = randombytes_random();
+      spooky_tile * left, * right, * up, * down, * current;
+      current = &(tiles[i][j]);
+      spooky_biom current_biom = current->meta->biom;
+      (void)current_biom;
+      (void)random;
+      if(i > 0 && i < tiles_row_len) {
+        left = &(tiles[i - i][j]);
+        right = &(tiles[i + 1][j]);
+      }
+      if(j > 0 && j < tiles_col_len) {
+        up = &(tiles[i][j - 1]);
+        down = &(tiles[i][j + 1]);
+      }
+      switch(current_biom) {
+        case SB_EMPTY:
+        case SB_TUNDRA:
+        case SB_CONIFEROUS_FOREST:
+        case SB_TEMPERATE_DECIDUOUS_FOREST:
+        case SB_GRASSLAND:
+        case SB_DESERT:
+        case SB_SHRUBLAND:
+        case SB_RAINFOREST:
+        case SB_EOE:
+        default:
+          break;
+      }
+
+    }
+  }
   size_t tiles_center_x = tiles_row_len / 2;
   size_t tiles_center_y = tiles_col_len / 2;
 
   tiles[tiles_center_x][tiles_center_y].meta = &(meta_definitions[STT_WATER]);
 
-  uint32_t random = randombytes_random();
+/*
   for(int points = 0; points < 100; points++) {
     size_t random_x = random % tiles_row_len;
     size_t random_y = random % tiles_col_len;
 
     tiles[random_x][random_y].meta = &(meta_definitions[STT_WATER]);
   }
-
+*/
   int64_t now = 0;
   int64_t last_render_time = sp_get_time_in_us();
   int64_t last_update_time = sp_get_time_in_us();
@@ -658,19 +727,33 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
         int new_x = box0->as_base(box0)->get_x(box0->as_base(box0));
         const spooky_gui_rgba_context * tile_rgba = spooky_gui_push_draw_color(renderer);
         {
-          spooky_tile_type type = tiles[i][j].meta->type;
+          spooky_biom type = tiles[i][j].meta->biom;
           switch(type) {
-            case STT_GROUND:
-              SDL_SetRenderDrawColor(renderer, 55, 148, 110, 255);
+            case SB_EMPTY:
+              SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
               break;
-            case STT_WATER:
-              SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);
+            case SB_TUNDRA:
+              SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
               break;
-            case STT_TREE:
-              SDL_SetRenderDrawColor(renderer, 102, 57, 49, 255);
+            case SB_CONIFEROUS_FOREST:
+              SDL_SetRenderDrawColor(renderer, 154, 205, 50, 255);
               break;
-            case STT_EOE:
-            case STT_EMPTY:
+            case SB_TEMPERATE_DECIDUOUS_FOREST:
+              SDL_SetRenderDrawColor(renderer, 0, 128, 0, 255);
+              break;
+            case SB_GRASSLAND:
+              SDL_SetRenderDrawColor(renderer, 189, 183, 107, 255);
+              break;
+            case SB_DESERT:
+              SDL_SetRenderDrawColor(renderer, 255, 218, 185, 255);
+              break;
+            case SB_SHRUBLAND:
+              SDL_SetRenderDrawColor(renderer, 107, 142, 35, 255);
+              break;
+            case SB_RAINFOREST:
+              SDL_SetRenderDrawColor(renderer, 0, 100, 0, 255);
+              break;
+            case SB_EOE:
             default:
               SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
               break;
