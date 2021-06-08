@@ -334,7 +334,8 @@ errno_t spooky_init_context(spooky_context * context, FILE * fp) {
         const int max_tries = 5;
         int tries = 0;
         while(global_data.native_window_size.w * spooky_gui_canvas_scale_factor < window_bounds.w) {
-          global_data.native_window_size.w *= spooky_gui_canvas_scale_factor;
+          int new_width = (int)floor(((float)global_data.native_window_size.w) * spooky_gui_canvas_scale_factor);
+          global_data.native_window_size.w = new_width;
           global_data.window_scale_factor += 1.0f;
           if(tries++ >= max_tries) { break; }
         }
