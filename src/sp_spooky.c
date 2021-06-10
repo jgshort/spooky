@@ -35,6 +35,7 @@
 
 typedef enum spooky_biom {
   SB_EMPTY,
+  SB_OCEAN,
   SB_TUNDRA,
   SB_CONIFEROUS_FOREST,
   SB_TEMPERATE_DECIDUOUS_FOREST,
@@ -60,6 +61,7 @@ typedef struct spooky_tile_meta {
 
 static const spooky_tile_meta meta_definitions[] = {
   { .biom = SB_EMPTY },
+  { .biom = SB_OCEAN },
   { .biom = SB_TUNDRA },
   { .biom = SB_CONIFEROUS_FOREST },
   { .biom = SB_TEMPERATE_DECIDUOUS_FOREST },
@@ -283,22 +285,7 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
   /* basic biom layout */
   for(size_t i = 0; i < tiles_row_len; i++) {
     spooky_biom biom = SB_EMPTY;
-    #define SP_ROUND(PERCENT) ((size_t)floor(((float)(tiles_row_len)) * (PERCENT)))
-    fprintf(stdout, "%lu -> ", i);
-    if(i <= SP_ROUND(0.05) || i >= SP_ROUND(0.98)) {
-      biom = SB_TUNDRA;
-    } else if(i <= SP_ROUND(0.10) || i >= SP_ROUND(0.90)) {
-      biom = SB_CONIFEROUS_FOREST;
-    } else if(i <= SP_ROUND(0.20) || i >= SP_ROUND(0.80)) {
-      biom = SB_TEMPERATE_DECIDUOUS_FOREST;
-    } else if(i <= SP_ROUND(0.30) || i >= SP_ROUND(0.70)) {
-      biom = SB_GRASSLAND;
-    } else if(i <= SP_ROUND(0.40) || i >= SP_ROUND(0.60)) {
-      biom = SB_SHRUBLAND;
-    } else if(i <= SP_ROUND(0.45) || i >= SP_ROUND(0.55)) {
-      biom = SB_RAINFOREST;
-    }
-    #undef SP_ROUND
+    biom = SB_OCEAN;
     tiles[i] = calloc(tiles_col_len, sizeof * tiles[i]);
     for(size_t j = 0; j < tiles_col_len; j++) {
       tiles[i][j].meta = &(meta_definitions[biom]);
@@ -306,14 +293,18 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
   }
 
   /* nearest neighbor jitter */
+
+  size_t contiguous = 0;
   for(size_t i = 0; i < tiles_row_len; i++) {
     for(size_t j = 0; j < tiles_col_len; j++) {
-      uint32_t random = randombytes_random();
-      spooky_tile * left, * right, * up, * down, * current;
+      const size_t max_contiguous = 16;
+      const size_t min_contiguous = 4;
+
+      uint32_t random = randombytes_uniform(100);
+
+      spooky_tile * left = NULL, * right = NULL, * up = NULL, * down = NULL, * current = NULL;
       current = &(tiles[i][j]);
-      spooky_biom current_biom = current->meta->biom;
-      (void)current_biom;
-      (void)random;
+
       if(i > 0 && i < tiles_row_len) {
         left = &(tiles[i - i][j]);
         right = &(tiles[i + 1][j]);
@@ -322,7 +313,36 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
         up = &(tiles[i][j - 1]);
         down = &(tiles[i][j + 1]);
       }
-      switch(current_biom) {
+      #define SP_ROUND(PERCENT) ((size_t)floor(((float)(tiles_row_len)) * (PERCENT)))
+      spooky_biom biom = SB_EMPTY;
+      float jitter = 0.f;
+      if(random <= 10) { jitter += 0.05f; }
+      if(random >= 90) { jitter -= 0.05f; }
+      if(i <= SP_ROUND(0.05 - jitter) || i >= SP_ROUND(0.98 + jitter)) {
+        biom = SB_TUNDRA;
+      } else if(i <= SP_ROUND(0.10 - jitter) || i >= SP_ROUND(0.90 + jitter)) {
+        biom = SB_CONIFEROUS_FOREST;
+      } else if(i <= SP_ROUND(0.20 - jitter) || i >= SP_ROUND(0.80 + jitter)) {
+        biom = SB_TEMPERATE_DECIDUOUS_FOREST;
+      } else if(i <= SP_ROUND(0.30 - jitter) || i >= SP_ROUND(0.70 + jitter)) {
+        biom = SB_GRASSLAND;
+      } else if(i <= SP_ROUND(0.40 - jitter) || i >= SP_ROUND(0.60 + jitter)) {
+        biom = SB_SHRUBLAND;
+      } else if(i <= SP_ROUND(0.45 - jitter) || i >= SP_ROUND(0.55 + jitter)) {
+        biom = SB_RAINFOREST;
+      }
+      #undef SP_ROUND
+
+      if(random >= 71) {
+        if(current && left && current->meta == left->meta) {
+          contiguous++;
+          if(contiguous >= max_contiguous) {  }
+          if(contiguous <= min_contiguous) {  }
+        }
+        current->meta = &(meta_definitions[biom]);
+      }
+
+/*      switch(current_biom) {
         case SB_EMPTY:
         case SB_TUNDRA:
         case SB_CONIFEROUS_FOREST:
@@ -334,7 +354,7 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
         case SB_EOE:
         default:
           break;
-      }
+      } */
 
     }
   }
@@ -731,6 +751,9 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
           switch(type) {
             case SB_EMPTY:
               SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+              break;
+            case SB_OCEAN:
+              SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);
               break;
             case SB_TUNDRA:
               SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
