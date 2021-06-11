@@ -73,9 +73,24 @@ static const spooky_tile_meta meta_definitions[] = {
 
 typedef struct spooky_tile spooky_tile;
 typedef struct spooky_tile {
+  spooky_tile * north;
+  spooky_tile * south;
+  spooky_tile * east;
+  spooky_tile * west;
+
+  spooky_tile * north_east;
+  spooky_tile * south_east;
+  spooky_tile * south_west;
+  spooky_tile * north_west;
+
   const spooky_tile_meta * meta;
   spooky_tile_type type;
+
+  int row;
+  int col;
+
   char padding[4]; /* not portable */
+
   double x;
   double y;
   double z;
@@ -278,32 +293,60 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
   const int MAX_UPDATES_BEFORE_RENDER = 5;
   const int TARGET_TIME_BETWEEN_RENDERS = BILLION / TARGET_FPS;
 
-  static const size_t tiles_row_len = 64;
-  static const size_t tiles_col_len = 64;
+  static const int tiles_row_len = 32;
+  static const int tiles_col_len = 32;
   spooky_tile ** tiles = calloc(tiles_row_len, sizeof * tiles);
 
   /* basic biom layout */
-  for(size_t i = 0; i < tiles_row_len; i++) {
+  for(int i = 0; i < tiles_row_len; i++) {
     spooky_biom biom = SB_EMPTY;
     biom = SB_OCEAN;
     tiles[i] = calloc(tiles_col_len, sizeof * tiles[i]);
-    for(size_t j = 0; j < tiles_col_len; j++) {
-      tiles[i][j].meta = &(meta_definitions[biom]);
+    for(int j = 0; j < tiles_col_len; j++) {
+      spooky_tile * tile = &(tiles[i][j]);
+      memset(tile, 0, sizeof * tile);
+      tile->north = tile->south = tile->east = tile->west = tile->north_east = tile->north_west = tile->south_east = tile->south_west = NULL;
+      tile->row = i;
+      tile->col = j;
+      if(j > 0) { tile->west = &(tiles[i][j - 1]); }
+      if(j + 1 < tiles_col_len) { tile->east = &(tiles[i][j + 1]); }
+      if(i > 0) {
+        tile->north = &(tiles[i - 1][j]);
+        if(j > 0 && j < tiles_col_len) {
+          tile->north_west = &(tiles[i - 1][j - 1]);
+        }
+        else if(j + 1 < tiles_col_len) {
+          tile->north_east = &(tiles[i - 1][j + 1]);
+        }
+      }
+      if(i + 1 < tiles_row_len) {
+        tile->south = &(tiles[i + 1][j]);
+        if(j > 0 && j < tiles_col_len) {
+          tile->south_west = &(tiles[i + 1][j - 1]);
+        }
+        else if(j + 1 < tiles_col_len) {
+          tile->south_east = &(tiles[i + 1][j + 1]);
+        }
+      }
+
+      tile->meta = &(meta_definitions[biom]);
     }
   }
 
+  spooky_tile * test = &(tiles[3][3]);
+  fprintf(stdout, "X X X = (%i) (%i) (%i)\n", test->north_west->meta->biom, test->north->meta->biom, test->north_east->meta->biom);
+  fprintf(stdout, "X   X = (%i)      (%i)\n", test->west->meta->biom, test->east->meta->biom);
+  fprintf(stdout, "X X X = (%i) (%i) (%i)\n", test->south_west->meta->biom, test->south->meta->biom, test->south_east->meta->biom);
+
+//fprintf(stdout, "", test->north, test->south, test->east, test->west, tile->north_east, tile->north_west
   /* nearest neighbor jitter */
 
-  size_t contiguous = 0;
+  //size_t contiguous = 0;
   for(size_t i = 0; i < tiles_row_len; i++) {
     for(size_t j = 0; j < tiles_col_len; j++) {
-      const size_t max_contiguous = 16;
-      const size_t min_contiguous = 4;
-
-      uint32_t random = randombytes_uniform(100);
-
       spooky_tile * left = NULL, * right = NULL, * up = NULL, * down = NULL, * current = NULL;
       current = &(tiles[i][j]);
+      uint32_t random = randombytes_uniform(100);
 
       if(i > 0 && i < tiles_row_len) {
         left = &(tiles[i - i][j]);
@@ -334,34 +377,49 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
       #undef SP_ROUND
 
       if(random >= 71) {
-        if(current && left && current->meta == left->meta) {
-          contiguous++;
-          if(contiguous >= max_contiguous) {  }
-          if(contiguous <= min_contiguous) {  }
-        }
+        /* Earth is ~71% ocean */
         current->meta = &(meta_definitions[biom]);
       }
-
-/*      switch(current_biom) {
-        case SB_EMPTY:
-        case SB_TUNDRA:
-        case SB_CONIFEROUS_FOREST:
-        case SB_TEMPERATE_DECIDUOUS_FOREST:
-        case SB_GRASSLAND:
-        case SB_DESERT:
-        case SB_SHRUBLAND:
-        case SB_RAINFOREST:
-        case SB_EOE:
-        default:
-          break;
-      } */
-
     }
   }
-  size_t tiles_center_x = tiles_row_len / 2;
-  size_t tiles_center_y = tiles_col_len / 2;
 
-  tiles[tiles_center_x][tiles_center_y].meta = &(meta_definitions[STT_WATER]);
+  {
+    int max_contiguous = tiles_row_len / 4;
+    //const int min_contiguous = 4;
+    spooky_tile * const * last_row_tile = &(tiles[tiles_row_len]);
+    spooky_tile ** row = tiles;
+    do {
+      spooky_tile * const last_col_tile = &((*row)[tiles_col_len]);
+      spooky_tile * col = &(*(row[0]));
+      do {
+        if(col->west && col->east) {
+          int contiguous = 0;
+          spooky_tile * current = col;
+          spooky_tile * west = current->west;
+          spooky_tile * east = current->east;
+
+          if(current->meta->biom != SB_OCEAN && east->meta->biom != SB_OCEAN) {
+            while(contiguous < max_contiguous && current < last_col_tile) {
+              //spooky_biom temp = right->meta->biom;
+              west->meta = current->meta;
+              // right->meta = current->meta;
+              current->meta = east->meta;
+              ++contiguous;
+              ++current;
+            }
+            col = current;
+          }
+        }
+        ++col;
+      } while(col < last_col_tile);
+      ++row;
+    } while(row < last_row_tile);
+  }
+
+  //size_t tiles_center_x = tiles_row_len / 2;
+  //size_t tiles_center_y = tiles_col_len / 2;
+
+  //tiles[tiles_center_x][tiles_center_y].meta = &(meta_definitions[STT_WATER]);
 
 /*
   for(int points = 0; points < 100; points++) {
