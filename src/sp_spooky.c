@@ -73,21 +73,8 @@ static const spooky_tile_meta meta_definitions[] = {
 
 typedef struct spooky_tile spooky_tile;
 typedef struct spooky_tile {
-  spooky_tile * north;
-  spooky_tile * south;
-  spooky_tile * east;
-  spooky_tile * west;
-
-  spooky_tile * north_east;
-  spooky_tile * south_east;
-  spooky_tile * south_west;
-  spooky_tile * north_west;
-
   const spooky_tile_meta * meta;
   spooky_tile_type type;
-
-  int row;
-  int col;
 
   char padding[4]; /* not portable */
 
@@ -95,6 +82,10 @@ typedef struct spooky_tile {
   double y;
   double z;
 } spooky_tile;
+
+static const int MAX_TILES_ROW_LEN = 128;
+static const int MAX_TILES_COL_LEN = 128;
+static const int MAX_TILES_DEPTH_LEN = 128;
 
 static errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex);
 static errno_t spooky_command_parser(spooky_context * context, const spooky_console * console, const spooky_log * log, const char * command) ;
@@ -293,142 +284,30 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
   const int MAX_UPDATES_BEFORE_RENDER = 5;
   const int TARGET_TIME_BETWEEN_RENDERS = BILLION / TARGET_FPS;
 
-  static const int tiles_row_len = 32;
-  static const int tiles_col_len = 32;
-  spooky_tile ** tiles = calloc(tiles_row_len, sizeof * tiles);
+  
 
+  spooky_tile * tiles = calloc(MAX_TILES_ROW_LEN, MAX_TILES_ROW_LEN * MAX_TILES_COL_LEN * MAX_TILES_DEPTH_LEN * sizeof * tiles);
   /* basic biom layout */
-  for(int i = 0; i < tiles_row_len; i++) {
-    spooky_biom biom = SB_EMPTY;
-    biom = SB_OCEAN;
-    tiles[i] = calloc(tiles_col_len, sizeof * tiles[i]);
-    for(int j = 0; j < tiles_col_len; j++) {
-      spooky_tile * tile = &(tiles[i][j]);
-      memset(tile, 0, sizeof * tile);
-      tile->north = tile->south = tile->east = tile->west = tile->north_east = tile->north_west = tile->south_east = tile->south_west = NULL;
-      tile->row = i;
-      tile->col = j;
-      if(j > 0) { tile->west = &(tiles[i][j - 1]); }
-      if(j + 1 < tiles_col_len) { tile->east = &(tiles[i][j + 1]); }
-      if(i > 0) {
-        tile->north = &(tiles[i - 1][j]);
-        if(j > 0 && j < tiles_col_len) {
-          tile->north_west = &(tiles[i - 1][j - 1]);
-        }
-        else if(j + 1 < tiles_col_len) {
-          tile->north_east = &(tiles[i - 1][j + 1]);
-        }
-      }
-      if(i + 1 < tiles_row_len) {
-        tile->south = &(tiles[i + 1][j]);
-        if(j > 0 && j < tiles_col_len) {
-          tile->south_west = &(tiles[i + 1][j - 1]);
-        }
-        else if(j + 1 < tiles_col_len) {
-          tile->south_east = &(tiles[i + 1][j + 1]);
-        }
-      }
+  for(int x = 0; x < MAX_TILES_ROW_LEN; x++) {
+    for(int y = 0; y < MAX_TILES_COL_LEN; y++) {
+      for(int z = 0; z < MAX_TILES_DEPTH_LEN; z++) {
+        spooky_tile * tile = &(tiles[y + y + z]);
 
-      tile->meta = &(meta_definitions[biom]);
-    }
-  }
+        spooky_biom biom = SB_EMPTY;
+        biom = SB_OCEAN;
+        memset(tile, 0, sizeof * tile);
 
-  spooky_tile * test = &(tiles[3][3]);
-  fprintf(stdout, "X X X = (%i) (%i) (%i)\n", test->north_west->meta->biom, test->north->meta->biom, test->north_east->meta->biom);
-  fprintf(stdout, "X   X = (%i)      (%i)\n", test->west->meta->biom, test->east->meta->biom);
-  fprintf(stdout, "X X X = (%i) (%i) (%i)\n", test->south_west->meta->biom, test->south->meta->biom, test->south_east->meta->biom);
-
-//fprintf(stdout, "", test->north, test->south, test->east, test->west, tile->north_east, tile->north_west
-  /* nearest neighbor jitter */
-
-  //size_t contiguous = 0;
-  for(size_t i = 0; i < tiles_row_len; i++) {
-    for(size_t j = 0; j < tiles_col_len; j++) {
-      spooky_tile * left = NULL, * right = NULL, * up = NULL, * down = NULL, * current = NULL;
-      current = &(tiles[i][j]);
-      uint32_t random = randombytes_uniform(100);
-
-      if(i > 0 && i < tiles_row_len) {
-        left = &(tiles[i - i][j]);
-        right = &(tiles[i + 1][j]);
-      }
-      if(j > 0 && j < tiles_col_len) {
-        up = &(tiles[i][j - 1]);
-        down = &(tiles[i][j + 1]);
-      }
-      #define SP_ROUND(PERCENT) ((size_t)floor(((float)(tiles_row_len)) * (PERCENT)))
-      spooky_biom biom = SB_EMPTY;
-      float jitter = 0.f;
-      if(random <= 10) { jitter += 0.05f; }
-      if(random >= 90) { jitter -= 0.05f; }
-      if(i <= SP_ROUND(0.05 - jitter) || i >= SP_ROUND(0.98 + jitter)) {
-        biom = SB_TUNDRA;
-      } else if(i <= SP_ROUND(0.10 - jitter) || i >= SP_ROUND(0.90 + jitter)) {
-        biom = SB_CONIFEROUS_FOREST;
-      } else if(i <= SP_ROUND(0.20 - jitter) || i >= SP_ROUND(0.80 + jitter)) {
-        biom = SB_TEMPERATE_DECIDUOUS_FOREST;
-      } else if(i <= SP_ROUND(0.30 - jitter) || i >= SP_ROUND(0.70 + jitter)) {
-        biom = SB_GRASSLAND;
-      } else if(i <= SP_ROUND(0.40 - jitter) || i >= SP_ROUND(0.60 + jitter)) {
-        biom = SB_SHRUBLAND;
-      } else if(i <= SP_ROUND(0.45 - jitter) || i >= SP_ROUND(0.55 + jitter)) {
-        biom = SB_RAINFOREST;
-      }
-      #undef SP_ROUND
-
-      if(random >= 71) {
-        /* Earth is ~71% ocean */
-        current->meta = &(meta_definitions[biom]);
+        tile->x = x;
+        tile->y = y;
+        tile->z = z;
+        tile->meta = &(meta_definitions[biom]);
       }
     }
   }
 
-  {
-    int max_contiguous = tiles_row_len / 4;
-    //const int min_contiguous = 4;
-    spooky_tile * const * last_row_tile = &(tiles[tiles_row_len]);
-    spooky_tile ** row = tiles;
-    do {
-      spooky_tile * const last_col_tile = &((*row)[tiles_col_len]);
-      spooky_tile * col = &(*(row[0]));
-      do {
-        if(col->west && col->east) {
-          int contiguous = 0;
-          spooky_tile * current = col;
-          spooky_tile * west = current->west;
-          spooky_tile * east = current->east;
+  fprintf(stdout, "Blocks generated.\n");
+  /* Earth is ~71% ocean */
 
-          if(current->meta->biom != SB_OCEAN && east->meta->biom != SB_OCEAN) {
-            while(contiguous < max_contiguous && current < last_col_tile) {
-              //spooky_biom temp = right->meta->biom;
-              west->meta = current->meta;
-              // right->meta = current->meta;
-              current->meta = east->meta;
-              ++contiguous;
-              ++current;
-            }
-            col = current;
-          }
-        }
-        ++col;
-      } while(col < last_col_tile);
-      ++row;
-    } while(row < last_row_tile);
-  }
-
-  //size_t tiles_center_x = tiles_row_len / 2;
-  //size_t tiles_center_y = tiles_col_len / 2;
-
-  //tiles[tiles_center_x][tiles_center_y].meta = &(meta_definitions[STT_WATER]);
-
-/*
-  for(int points = 0; points < 100; points++) {
-    size_t random_x = random % tiles_row_len;
-    size_t random_y = random % tiles_col_len;
-
-    tiles[random_x][random_y].meta = &(meta_definitions[STT_WATER]);
-  }
-*/
   int64_t now = 0;
   int64_t last_render_time = sp_get_time_in_us();
   int64_t last_update_time = sp_get_time_in_us();
@@ -539,6 +418,14 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
   double interpolation = 0.0;
   int seconds_to_save = 0;
 
+  typedef struct spooky_vector {
+    unsigned int x;
+    unsigned int y;
+    unsigned int z;
+  } spooky_vector;
+
+  spooky_vector cursor = { .x = MAX_TILES_ROW_LEN / 2, .y = MAX_TILES_COL_LEN / 2, .z = MAX_TILES_DEPTH_LEN / 2 };
+
   while(spooky_context_get_is_running(context)) {
     SDL_SetRenderTarget(renderer, context->get_canvas(context));
 
@@ -645,6 +532,27 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
             {
               SDL_Keycode sym = evt.key.keysym.sym;
               switch(sym) {
+                case SDLK_h:
+                case SDLK_l:
+                  if(sym == SDLK_h) { cursor.x--; }
+                  if(sym == SDLK_l) { cursor.x++; }
+                  if(cursor.x < 0) { cursor.x = 0; }
+                  if(cursor.x > MAX_TILES_ROW_LEN - 1) { cursor.x = MAX_TILES_ROW_LEN - 1; }
+                  break;
+                case SDLK_k:
+                case SDLK_j:
+                  if(sym == SDLK_j) { cursor.y++; }
+                  if(sym == SDLK_k) { cursor.y--; }
+                  if(cursor.y < 0) { cursor.y = 0; }
+                  if(cursor.y > MAX_TILES_COL_LEN - 1) { cursor.y = MAX_TILES_COL_LEN - 1; }
+                  break;
+                case SDLK_COMMA: /* DOWN */
+                case SDLK_PERIOD: /* UP */
+                  if(sym == SDLK_COMMA) { cursor.z--; }
+                  if(sym == SDLK_PERIOD) { cursor.z++; }
+                  if(cursor.z < 0) { cursor.z = 0; }
+                  if(cursor.z > MAX_TILES_DEPTH_LEN - 1) { cursor.z = MAX_TILES_DEPTH_LEN - 1; }
+                  break;
                 case SDLK_F12: /* fullscreen window */
                   {
                     bool previous_is_fullscreen = context->get_is_fullscreen(context);
@@ -792,26 +700,26 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
       if(obj->render != NULL) { obj->render(obj, renderer); }
     } while(++render_iter < last);
 
-    static const int W = 8;
-    static const int H = 8;
+    static const unsigned int W = 8;
+    static const unsigned int H = 8;
     box0->as_base(box0)->set_w(box0->as_base(box0), W);
     box0->as_base(box0)->set_h(box0->as_base(box0), H);
     box0->as_base(box0)->set_x(box0->as_base(box0), 0);
     box0->as_base(box0)->set_y(box0->as_base(box0), 0);
 
-    for(size_t i = 0; i < tiles_row_len; i++) {
+    for(size_t x = 0; x < MAX_TILES_ROW_LEN; x++) {
       int new_y = box0->as_base(box0)->get_y(box0->as_base(box0));
-      for(size_t j = 0; j < tiles_col_len; j++) {
+      for(size_t y = 0; y < MAX_TILES_COL_LEN; y++) {
         int new_x = box0->as_base(box0)->get_x(box0->as_base(box0));
         const spooky_gui_rgba_context * tile_rgba = spooky_gui_push_draw_color(renderer);
         {
-          spooky_biom type = tiles[i][j].meta->biom;
+          spooky_biom type = tiles[x + y + cursor.z].meta->biom;
           switch(type) {
             case SB_EMPTY:
               SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
               break;
             case SB_OCEAN:
-              SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);
+              SDL_SetRenderDrawColor(renderer, 0, 0, (uint8_t)cursor.z, 255);
               break;
             case SB_TUNDRA:
               SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
@@ -855,6 +763,25 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
       new_y += H;
       box0->as_base(box0)->set_y(box0->as_base(box0), new_y);
     }
+
+    const spooky_gui_rgba_context * cursor_rgba = spooky_gui_push_draw_color(renderer);
+    {
+      SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+      SDL_Rect cursor_rect = {
+        .x = (int)(cursor.x * W),
+        .y = (int)(cursor.y * H),
+        .w = (int)W,
+        .h = (int)H
+      };
+      box0->as_base(box0)->set_rect(box0->as_base(box0), &cursor_rect, NULL);
+      box0->
+        as_base(box0)->
+          render(
+            box0->as_base(box0), renderer
+          );
+      spooky_gui_pop_draw_color(cursor_rgba);
+    }
+
 
     {
       (void)debug_rect;
@@ -907,9 +834,6 @@ end_of_running_loop: ;
   if(background != NULL) { SDL_DestroyTexture(background), background = NULL; }
   if(letterbox_background != NULL) { SDL_DestroyTexture(letterbox_background), letterbox_background = NULL; }
 
-  for(size_t i = 0; i < tiles_row_len; i++) {
-    free(tiles[i]), tiles[i] = NULL;
-  }
   free(tiles), tiles = NULL;
 
   spooky_help_release(help);
