@@ -35,7 +35,6 @@
 
 typedef enum spooky_biom {
   SB_EMPTY,
-  SB_OCEAN,
   SB_TUNDRA,
   SB_CONIFEROUS_FOREST,
   SB_TEMPERATE_DECIDUOUS_FOREST,
@@ -48,6 +47,7 @@ typedef enum spooky_biom {
 
 typedef enum spooky_tile_type {
   STT_EMPTY,
+  STT_BEDROCK,
   STT_WATER,
   STT_GROUND,
   STT_TREE,
@@ -61,7 +61,6 @@ typedef struct spooky_tile_meta {
 
 static const spooky_tile_meta meta_definitions[] = {
   { .biom = SB_EMPTY },
-  { .biom = SB_OCEAN },
   { .biom = SB_TUNDRA },
   { .biom = SB_CONIFEROUS_FOREST },
   { .biom = SB_TEMPERATE_DECIDUOUS_FOREST },
@@ -83,9 +82,9 @@ typedef struct spooky_tile {
   double z;
 } spooky_tile;
 
-static const int MAX_TILES_ROW_LEN = 128;
-static const int MAX_TILES_COL_LEN = 128;
-static const int MAX_TILES_DEPTH_LEN = 128;
+static const int MAX_TILES_ROW_LEN = 64;
+static const int MAX_TILES_COL_LEN = 64;
+static const int MAX_TILES_DEPTH_LEN = 64;
 
 static errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex);
 static errno_t spooky_command_parser(spooky_context * context, const spooky_console * console, const spooky_log * log, const char * command) ;
@@ -96,6 +95,10 @@ typedef struct spooky_options {
 } spooky_options;
 
 static errno_t spooky_parse_args(int argc, char ** argv, spooky_options * options);
+
+inline static size_t SP_OFFSET(size_t x, size_t y, size_t z) {
+  return x + (y * MAX_TILES_ROW_LEN) + (z * MAX_TILES_ROW_LEN * MAX_TILES_COL_LEN);
+}
 
 int main(int argc, char **argv) {
   spooky_options options = { 0 };
@@ -284,19 +287,20 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
   const int MAX_UPDATES_BEFORE_RENDER = 5;
   const int TARGET_TIME_BETWEEN_RENDERS = BILLION / TARGET_FPS;
 
-  
-
-  spooky_tile * tiles = calloc(MAX_TILES_ROW_LEN, MAX_TILES_ROW_LEN * MAX_TILES_COL_LEN * MAX_TILES_DEPTH_LEN * sizeof * tiles);
+  spooky_tile * tiles = calloc(MAX_TILES_ROW_LEN * MAX_TILES_COL_LEN * MAX_TILES_DEPTH_LEN, sizeof * tiles);
   /* basic biom layout */
-  for(int x = 0; x < MAX_TILES_ROW_LEN; x++) {
-    for(int y = 0; y < MAX_TILES_COL_LEN; y++) {
-      for(int z = 0; z < MAX_TILES_DEPTH_LEN; z++) {
-        spooky_tile * tile = &(tiles[y + y + z]);
+  // unsigned int seed = randombytes_uniform(100);
+  for(size_t x = 0; x < MAX_TILES_ROW_LEN; x++) {
+    for(size_t y = 0; y < MAX_TILES_COL_LEN; y++) {
+      for(size_t z = 0; z < MAX_TILES_DEPTH_LEN; z++) {
+        size_t offset = SP_OFFSET(x, y, z);
+        spooky_tile * tile = &(tiles[offset]);
 
         spooky_biom biom = SB_EMPTY;
-        biom = SB_OCEAN;
-        memset(tile, 0, sizeof * tile);
+        spooky_tile_type type = STT_GROUND;
+        if(z == 0) { type = STT_BEDROCK; }
 
+        tile->type = type;
         tile->x = x;
         tile->y = y;
         tile->z = z;
@@ -306,7 +310,6 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
   }
 
   fprintf(stdout, "Blocks generated.\n");
-  /* Earth is ~71% ocean */
 
   int64_t now = 0;
   int64_t last_render_time = sp_get_time_in_us();
@@ -419,13 +422,14 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
   int seconds_to_save = 0;
 
   typedef struct spooky_vector {
-    unsigned int x;
-    unsigned int y;
-    unsigned int z;
+    size_t x;
+    size_t y;
+    size_t z;
   } spooky_vector;
 
   spooky_vector cursor = { .x = MAX_TILES_ROW_LEN / 2, .y = MAX_TILES_COL_LEN / 2, .z = MAX_TILES_DEPTH_LEN / 2 };
 
+  const spooky_base * box = box0->as_base(box0);
   while(spooky_context_get_is_running(context)) {
     SDL_SetRenderTarget(renderer, context->get_canvas(context));
 
@@ -534,24 +538,44 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
               switch(sym) {
                 case SDLK_h:
                 case SDLK_l:
-                  if(sym == SDLK_h) { cursor.x--; }
-                  if(sym == SDLK_l) { cursor.x++; }
-                  if(cursor.x < 0) { cursor.x = 0; }
-                  if(cursor.x > MAX_TILES_ROW_LEN - 1) { cursor.x = MAX_TILES_ROW_LEN - 1; }
+                  if(sym == SDLK_h) {
+                    if(cursor.x - 1 > cursor.x) { cursor.x = 0; }
+                    else {
+                      cursor.x--;
+                    }
+                  }
+                  else if(sym == SDLK_l) {
+                    cursor.x++;
+                    if(cursor.x >= MAX_TILES_ROW_LEN - 1) { cursor.x = MAX_TILES_ROW_LEN - 1; }
+                  }
                   break;
                 case SDLK_k:
                 case SDLK_j:
-                  if(sym == SDLK_j) { cursor.y++; }
-                  if(sym == SDLK_k) { cursor.y--; }
-                  if(cursor.y < 0) { cursor.y = 0; }
-                  if(cursor.y > MAX_TILES_COL_LEN - 1) { cursor.y = MAX_TILES_COL_LEN - 1; }
+                  if(sym == SDLK_j) {
+                    cursor.y++;
+                    if(cursor.y >= MAX_TILES_COL_LEN - 1) { cursor.y = MAX_TILES_COL_LEN - 1; }
+                  }
+                  else if(sym == SDLK_k) {
+                    if(cursor.y - 1 > cursor.y) { cursor.y = 0; }
+                    else {
+                      cursor.y--;
+                    }
+                  }
                   break;
                 case SDLK_COMMA: /* DOWN */
                 case SDLK_PERIOD: /* UP */
-                  if(sym == SDLK_COMMA) { cursor.z--; }
-                  if(sym == SDLK_PERIOD) { cursor.z++; }
-                  if(cursor.z < 0) { cursor.z = 0; }
-                  if(cursor.z > MAX_TILES_DEPTH_LEN - 1) { cursor.z = MAX_TILES_DEPTH_LEN - 1; }
+                  if(sym == SDLK_COMMA) {
+                    if(cursor.z - 1 > cursor.z) { cursor.z = 0; }
+                    else {
+                      cursor.z--;
+                    }
+                  }
+                  else if(sym == SDLK_PERIOD) {
+                    cursor.z++;
+                    if(cursor.z >= MAX_TILES_DEPTH_LEN - 1) { cursor.z = MAX_TILES_DEPTH_LEN - 1; }
+                  }
+                  fprintf(stdout, "%lu, %lu, %lu\n", cursor.x, cursor.y, cursor.z);
+                  fflush(stdout);
                   break;
                 case SDLK_F12: /* fullscreen window */
                   {
@@ -627,7 +651,7 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
           }
         } while(--event_iter >= first);
 
-        box0->as_base(box0)->handle_event(box0->as_base(box0), &evt);
+        box->handle_event(box, &evt);
       } /* >> while(SDL_PollEvent(&evt)) */
 
       {
@@ -700,88 +724,67 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
       if(obj->render != NULL) { obj->render(obj, renderer); }
     } while(++render_iter < last);
 
-    static const unsigned int W = 8;
-    static const unsigned int H = 8;
-    box0->as_base(box0)->set_w(box0->as_base(box0), W);
-    box0->as_base(box0)->set_h(box0->as_base(box0), H);
-    box0->as_base(box0)->set_x(box0->as_base(box0), 0);
-    box0->as_base(box0)->set_y(box0->as_base(box0), 0);
+    static const int W = 8;
+    static const int H = 8;
+    box->set_w(box, W);
+    box->set_h(box, H);
+    box->set_x(box, 0);
+    box->set_y(box, 0);
 
     for(size_t x = 0; x < MAX_TILES_ROW_LEN; x++) {
-      int new_y = box0->as_base(box0)->get_y(box0->as_base(box0));
       for(size_t y = 0; y < MAX_TILES_COL_LEN; y++) {
-        int new_x = box0->as_base(box0)->get_x(box0->as_base(box0));
         const spooky_gui_rgba_context * tile_rgba = spooky_gui_push_draw_color(renderer);
         {
-          spooky_biom type = tiles[x + y + cursor.z].meta->biom;
+          size_t offset = SP_OFFSET(x, y, cursor.z);
+          spooky_tile_type type = tiles[offset].type;
           switch(type) {
-            case SB_EMPTY:
-              SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-              break;
-            case SB_OCEAN:
-              SDL_SetRenderDrawColor(renderer, 0, 0, (uint8_t)cursor.z, 255);
-              break;
-            case SB_TUNDRA:
+            case STT_EMPTY:
               SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
               break;
-            case SB_CONIFEROUS_FOREST:
+            case STT_BEDROCK:
+              SDL_SetRenderDrawColor(renderer, 128, 128, 128, 255);
+              break;
+            case STT_GROUND:
               SDL_SetRenderDrawColor(renderer, 154, 205, 50, 255);
               break;
-            case SB_TEMPERATE_DECIDUOUS_FOREST:
+            case STT_TREE:
               SDL_SetRenderDrawColor(renderer, 0, 128, 0, 255);
               break;
-            case SB_GRASSLAND:
-              SDL_SetRenderDrawColor(renderer, 189, 183, 107, 255);
+            case STT_WATER:
+              SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);
               break;
-            case SB_DESERT:
-              SDL_SetRenderDrawColor(renderer, 255, 218, 185, 255);
-              break;
-            case SB_SHRUBLAND:
-              SDL_SetRenderDrawColor(renderer, 107, 142, 35, 255);
-              break;
-            case SB_RAINFOREST:
-              SDL_SetRenderDrawColor(renderer, 0, 100, 0, 255);
-              break;
-            case SB_EOE:
+            case STT_EOE:
             default:
               SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
               break;
           }
 
-          box0->
-            as_base(box0)->
-              render(
-                box0->as_base(box0), renderer
-              );
+          box->render(box, renderer);
           spooky_gui_pop_draw_color(tile_rgba);
         }
-        new_x += W;
-        box0->as_base(box0)->set_x(box0->as_base(box0), new_x);
+        box->set_y(box, box->get_y(box) + H);
       }
-      box0->as_base(box0)->set_x(box0->as_base(box0), 0);
 
-      new_y += H;
-      box0->as_base(box0)->set_y(box0->as_base(box0), new_y);
+      box->set_x(box, box->get_x(box) + W);
+      box->set_y(box, 0);
     }
 
     const spooky_gui_rgba_context * cursor_rgba = spooky_gui_push_draw_color(renderer);
     {
-      SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+      SDL_SetRenderDrawColor(renderer, 255, 0, 255, 255);
       SDL_Rect cursor_rect = {
         .x = (int)(cursor.x * W),
         .y = (int)(cursor.y * H),
         .w = (int)W,
         .h = (int)H
       };
-      box0->as_base(box0)->set_rect(box0->as_base(box0), &cursor_rect, NULL);
-      box0->
-        as_base(box0)->
-          render(
-            box0->as_base(box0), renderer
-          );
+      spooky_box_draw_style style = box0->get_draw_style(box0);
+      box0->set_draw_style(box0, SBDS_OUTLINE);
+      box->set_rect(box, &cursor_rect, NULL);
+      box->render(box, renderer);
+      box0->set_draw_style(box0, style);
       spooky_gui_pop_draw_color(cursor_rgba);
     }
-
 
     {
       (void)debug_rect;

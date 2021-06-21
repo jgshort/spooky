@@ -7,6 +7,14 @@
 typedef struct spooky_box spooky_box;
 typedef struct spooky_box_data spooky_box_data;
 
+typedef enum spooky_box_draw_style {
+  SBDS_EMPTY,
+  SBDS_DEFAULT,
+  SBDS_FILL = SBDS_DEFAULT,
+  SBDS_OUTLINE,
+  SBDS_EOE
+} spooky_box_draw_style;
+
 typedef struct spooky_box {
   spooky_base super;
   const spooky_box * (*ctor)(const spooky_box * /* self */, const spooky_context * /* context */, SDL_Rect /* origin */);
@@ -20,6 +28,9 @@ typedef struct spooky_box {
 
   void (*set_sprite)(const spooky_box * /* self */, const spooky_sprite * /* sprite */);
   const spooky_sprite * (*get_sprite)(const spooky_box * /* self */);
+
+  spooky_box_draw_style (*get_draw_style)(const spooky_box * /* self */);
+  void (*set_draw_style)(const spooky_box * /* self */, spooky_box_draw_style /* style */);
 
   spooky_box_data * data;
 } spooky_box;

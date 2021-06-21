@@ -17,7 +17,8 @@ typedef struct spooky_box_data {
   const spooky_context * context;
   const char * name;
   size_t name_len;
-  //SDL_Rect rect;
+  spooky_box_draw_style style;
+  char padding[4];
   const spooky_sprite * sprite;
 } spooky_box_data;
 
@@ -30,6 +31,8 @@ static const char * spooky_box_get_name(const spooky_box * self);
 
 static void spooky_box_set_sprite(const spooky_box * self, const spooky_sprite * sprite);
 static const spooky_sprite * spooky_box_get_sprite(const spooky_box * self);
+spooky_box_draw_style spooky_box_get_draw_style(const spooky_box * self);
+static void spooky_box_set_draw_style(const spooky_box * self, spooky_box_draw_style style);
 
 const spooky_base * spooky_box_as_base(const spooky_box * self) {
   return (const spooky_base *)self;
@@ -61,6 +64,8 @@ const spooky_box * spooky_box_init(spooky_box * self) {
 
   self->set_sprite = &spooky_box_set_sprite;
   self->get_sprite = &spooky_box_get_sprite;
+  self->get_draw_style = &spooky_box_get_draw_style;
+  self->set_draw_style = &spooky_box_set_draw_style;
 
   return self;
 }
@@ -81,6 +86,7 @@ const spooky_box * spooky_box_ctor(const spooky_box * self, const spooky_context
   data->name = NULL;
   data->name_len = 0;
   data->sprite = NULL;
+  data->style = SBDS_FILL;
 
   ((spooky_box *)(uintptr_t)self)->data = data;
 
@@ -200,11 +206,32 @@ static void spooky_box_render(const spooky_base * self, SDL_Renderer * renderer)
       } else {
         SDL_SetRenderDrawColor(renderer, 255, 0, 0, 0);
       }*/
-
-      SDL_RenderFillRect(renderer, &translated);
+      switch(data->style) {
+        case SBDS_FILL:
+          SDL_RenderFillRect(renderer, &translated);
+          break;
+        case SBDS_OUTLINE:
+          SDL_RenderDrawRect(renderer, &translated);
+          break;
+        case SBDS_EMPTY:
+        case SBDS_EOE:
+        default:
+          break;
+      }
       spooky_gui_pop_draw_color(rgba);
     }
   }
+}
+
+spooky_box_draw_style spooky_box_get_draw_style(const spooky_box * self) {
+  return self->data->style;
+}
+
+static void spooky_box_set_draw_style(const spooky_box * self, spooky_box_draw_style style) {
+  assert(style > SBDS_EMPTY && style < SBDS_EOE);
+  if(!(style == SBDS_DEFAULT || style == SBDS_FILL || style == SBDS_OUTLINE)) { return; }
+
+  self->data->style = style;
 }
 
 #if 1 == 2
