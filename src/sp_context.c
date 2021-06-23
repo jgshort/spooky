@@ -333,7 +333,7 @@ errno_t spooky_init_context(spooky_context * context, FILE * fp) {
       {
         const int max_tries = 5;
         int tries = 0;
-        while(global_data.native_window_size.w * spooky_gui_canvas_scale_factor < window_bounds.w) {
+        while(global_data.native_window_size.w * (int)spooky_gui_canvas_scale_factor < window_bounds.w) {
           int new_width = (int)floor(((float)global_data.native_window_size.w) * spooky_gui_canvas_scale_factor);
           global_data.native_window_size.w = new_width;
           global_data.window_scale_factor += 1.0f;
@@ -358,7 +358,7 @@ errno_t spooky_init_context(spooky_context * context, FILE * fp) {
 
   int renderer_w, renderer_h;
   SDL_GetRendererOutputSize(renderer, &renderer_w, &renderer_h);
-  global_data.renderer_to_window_scale_factor = renderer_w / global_data.native_window_size.w;
+  global_data.renderer_to_window_scale_factor = (float)(renderer_w / global_data.native_window_size.w);
   global_data.scaled_window_size.w = renderer_w;
   global_data.scaled_window_size.h = renderer_h;
 

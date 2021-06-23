@@ -213,7 +213,7 @@ bool spooky_console_handle_event(const spooky_base * self, SDL_Event * event) {
       if(impl->text_len > 0) {
         impl->text[impl->text_len - 1] = '\0';
         impl->text_len--;
-        if(impl->text_len < 0) { impl->text_len = 0; }
+        if(impl->text_len - 1 < impl->text_len) { impl->text_len = 0; }
       }
     }
     else if(event->type == SDL_KEYDOWN && event->key.keysym.sym == SDLK_RETURN) {

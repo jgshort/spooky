@@ -825,6 +825,7 @@ int spooky_font_get_point_size(const spooky_font * self) {
 void spooky_font_measure_text(const spooky_font * self, const spooky_text * text, size_t text_len, int * w, int * h) {
   int bytes_skip = 0, text_skip = 0, advance = 0;
 
+  (void)advance;
   if(w) { *w = 0; }
   if(h) { *h = 0; }
 
