@@ -93,14 +93,14 @@ typedef struct spooky_tile {
 
   char padding[4]; /* not portable */
 
-  double x;
-  double y;
-  double z;
+  size_t x;
+  size_t y;
+  size_t z;
 } spooky_tile;
 
-static const int MAX_TILES_ROW_LEN = 64;
-static const int MAX_TILES_COL_LEN = 64;
-static const int MAX_TILES_DEPTH_LEN = 64;
+static const size_t MAX_TILES_ROW_LEN = 64;
+static const size_t MAX_TILES_COL_LEN = 64;
+static const size_t MAX_TILES_DEPTH_LEN = 64;
 
 static errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex);
 static errno_t spooky_command_parser(spooky_context * context, const spooky_console * console, const spooky_log * log, const char * command) ;
@@ -793,8 +793,8 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
     {
       SDL_SetRenderDrawColor(renderer, 255, 0, 255, 255);
       SDL_Rect cursor_rect = {
-        .x = (int)(cursor.x * W),
-        .y = (int)(cursor.y * H),
+        .x = (int)(cursor.x * (size_t)W),
+        .y = (int)(cursor.y * (size_t)H),
         .w = (int)W,
         .h = (int)H
       };
@@ -1106,6 +1106,6 @@ const char * spooky_tile_type_as_string(spooky_tile_type type) {
 static const char * spooky_tile_info(const spooky_tile * tile, char * buf, size_t buf_len, int * buf_len_out) {
   const char * type = spooky_tile_type_as_string(tile->type);
 
-  *buf_len_out = snprintf(buf, buf_len, "(x: %.2f, y: %.2f)\ndepth: %.2f\ntype: '%s'", tile->x, tile->y, tile->z, type);
+  *buf_len_out = snprintf(buf, buf_len, "(x: %lu, y: %lu)\ndepth: %lu\ntype: '%s'", tile->x, tile->y, tile->z, type);
   return buf;
 }
