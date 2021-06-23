@@ -1,5 +1,5 @@
 #define _POSIX_C_SOURCE 200809L
-#define SPOOKY_SCALE_UP 0
+// #define SPOOKY_SCALE_UP 0
 
 #include <assert.h>
 #include <stdlib.h>
@@ -254,7 +254,7 @@ errno_t spooky_init_context(spooky_context * context, FILE * fp) {
 
   context->data->is_running = true;
 
-  fprintf(stdout, "Initializing...");
+  fprintf(stdout, "Initializing...\n");
   fflush(stdout);
   const char * error_message = NULL;
 
@@ -348,13 +348,13 @@ errno_t spooky_init_context(spooky_context * context, FILE * fp) {
 
   SDL_SetWindowSize(window, global_data.native_window_size.w, global_data.native_window_size.h);
   SDL_SetWindowPosition(window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+  SDL_ShowWindow(window);
 
   SDL_ClearError();
   const int default_driver = -1;
   SDL_Renderer * renderer = SDL_CreateRenderer(window, default_driver, spooky_gui_renderer_flags);
   if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
   if(renderer == NULL || spooky_is_sdl_error(SDL_GetError())) { goto err5; }
-
 
   int renderer_w, renderer_h;
   SDL_GetRendererOutputSize(renderer, &renderer_w, &renderer_h);
@@ -420,10 +420,10 @@ errno_t spooky_init_context(spooky_context * context, FILE * fp) {
     }
   }
 
-  global_data.fonts_index = 11;
+  global_data.fonts_index = 9;
   global_data.font_current = &global_data.fonts[0][global_data.fonts_index];
 
-  fprintf(stdout, " Done!\n");
+  fprintf(stdout, "Done!\n");
   fflush(stdout);
 
   return SP_SUCCESS;

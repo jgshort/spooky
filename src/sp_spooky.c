@@ -75,6 +75,7 @@ typedef struct spooky_tile_meta {
   spooky_biom biom;
 } spooky_tile_meta;
 
+/*
 static const spooky_tile_meta meta_definitions[] = {
   { .biom = SB_EMPTY },
   { .biom = SB_TUNDRA },
@@ -85,17 +86,10 @@ static const spooky_tile_meta meta_definitions[] = {
   { .biom = SB_SHRUBLAND },
   { .biom = SB_RAINFOREST }
 };
-
+*/
 typedef struct spooky_tile spooky_tile;
 typedef struct spooky_tile {
-  const spooky_tile_meta * meta;
   spooky_tile_type type;
-
-  char padding[4]; /* not portable */
-
-  size_t x;
-  size_t y;
-  size_t z;
 } spooky_tile;
 
 static const size_t MAX_TILES_ROW_LEN = 64;
@@ -306,11 +300,9 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
   const int TARGET_TIME_BETWEEN_RENDERS = BILLION / TARGET_FPS;
 
   spooky_tile * tiles = calloc(MAX_TILES_ROW_LEN * MAX_TILES_COL_LEN * MAX_TILES_DEPTH_LEN, sizeof * tiles);
-  
+
   size_t tiles_len = MAX_TILES_ROW_LEN * MAX_TILES_COL_LEN * MAX_TILES_DEPTH_LEN * sizeof * tiles;
   spooky_generate_tiles(&tiles, tiles_len);
-
-  fprintf(stdout, "Blocks generated.\n");
 
   int64_t now = 0;
   int64_t last_render_time = sp_get_time_in_us();
@@ -990,7 +982,7 @@ void Resize() {
   // TODO: resize the world/window
 }
 
-static void spooky_create_tile(spooky_tile * tiles, size_t tiles_len, size_t x, size_t y, size_t z, spooky_biom biom, spooky_tile_type type) {
+static void spooky_create_tile(spooky_tile * tiles, size_t tiles_len, size_t x, size_t y, size_t z, spooky_tile_type type) {
   assert(tiles_len > 0);
 
   const spooky_tile * tiles_end = tiles + tiles_len;
@@ -1000,10 +992,6 @@ static void spooky_create_tile(spooky_tile * tiles, size_t tiles_len, size_t x, 
   assert(tile >= tiles && tile < tiles_end);
 
   tile->type = type;
-  tile->x = x;
-  tile->y = y;
-  tile->z = z;
-  tile->meta = &(meta_definitions[biom]);
 }
 
 static void spooky_generate_tiles(spooky_tile ** tiles_in, size_t tiles_len) {
@@ -1011,12 +999,11 @@ static void spooky_generate_tiles(spooky_tile ** tiles_in, size_t tiles_len) {
   const spooky_tile * tiles_end = tiles + tiles_len; (void)tiles_end;
   /* basic biom layout */
   // unsigned int seed = randombytes_uniform(100);
-  for(size_t x = 0; x < MAX_TILES_ROW_LEN; ++x) {
-    for(size_t y = 0; y < MAX_TILES_COL_LEN; ++y) {
-      for(size_t z = 0; z < MAX_TILES_DEPTH_LEN; ++z) {
+  for(uint32_t x = 0; x < MAX_TILES_ROW_LEN; ++x) {
+    for(uint32_t y = 0; y < MAX_TILES_COL_LEN; ++y) {
+      for(uint32_t z = 0; z < MAX_TILES_DEPTH_LEN; ++z) {
         // static const size_t level_ground = MAX_TILES_DEPTH_LEN / 2;
 
-        spooky_biom biom = SB_EMPTY;
         spooky_tile_type type = STT_EMPTY;
 
         /* Bedrock is only found on the bottom 4 levels of the ground.
@@ -1028,11 +1015,12 @@ static void spooky_generate_tiles(spooky_tile ** tiles_in, size_t tiles_len) {
           static const int max_loops = 5;
 
           /* generate a random type of rock */
-          uint32_t new_type = 0;
+          spooky_tile_type new_type = STT_EMPTY;
           int loops = 0;
           do {
             uint32_t percentage = randombytes_uniform(101);
             new_type = randombytes_uniform((uint32_t)STT_METAMORPHIC + 1);
+            assert(new_type >= STT_EMPTY && new_type <= STT_METAMORPHIC);
             /* Bedrock becomes more common the lower we dig.
                The lowest level, 0, is 100% bedrock, with the following
                distribution as we advance upwards:
@@ -1064,19 +1052,20 @@ static void spooky_generate_tiles(spooky_tile ** tiles_in, size_t tiles_len) {
               const spooky_tile * under = &(tiles[under_offset]);
               if(under->type != STT_BEDROCK) {
                 new_type = randombytes_uniform((uint32_t)STT_METAMORPHIC + 1);
+                assert(new_type >= STT_EMPTY && new_type <= STT_METAMORPHIC);
               } else {
                 break;
               }
             }
           } while(++loops < max_loops && new_type <= STT_EMPTY);
-          if(new_type == STT_EMPTY) { new_type = STT_BEDROCK; }
 
+          if(new_type > STT_BEDROCK) { new_type = STT_EMPTY; }
           /* clean up type */
           type = new_type;
         }
 
 create_tile:
-        spooky_create_tile(tiles, tiles_len, x, y, z, biom, type);
+        spooky_create_tile(tiles, tiles_len, x, y, z, type);
       }
     }
   }
@@ -1106,6 +1095,6 @@ const char * spooky_tile_type_as_string(spooky_tile_type type) {
 static const char * spooky_tile_info(const spooky_tile * tile, char * buf, size_t buf_len, int * buf_len_out) {
   const char * type = spooky_tile_type_as_string(tile->type);
 
-  *buf_len_out = snprintf(buf, buf_len, "(x: %lu, y: %lu)\ndepth: %lu\ntype: '%s'", tile->x, tile->y, tile->z, type);
+  *buf_len_out = snprintf(buf, buf_len, "type: '%s'", type);
   return buf;
 }
