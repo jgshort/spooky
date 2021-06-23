@@ -363,10 +363,9 @@ errno_t spooky_init_context(spooky_context * context, FILE * fp) {
   global_data.scaled_window_size.h = renderer_h;
 
   SDL_RenderSetViewport(renderer, &global_data.scaled_window_size);
-  const spooky_gui_rgba_context  * rgba = spooky_gui_push_draw_color(renderer);
+  const SDL_Color c = { .r = 1, .g = 20, .b = 36, .a = 255 };
+  const spooky_gui_rgba_context  * rgba = spooky_gui_push_draw_color(renderer, &c);
   {
-    const SDL_Color c = { .r = 1, .g = 20, .b = 36, .a = 255 };
-    SDL_SetRenderDrawColor(renderer, c.r, c.g, c.b, c.a);
     SDL_RenderFillRect(renderer, NULL);
     spooky_gui_pop_draw_color(rgba);
   }

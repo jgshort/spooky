@@ -709,10 +709,9 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
     uint64_t this_second = (uint64_t)(last_update_time / BILLION);
 
     {
-      const spooky_gui_rgba_context * rgba = spooky_gui_push_draw_color(renderer);
+      const SDL_Color c = { .r = 1, .g = 20, .b = 36, .a = 255 };
+      const spooky_gui_rgba_context * rgba = spooky_gui_push_draw_color(renderer, &c);
       {
-        const SDL_Color c = { .r = 1, .g = 20, .b = 36, .a = 255 };
-        SDL_SetRenderDrawColor(renderer, c.r, c.g, c.b, c.a);
         SDL_RenderFillRect(renderer, NULL); /* screen color */
         spooky_gui_pop_draw_color(rgba);
       }
@@ -728,51 +727,52 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
 
     for(size_t x = 0; x < MAX_TILES_ROW_LEN; x++) {
       for(size_t y = 0; y < MAX_TILES_COL_LEN; y++) {
-        const spooky_gui_rgba_context * tile_rgba = spooky_gui_push_draw_color(renderer);
-        {
-          size_t offset = SP_OFFSET(x, y, cursor.z);
-          spooky_tile_type type = tiles[offset].type;
-          switch(type) {
-            case STT_EMPTY:
-              SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); /* Black color */
-              break;
-            case STT_BEDROCK:
-              SDL_SetRenderDrawColor(renderer, 64, 64, 64, 255); /* Dark gray color */
-              break;
-            case STT_METAMORPHIC:
-              SDL_SetRenderDrawColor(renderer, 112, 128, 144, 255); /* Slate gray color */
-              break;
-            case STT_IGNEOUS:
-              SDL_SetRenderDrawColor(renderer, 255, 253, 208, 255); /* Cream color */
-              break;
-            case STT_SEDIMENTARY:
-              SDL_SetRenderDrawColor(renderer, 213,194,165, 255); /* Sandstone color */
-              break;
-            case STT_TREE:
-              SDL_SetRenderDrawColor(renderer, 0, 128, 0, 255);
-              break;
-            case STT_WATER:
-              SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);
-              break;
-            case STT_SAND:
-            case STT_SILT:
-            case STT_CLAY:
-            case STT_LOAM:
-            case STT_GRAVEL:
-              SDL_SetRenderDrawColor(renderer, 44, 33, 24, 255); /* Mud color */
-              break;
-            case STT_EOE:
-            default:
-              SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
-              break;
-          }
+        size_t offset = SP_OFFSET(x, y, cursor.z);
+        spooky_tile_type type = tiles[offset].type;
+        SDL_Color block_color = { 0 };
 
+        switch(type) {
+          case STT_EMPTY:
+            block_color = (SDL_Color){ .r = 0, .g = 0, .b = 0, .a = 255 }; /* Black */
+            break;
+          case STT_BEDROCK:
+            block_color = (SDL_Color){ .r = 64, .g = 64, .b = 64, .a = 255 }; /* Dark gray */
+            break;
+          case STT_METAMORPHIC:
+            block_color = (SDL_Color){ .r = 112, .g = 128, .b = 144, .a = 255 }; /* Slate gray color */
+            break;
+          case STT_IGNEOUS:
+            block_color = (SDL_Color){ .r = 255, .g = 253, .b = 208, .a = 255 };/* Cream color */
+            break;
+          case STT_SEDIMENTARY:
+            block_color = (SDL_Color){ .r = 213, .g = 194, .b = 165, .a = 255 };/* Sandstone color */
+            break;
+          case STT_TREE:
+            block_color = (SDL_Color){ .r = 0, .g = 128, .b = 0, .a = 255 }; /* Green tree */
+            break;
+          case STT_WATER:
+            block_color = (SDL_Color){ .r = 0, .g = 0, .b = 255, .a = 255 }; /* Blue water */
+            break;
+          case STT_SAND:
+          case STT_SILT:
+          case STT_CLAY:
+          case STT_LOAM:
+          case STT_GRAVEL:
+            block_color = (SDL_Color){ .r = 44, .g = 33, .b = 24, .a = 255 }; /* Mud color */
+            break;
+          case STT_EOE:
+          default:
+            block_color = (SDL_Color){ .r = 255, .g = 0, .b = 0, .a = 255 }; /* Red Error */
+            break;
+        }
+        const spooky_gui_rgba_context * tile_rgba = spooky_gui_push_draw_color(renderer, &block_color);
+        {
           box->render(box, renderer);
           {
-            const spooky_gui_rgba_context * outline = spooky_gui_push_draw_color(renderer);
+            const SDL_Color black = { 0, 0, 0, 255 };
+            const spooky_gui_rgba_context * outline = spooky_gui_push_draw_color(renderer, &black);
             {
 
-              SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
               spooky_box_draw_style style = box0->get_draw_style(box0);
               box0->set_draw_style(box0, SBDS_OUTLINE);
               box->render(box, renderer);
@@ -789,9 +789,9 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
       box->set_y(box, 0);
     }
 
-    const spooky_gui_rgba_context * cursor_rgba = spooky_gui_push_draw_color(renderer);
+    const SDL_Color cursor_color = { 255, 0, 255, 255};
+    const spooky_gui_rgba_context * cursor_rgba = spooky_gui_push_draw_color(renderer, &cursor_color);
     {
-      SDL_SetRenderDrawColor(renderer, 255, 0, 255, 255);
       SDL_Rect cursor_rect = {
         .x = (int)(cursor.x * (size_t)W),
         .y = (int)(cursor.y * (size_t)H),

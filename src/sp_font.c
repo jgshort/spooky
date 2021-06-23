@@ -697,13 +697,13 @@ errno_t spooky_font_glyph_create_texture(const spooky_font * self, const char * 
 
   assert(fg_texture != NULL && bg_texture != NULL && texture != NULL);
 
-  const spooky_gui_rgba_context * rgba = spooky_gui_push_draw_color(renderer);
-  { 
+  const SDL_Color transparent_black = { 0, 0, 0, 0 };
+  const spooky_gui_rgba_context * rgba = spooky_gui_push_draw_color(renderer, &transparent_black);
+  {
     /* make texture a temporary render target */
     SDL_SetRenderTarget(renderer, texture);
 
     /* clear the texture render target */
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
     SDL_RenderFillRect(renderer, NULL); /* screen color */
     SDL_RenderClear(renderer);
 

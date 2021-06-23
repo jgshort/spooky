@@ -104,7 +104,7 @@ err0:
 
 float get_ui_scale_factor() { return 1.f; }
 
-const spooky_gui_rgba_context * spooky_gui_push_draw_color(SDL_Renderer * renderer) {
+const spooky_gui_rgba_context * spooky_gui_push_draw_color(SDL_Renderer * renderer, const SDL_Color * new_color) {
   if(spooky_gui_next_draw_context + 1 >= SPOOKY_GUI_MAX_DRAW_CONTEXTS) {
     /* abort? */
     return NULL;
@@ -115,6 +115,9 @@ const spooky_gui_rgba_context * spooky_gui_push_draw_color(SDL_Renderer * render
 
   spooky_gui_next_draw_context++;
   SDL_GetRenderDrawColor(renderer, &context->r, &context->g, &context->b, &context->a);
+  if(new_color) {
+    SDL_SetRenderDrawColor(renderer, new_color->r, new_color->g, new_color->b, new_color->a);
+  }
   context->renderer = renderer;
   return context;
 }

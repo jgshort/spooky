@@ -200,7 +200,7 @@ static void spooky_box_render(const spooky_base * self, SDL_Renderer * renderer)
   if(data->sprite && data->sprite->render) {
     data->sprite->render(data->sprite, renderer, NULL, &translated);
   } else {
-    const spooky_gui_rgba_context *  rgba = spooky_gui_push_draw_color(renderer);
+    const spooky_gui_rgba_context *  rgba = spooky_gui_push_draw_color(renderer, NULL);
     {
       /*
       if(self->get_focus(self)) {

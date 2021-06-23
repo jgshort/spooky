@@ -173,13 +173,13 @@ void spooky_help_render(const spooky_base * self, SDL_Renderer * renderer) {
   int line_skip = font->get_line_skip(font);
   font->measure_text(font, help, (size_t)help_out, &help_w, &help_h);
   const SDL_Point help_point = { .x = rect->x + (rect->w / 2), .y = rect->y + (line_skip * 3) };
-  const spooky_gui_rgba_context * rgba = spooky_gui_push_draw_color(renderer);
+  const SDL_Color background_color = { .r = 199, .g = 78, .b = 157, .a = 150 };
+  const spooky_gui_rgba_context * rgba = spooky_gui_push_draw_color(renderer, &background_color);
   {
     SDL_BlendMode blend_mode;
     SDL_GetRenderDrawBlendMode(renderer, &blend_mode);
 
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-    SDL_SetRenderDrawColor(renderer, 199, 78, 157, 150);
 
     SDL_Rect rr = { .x = help_point.x - 10, .y = help_point.y - 10, .w = help_w + 20, .h = help_h + 20 };
     SDL_RenderFillRect(renderer, &rr);

@@ -42,7 +42,7 @@ float get_ui_scale_factor();
 
 typedef struct spooky_gui_rgba_context spooky_gui_rgba_context;
 
-const spooky_gui_rgba_context * spooky_gui_push_draw_color(SDL_Renderer * /* renderer */);
+const spooky_gui_rgba_context * spooky_gui_push_draw_color(SDL_Renderer * /* renderer */, const SDL_Color * /* new_color */);
 void spooky_gui_pop_draw_color(const spooky_gui_rgba_context * /* context */);
 
 #ifdef __cplusplus

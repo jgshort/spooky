@@ -286,13 +286,13 @@ void spooky_console_render(const spooky_base * self, SDL_Renderer * renderer) {
 
   if(impl->show_console || impl->is_animating) {
     const SDL_Rect * rect = self->get_rect(self);
-    const spooky_gui_rgba_context * rgba = spooky_gui_push_draw_color(renderer);
+    SDL_Color transparent_black = { .r = 0, .g = 0, .b = 0, .a = 173 };
+    const spooky_gui_rgba_context * rgba = spooky_gui_push_draw_color(renderer, &transparent_black);
     {
       SDL_BlendMode blend_mode;
       SDL_GetRenderDrawBlendMode(renderer, &blend_mode);
 
       SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-      SDL_SetRenderDrawColor(renderer, 0, 0, 0, 173);
       SDL_RenderFillRect(renderer, rect);
 
       SDL_SetRenderDrawBlendMode(renderer, blend_mode);
