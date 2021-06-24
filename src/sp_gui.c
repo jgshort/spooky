@@ -17,11 +17,6 @@ const uint32_t spooky_gui_renderer_flags = SDL_RENDERER_ACCELERATED | SDL_RENDER
 
 const int spooky_gui_ratcliff_factor = 7;
 
-const int spooky_gui_window_default_width = 1024;
-const int spooky_gui_window_default_height = 768;
-const int spooky_gui_window_min_width = 1024;
-const int spooky_gui_window_min_height = 768;
-
 const int spooky_gui_window_default_logical_width = 1024;
 const int spooky_gui_window_default_logical_height = 768;
 

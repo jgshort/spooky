@@ -1,5 +1,4 @@
 #define _POSIX_C_SOURCE 200809L
-// #define SPOOKY_SCALE_UP 0
 
 #include <assert.h>
 #include <stdlib.h>
@@ -52,6 +51,7 @@ static const size_t MIN_FONT_SIZE = 4;
 static const size_t MAX_FONT_SIZE = 180;
 
 typedef struct spooky_context_data {
+  const spooky_config * config;
   SDL_Window * window;
   SDL_Renderer * renderer;
   SDL_GLContext glContext;
@@ -73,7 +73,6 @@ typedef struct spooky_context_data {
   float scale_w;
   float scale_h;
 
-  SDL_Rect native_window_size;
   SDL_Rect scaled_window_size;
 
   int display_index;
@@ -123,16 +122,8 @@ static void spooky_context_set_scale_h(const spooky_context * context, float h) 
   context->data->scale_h = h;
 }
 
-static const SDL_Rect * spooky_context_get_native_rect(const spooky_context * context) {
-  return &(context->data->native_window_size);
-}
-
 static const SDL_Rect * spooky_context_get_scaled_rect(const spooky_context * context) {
   return &(context->data->scaled_window_size);
-}
-
-static void spooky_context_set_native_rect(const spooky_context * context, const SDL_Rect * rect) {
-  context->data->native_window_size = *rect;
 }
 
 static void spooky_context_set_scaled_rect(const spooky_context * context, const SDL_Rect * rect) {
@@ -238,8 +229,6 @@ errno_t spooky_init_context(spooky_context * context, FILE * fp) {
   context->get_display_index = &spooky_context_get_display_index;
   context->get_scaled_rect = &spooky_context_get_scaled_rect;
   context->set_scaled_rect = &spooky_context_set_scaled_rect;
-  context->get_native_rect = &spooky_context_get_native_rect;
-  context->set_native_rect = &spooky_context_set_native_rect;
   context->get_scale_w = &spooky_context_get_scale_w;
   context->set_scale_w = &spooky_context_set_scale_w;
   context->get_scale_h = &spooky_context_get_scale_h;
@@ -252,7 +241,11 @@ errno_t spooky_init_context(spooky_context * context, FILE * fp) {
 
   context->data = &global_data;
 
+  const spooky_config * config = spooky_config_acquire();
+  config = config->ctor(config);
+
   context->data->is_running = true;
+  context->data->config = config;
 
   fprintf(stdout, "Initializing...\n");
   fflush(stdout);
@@ -272,7 +265,7 @@ errno_t spooky_init_context(spooky_context * context, FILE * fp) {
 
   SDL_ClearError();
   /* allow high-DPI windows */
-  if(!SDL_SetHint(SDL_HINT_VIDEO_HIGHDPI_DISABLED, "0")) { goto err0; }
+  if(!SDL_SetHint(SDL_HINT_VIDEO_HIGHDPI_DISABLED, config->get_disable_high_dpi(config))) { goto err0; }
   if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
 
   if(!SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0")) { goto err0; }
@@ -306,11 +299,6 @@ errno_t spooky_init_context(spooky_context * context, FILE * fp) {
   if(SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2) != 0) { goto err3; }
   if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
 
-  global_data.native_window_size.x = 0;
-  global_data.native_window_size.y = 0;
-  global_data.native_window_size.w = spooky_gui_window_default_width;
-  global_data.native_window_size.h = spooky_gui_window_default_height;
-
   global_data.scaled_window_size.x = 0;
   global_data.scaled_window_size.y = 0;
   global_data.scaled_window_size.w = spooky_gui_window_default_logical_width;
@@ -319,34 +307,13 @@ errno_t spooky_init_context(spooky_context * context, FILE * fp) {
   global_data.window_scale_factor = 1.0f;
 
   SDL_ClearError();
-  SDL_Window * window = SDL_CreateWindow(PACKAGE_STRING, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, global_data.native_window_size.w, global_data.native_window_size.h, spooky_gui_window_flags);
+  SDL_Window * window = SDL_CreateWindow(PACKAGE_STRING, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, config->get_window_width(config), config->get_window_height(config), spooky_gui_window_flags);
   if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
   if(window == NULL || spooky_is_sdl_error(SDL_GetError())) { goto err4; }
 
   global_data.display_index = SDL_GetWindowDisplayIndex(window);
 
-#ifdef SPOOKY_SCALE_UP
-  if(!spooky_gui_is_fullscreen) {
-    SDL_Rect window_bounds;
-    SDL_ClearError();
-    if(SDL_GetDisplayUsableBounds(global_data.display_index, &window_bounds) == 0) {
-      {
-        const int max_tries = 5;
-        int tries = 0;
-        while(global_data.native_window_size.w * (int)spooky_gui_canvas_scale_factor < window_bounds.w) {
-          int new_width = (int)floor(((float)global_data.native_window_size.w) * spooky_gui_canvas_scale_factor);
-          global_data.native_window_size.w = new_width;
-          global_data.window_scale_factor += 1.0f;
-          if(tries++ >= max_tries) { break; }
-        }
-      }
-      global_data.native_window_size.h = (int)floor((float)global_data.native_window_size.w * spooky_gui_canvas_scale_factor);
-    }
-    if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
-  }
-#endif /* SPOOKY_SCALE_UP */
-
-  SDL_SetWindowSize(window, global_data.native_window_size.w, global_data.native_window_size.h);
+  SDL_SetWindowSize(window, config->get_window_width(config), config->get_window_height(config));
   SDL_SetWindowPosition(window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
   SDL_ShowWindow(window);
 
@@ -358,7 +325,7 @@ errno_t spooky_init_context(spooky_context * context, FILE * fp) {
 
   int renderer_w, renderer_h;
   SDL_GetRendererOutputSize(renderer, &renderer_w, &renderer_h);
-  global_data.renderer_to_window_scale_factor = (float)(renderer_w / global_data.native_window_size.w);
+  global_data.renderer_to_window_scale_factor = (float)(renderer_w / config->get_window_width(config));
   global_data.scaled_window_size.w = renderer_w;
   global_data.scaled_window_size.h = renderer_h;
 
@@ -381,15 +348,23 @@ errno_t spooky_init_context(spooky_context * context, FILE * fp) {
   SDL_Texture * canvas = SDL_CreateTexture(renderer
       , SDL_GetWindowPixelFormat(window)
       , SDL_TEXTUREACCESS_TARGET
-      , global_data.scaled_window_size.w
-      , global_data.scaled_window_size.h
+      , config->get_canvas_width(config)
+      , config->get_canvas_height(config)
       );
   if(!canvas || spooky_is_sdl_error(SDL_GetError())) { goto err7; }
 
-  fprintf(stdout, "Window: (%i, %i), Renderer: (%i, %i), Scaled: (%i, %i)\n", global_data.native_window_size.w, global_data.native_window_size.h, renderer_w, renderer_h, global_data.scaled_window_size.w, global_data.scaled_window_size.h);
+  fprintf(stdout, "Window: (%i, %i), Renderer: (%i, %i), Scaled: (%i, %i), Canvas: (%i, %i)\n",
+      config->get_window_width(config)
+    , config->get_window_height(config)
+    , renderer_w
+    , renderer_h
+    , global_data.scaled_window_size.w
+    , global_data.scaled_window_size.h
+    , config->get_canvas_width(config)
+    , config->get_canvas_height(config));
 
-  global_data.renderer = renderer;
   global_data.window = window;
+  global_data.renderer = renderer;
   global_data.glContext = glContext;
   global_data.canvas = canvas;
 
@@ -401,8 +376,7 @@ errno_t spooky_init_context(spooky_context * context, FILE * fp) {
    */
   SDL_ShowWindow(window);
 
-  const spooky_config * config = spooky_config_acquire();
-  config = config->ctor(config);
+
   const char * font_name = config->get_font_name(config);
 
   // 16
