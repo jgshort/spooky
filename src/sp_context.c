@@ -169,6 +169,10 @@ static int spooky_context_get_display_index(const spooky_context * context) {
   return context->data->display_index;
 }
 
+static const spooky_config * spooky_context_get_config(const spooky_context * context) {
+  return context->data->config;
+}
+
 static void spooky_context_set_is_paused(const spooky_context * context, bool is_paused) {
   context->data->is_paused = is_paused;
 }
@@ -238,6 +242,7 @@ errno_t spooky_init_context(spooky_context * context, FILE * fp) {
   context->get_translated_mouse_state = &spooky_context_get_translated_mouse_state;
   context->translate_point = &spooky_context_translate_point;
   context->translate_rect = &spooky_context_translate_rect;
+  context->get_config = &spooky_context_get_config;
 
   context->data = &global_data;
 

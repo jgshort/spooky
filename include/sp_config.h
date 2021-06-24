@@ -14,6 +14,13 @@ typedef struct spooky_config {
 
   int (*get_font_size)(const spooky_config * /* self */);
   const char * (*get_font_name)(const spooky_config * /* self */);
+  const char * (*get_disable_high_dpi)(const spooky_config * /* self */);
+
+  int (*get_window_width)(const spooky_config * /* self */);
+  int (*get_window_height)(const spooky_config * /* self */);
+  int (*get_canvas_width)(const spooky_config * /* self */);
+  int (*get_canvas_height)(const spooky_config * /* self */);
+
 
   spooky_config_data * data;
 } spooky_config;

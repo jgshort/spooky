@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 
+#include "sp_config.h"
 #include "sp_error.h"
 #include "sp_hash.h"
 #include "sp_gui.h"
@@ -11,6 +12,7 @@
 struct spooky_context_data;
 typedef struct spooky_context spooky_context;
 typedef struct spooky_context {
+  const spooky_config * (*get_config)(const spooky_context * context);
   SDL_Window * (*get_window)(const spooky_context * context);
   SDL_Renderer * (*get_renderer)(const spooky_context * context);
   SDL_Texture * (*get_canvas)(const spooky_context * context);
@@ -19,9 +21,6 @@ typedef struct spooky_context {
   const spooky_font * (*get_font)(const spooky_context * context);
 
   float (*get_renderer_to_window_scale_factor)(const spooky_context * context);
-
-  const SDL_Rect * (*get_native_rect)(const spooky_context * context);
-  void (*set_native_rect)(const spooky_context * context, const SDL_Rect * rect);
 
   const SDL_Rect * (*get_scaled_rect)(const spooky_context * context);
   void (*set_scaled_rect)(const spooky_context * context, const SDL_Rect * rect);

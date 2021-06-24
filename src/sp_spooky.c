@@ -421,6 +421,7 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
 
   spooky_vector cursor = { .x = MAX_TILES_ROW_LEN / 2, .y = MAX_TILES_COL_LEN / 2, .z = 0 };
 
+  const spooky_config * config = context->get_config(context);
   const spooky_base * box = box0->as_base(box0);
   while(spooky_context_get_is_running(context)) {
     SDL_SetRenderTarget(renderer, context->get_canvas(context));
@@ -725,13 +726,18 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
     }
     SDL_SetRenderTarget(renderer, NULL);
 
+    // TODO: Center canvas on window.
+    float renderer_scale = context->get_renderer_to_window_scale_factor(context);
+    int canvas_width = config->get_canvas_width(config);
+    int canvas_height = config->get_canvas_height(config);
+    int window_width = (int)floor((float)config->get_window_width(config) / renderer_scale);
+    int window_height = (int)floor((float)config->get_window_height(config) / renderer_scale);
     SDL_Rect center_rect = {
-      .x = 0,
-      .y = 0,
-      .w = 1024,
-      .h = 768
+      .x = (window_width / 2),
+      .y = (window_height / 2),
+      .w = canvas_width,
+      .h = canvas_height
     };
-    //context->get_center_rect(context, &center_rect);
     SDL_RenderCopy(renderer, context->get_canvas(context), NULL, &center_rect);
 
     SDL_RenderPresent(renderer);
