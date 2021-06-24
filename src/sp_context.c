@@ -22,6 +22,7 @@
 #include "sp_debug.h"
 #include "sp_help.h"
 #include "sp_time.h"
+#include "sp_config.h"
 
 #define MAX_FONT_LEN 20
 static const size_t max_font_len = MAX_FONT_LEN;
@@ -47,6 +48,8 @@ static size_t spooky_font_sizes[MAX_FONT_LEN] = {
   155,
   180
 };
+static const size_t MIN_FONT_SIZE = 4;
+static const size_t MAX_FONT_SIZE = 180;
 
 typedef struct spooky_context_data {
   SDL_Window * window;
@@ -85,8 +88,6 @@ typedef struct spooky_context_data {
 #undef MAX_FONT_LEN
 
 static spooky_context_data global_data = { 0 };
-
-static void spooky_context_next_font_type(spooky_context * context);
 
 static void spooky_context_translate_point(const spooky_context * context, SDL_Point * point) {
   float scale_factor = context->data->renderer_to_window_scale_factor;
@@ -233,7 +234,6 @@ errno_t spooky_init_context(spooky_context * context, FILE * fp) {
   context->set_is_paused = &spooky_context_set_is_paused;
   context->get_is_running = &spooky_context_get_is_running;
   context->set_is_running = &spooky_context_set_is_running;
-  context->next_font_type = &spooky_context_next_font_type;
   context->get_hash = &spooky_context_get_hash;
   context->get_display_index = &spooky_context_get_display_index;
   context->get_scaled_rect = &spooky_context_get_scaled_rect;
@@ -401,27 +401,37 @@ errno_t spooky_init_context(spooky_context * context, FILE * fp) {
    */
   SDL_ShowWindow(window);
 
-  global_data.font_type_index = 0;
-  for(size_t i = 0; i < SPOOKY_FONT_MAX_TYPES; i++) {
-    global_data.fonts_len[i] = max_font_len;
-    const char * font_name = spooky_default_font_names[i];
-    for(size_t j = 0; j < max_font_len; ++j) {
-      const spooky_font * next = &(global_data.fonts[i][j]);
-      int point_size = (int)spooky_font_sizes[j];
-      assert(point_size > 0);
+  const spooky_config * config = spooky_config_acquire();
+  config = config->ctor(config);
+  const char * font_name = config->get_font_name(config);
 
-      spooky_pack_item_file * font = NULL;
-      void * temp = NULL;
-      hash->find(hash, font_name, strnlen(font_name, SPOOKY_MAX_STRING_LEN), &temp);
-      font = temp;
-
-      next = spooky_font_init((spooky_font *)(uintptr_t)next);
-      next = next->ctor(next, renderer, font->data, font->data_len, point_size);
+  // 16
+  // 4 -> 6 -> 8 -> 10 -> 11 -> 14 -> 18
+  size_t closest_font_size = 4;
+  size_t requested_font_size = (size_t)config->get_font_size(config);
+  for(size_t i = 0; i < max_font_len; i++) {
+    size_t point_size = spooky_font_sizes[i];
+    if(point_size > requested_font_size) {
+      global_data.fonts_index = i;
+      closest_font_size = spooky_font_sizes[i];
+      break;
     }
   }
+  if(closest_font_size < MIN_FONT_SIZE) { closest_font_size = MIN_FONT_SIZE; }
+  if(closest_font_size > MAX_FONT_SIZE) { closest_font_size = MAX_FONT_SIZE; }
+  global_data.font_type_index = 0;
 
-  global_data.fonts_index = 9;
-  global_data.font_current = &global_data.fonts[0][global_data.fonts_index];
+  spooky_pack_item_file * ttf = NULL;
+  void * temp = NULL;
+  hash->find(hash, font_name, strnlen(font_name, SPOOKY_MAX_STRING_LEN), &temp);
+  ttf = temp;
+
+  const spooky_font * font = spooky_font_acquire();
+  font = spooky_font_init((spooky_font *)(uintptr_t)font);
+  font = font->ctor(font, renderer, ttf->data, ttf->data_len, (int)closest_font_size);
+
+  fprintf(stdout, "Font '%s' set to %ipt\n", font->get_name(font), font->get_point_size(font));
+  global_data.font_current = font;
 
   fprintf(stdout, "Done!\n");
   fflush(stdout);
@@ -568,47 +578,6 @@ errno_t spooky_test_resources(const spooky_context * context) {
 
 err0:
   return SP_FAILURE;
-}
-
-void spooky_context_next_font_type(spooky_context * context) {
-  spooky_context_data * data = context->data;
-  data->font_type_index++;
-  if(data->font_type_index >= SPOOKY_FONT_MAX_TYPES) {
-    data->font_type_index = 0;
-  }
-  if(data->font_type_index < 1) {
-    data->font_type_index = 0;
-  }
-
-  data->font_current = &(data->fonts[data->font_type_index][data->fonts_index]);
-}
-
-void spooky_context_scale_font_up(spooky_context * context, bool * is_done) {
-  spooky_context_data * data = context->data;
-
-  data->fonts_index++;
-
-  if(data->fonts_index > max_font_len - 1) { data->fonts_index = max_font_len - 1; }
-  if(data->fonts_index <= 0) { data->fonts_index = 0; }
-
-  data->font_current = &(data->fonts[data->font_type_index][data->fonts_index]);
-
-  *is_done = true;
-}
-
-void spooky_context_scale_font_down(spooky_context * context, bool * is_done) {
-  spooky_context_data * data = context->data;
-
-  if(data->fonts_index > 0) {
-    data->fonts_index--;
-  } else { data->fonts_index = 0; }
-
-  if(data->fonts_index > max_font_len - 1) { data->fonts_index = max_font_len - 1; }
-  if(data->fonts_index <= 0) { data->fonts_index = 0; }
-
-  data->font_current = &(data->fonts[data->font_type_index][data->fonts_index]);
-
-  *is_done = true;
 }
 
 bool spooky_context_get_is_running(const spooky_context * context) {

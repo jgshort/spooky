@@ -37,8 +37,6 @@ typedef struct spooky_context {
   bool (*get_is_running)(const spooky_context * context);
   void (*set_is_running)(const spooky_context * context, bool value);
 
-  void (*next_font_type)(spooky_context * context);
-
   const spooky_hash_table * (*get_hash)(const spooky_context * context);
   int (*get_display_index)(const spooky_context * context);
 
@@ -60,12 +58,6 @@ errno_t spooky_test_resources(const spooky_context * context);
 errno_t spooky_quit_context(spooky_context * context);
 
 void spooky_release_context(spooky_context * context);
-
-void spooky_context_reload_font(spooky_context * context);
-void spooky_context_scale_font(spooky_context * context, int new_point_size);
-
-void spooky_context_scale_font_up(spooky_context * context, bool * is_done);
-void spooky_context_scale_font_down(spooky_context * context, bool * is_done);
 
 bool spooky_context_get_is_running(const spooky_context * context);
 void spooky_context_set_is_running(const spooky_context * context, bool value);

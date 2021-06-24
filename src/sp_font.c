@@ -15,7 +15,7 @@
 #include "sp_math.h"
 #include "sp_font.h"
 
-static const size_t SPOOKY_MAX_STRING_LEN = 65536;
+static const size_t SPOOKY_MAX_STRING_LEN = 4096;
 
 const char * spooky_default_font_names[SPOOKY_FONT_MAX_TYPES] = {
   "deja.sans",
@@ -24,7 +24,7 @@ const char * spooky_default_font_names[SPOOKY_FONT_MAX_TYPES] = {
 };
 
 static const int spooky_font_outline = 1;
-static const size_t spooky_glyphs_alloc_unit = CHAR_MAX;
+static const size_t spooky_glyphs_alloc_unit = UCHAR_MAX;
 
 const int spooky_default_font_size = 1;
 
@@ -44,14 +44,6 @@ typedef struct spooky_glyph {
   SDL_Texture * texture;
   SDL_Texture * fg_texture;
   spooky_text * c;
-  size_t c_len;
-  size_t offset;
-  int min_x;
-  int max_x;
-  int min_y;
-  int max_y;
-  int glyph_width;
-  int glyph_height;
   int advance;
   char padding[4];
 } spooky_glyph;
@@ -222,7 +214,7 @@ const spooky_font * spooky_font_cctor(const spooky_font * self, SDL_Renderer * r
   ((spooky_font *)(uintptr_t)self)->data = data;
 
   data->glyph_text_buf_count = 0;
-  data->glyph_text_buf_capacity = 65536;
+  data->glyph_text_buf_capacity = 4096;
   data->glyph_text_buf = calloc(data->glyph_text_buf_capacity, sizeof * data->glyph_text_buf);
   data->glyph_text_next = data->glyph_text_buf;
 
@@ -456,8 +448,6 @@ static const spooky_glyph * spooky_font_add_glyph(const spooky_font * self, int 
   glyph.c = data->glyph_text_next;
   data->glyph_text_next += skip + (int)(sizeof '\0');
   data->glyph_text_buf_count++;
-
-  glyph.offset = data->glyphs_count;
 
   memmove(glyph.c, glyph_to_find, 4 * sizeof * glyph_to_find);
 
@@ -787,13 +777,11 @@ void spooky_font_set_font_attributes(const spooky_font * self) {
 
     glyph->c[0] = (spooky_text)i;
     glyph->c[1] = '\0';
-    glyph->c_len = 1;
 
     data->glyph_text_next += sizeof * glyph->c + sizeof '\0';
 
     data->glyph_text_buf_count++;
 
-    glyph->offset = w;
     spooky_font_glyph_create_texture(self, glyph->c, &glyph->texture, &glyph->fg_texture);
 
     int glyph_w = 0, glyph_h = 0;

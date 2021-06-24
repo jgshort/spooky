@@ -32,6 +32,7 @@
 #include "sp_time.h"
 #include "sp_db.h"
 #include "sp_box.h"
+#include "sp_config.h"
 
 typedef enum spooky_biom {
   SB_EMPTY,
@@ -382,8 +383,6 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
 
   spooky_base_z_sort(objects, (sizeof objects / sizeof * objects));
 
-  bool is_done = false, is_up = false, is_down = false;
-
   if(debug->as_base(debug)->add_child(debug->as_base(debug), help->as_base(help), ex) != SP_SUCCESS) { goto err1; }
 
   SDL_Texture * sprite_texture = NULL;
@@ -582,31 +581,6 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
                     }
                   }
                   break;
-                case SDLK_EQUALS:
-                  {
-                    if((SDL_GetModState() & KMOD_CTRL) != 0) {
-                      spooky_context_scale_font_up(context, &is_done);
-                      is_up = true;
-                      is_down = false;
-                    }
-                  }
-                  break;
-                case SDLK_MINUS:
-                  {
-                    if((SDL_GetModState() & KMOD_CTRL) != 0) {
-                      spooky_context_scale_font_down(context, &is_done);
-                      is_down = true;
-                      is_up = false;
-                    }
-                  }
-                  break;
-                case SDLK_1:
-                  {
-                    if((SDL_GetModState() & KMOD_CTRL) != 0) {
-                      context->next_font_type(context);
-                    }
-                  }
-                  break;
                 default:
                   break;
               } /* >> switch(sym ... */
@@ -687,15 +661,6 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
     interpolation = fmin(1.0f, (double)(now - last_update_time) / (double)(TIME_BETWEEN_UPDATES));
     if (now - last_update_time > TIME_BETWEEN_UPDATES) {
       last_update_time = now - TIME_BETWEEN_UPDATES;
-    }
-
-    if(!is_done) {
-      if(is_up) {
-        spooky_context_scale_font_up(context, &is_done);
-      }
-      else if(is_down) {
-        spooky_context_scale_font_down(context, &is_done);
-      }
     }
 
     uint64_t this_second = (uint64_t)(last_update_time / BILLION);
