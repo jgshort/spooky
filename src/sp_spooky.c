@@ -180,7 +180,6 @@ int main(int argc, char **argv) {
 
   if(spooky_init_context(&context, fp) != SP_SUCCESS) { goto err0; }
   if(spooky_test_resources(&context) != SP_SUCCESS) { goto err0; }
-
   /* fprintf(stdout, "SPDB Stats: Content Offset:  %lu, Content Len: %lu, Index Entries: %lu, Index Offset:  %lu, Index Len: %lu\n", (size_t)content_offset, (size_t)content_len, (size_t)index_entries, (size_t)index_offset, (size_t)index_len); */
 
   const spooky_hash_table * hash = context.get_hash(&context);
@@ -300,8 +299,9 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
   const int TARGET_TIME_BETWEEN_RENDERS = BILLION / TARGET_FPS;
 
   spooky_tile * tiles = calloc(MAX_TILES_ROW_LEN * MAX_TILES_COL_LEN * MAX_TILES_DEPTH_LEN, sizeof * tiles);
-
   size_t tiles_len = MAX_TILES_ROW_LEN * MAX_TILES_COL_LEN * MAX_TILES_DEPTH_LEN * sizeof * tiles;
+
+  fprintf(stdout, "Tiles Len: %lu\n", tiles_len);
   spooky_generate_tiles(&tiles, tiles_len);
 
   int64_t now = 0;

@@ -661,7 +661,7 @@ errno_t spooky_font_glyph_create_texture(const spooky_font * self, const char * 
 
   SDL_Texture * original_target = SDL_GetRenderTarget(self->data->renderer);
 
-  static const SDL_Color black = { .r = 0, .g = 0, .b = 0, .a = 255 }; 
+  static const SDL_Color black = { .r = 0, .g = 0, .b = 0, .a = 255 };
   static const SDL_Color white = { .r = 255, .g = 255, .b = 255, .a = 255 };
 
   TTF_Font * ttf_font = self->data->font;
