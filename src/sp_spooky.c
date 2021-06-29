@@ -976,7 +976,7 @@ static void spooky_tile_color(spooky_tile_type type, SDL_Color * color) {
   if(!color) { return; }
   switch(type) {
     case STT_EMPTY:
-      *color = (SDL_Color){ .r = 10, .g = 10, .b = 10, .a = 255 }; /* Black */
+      *color = (SDL_Color){ .r = 0, .g = 0, .b = 0, .a = 255 }; /* Black */
       break;
     case STT_BEDROCK:
       *color = (SDL_Color){ .r = 64, .g = 64, .b = 64, .a = 255 }; /* Dark gray */
@@ -1033,16 +1033,7 @@ static void spooky_render_landscape(SDL_Renderer * renderer, const spooky_contex
       {
         size_t offset = SP_OFFSET(x, y, cursor->z);
         spooky_tile_type type = tiles[offset].type;
-        if(type == STT_EMPTY && cursor->z > 0) {
-          offset = SP_OFFSET(x, y, (cursor->z - 1));
-          type = tiles[offset].type;
-          spooky_tile_color(type, &block_color);
-          block_color.a -= 20;
-          block_color.a -= 20;
-          block_color.a -= 20;
-        } else {
-          spooky_tile_color(type, &block_color);
-        }
+        spooky_tile_color(type, &block_color);
       }
 
       const spooky_gui_rgba_context * tile_rgba = spooky_gui_push_draw_color(renderer, &block_color);
