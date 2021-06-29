@@ -24,7 +24,7 @@
 #include "sp_config.h"
 
 #define MAX_FONT_LEN 20
-static const size_t max_font_len = MAX_FONT_LEN;
+static const size_t spooky_font_sizes_len = MAX_FONT_LEN;
 static size_t spooky_font_sizes[MAX_FONT_LEN] = {
   4,
   8,
@@ -47,8 +47,8 @@ static size_t spooky_font_sizes[MAX_FONT_LEN] = {
   155,
   180
 };
-static const size_t MIN_FONT_SIZE = 4;
-static const size_t MAX_FONT_SIZE = 180;
+static const size_t SPOOKY_FONT_MIN_SIZE = 4;
+static const size_t SPOOKY_FONT_MAX_SIZE = 180;
 
 typedef struct spooky_context_data {
   const spooky_config * config;
@@ -388,7 +388,7 @@ errno_t spooky_init_context(spooky_context * context, FILE * fp) {
   // 4 -> 6 -> 8 -> 10 -> 11 -> 14 -> 18
   size_t closest_font_size = 4;
   size_t requested_font_size = (size_t)config->get_font_size(config);
-  for(size_t i = 0; i < max_font_len; i++) {
+  for(size_t i = 0; i < spooky_font_sizes_len; i++) {
     size_t point_size = spooky_font_sizes[i];
     if(point_size > requested_font_size) {
       global_data.fonts_index = i;
@@ -396,8 +396,8 @@ errno_t spooky_init_context(spooky_context * context, FILE * fp) {
       break;
     }
   }
-  if(closest_font_size < MIN_FONT_SIZE) { closest_font_size = MIN_FONT_SIZE; }
-  if(closest_font_size > MAX_FONT_SIZE) { closest_font_size = MAX_FONT_SIZE; }
+  if(closest_font_size < SPOOKY_FONT_MIN_SIZE) { closest_font_size = SPOOKY_FONT_MIN_SIZE; }
+  if(closest_font_size > SPOOKY_FONT_MAX_SIZE) { closest_font_size = SPOOKY_FONT_MAX_SIZE; }
   global_data.font_type_index = 0;
 
   spooky_pack_item_file * ttf = NULL;

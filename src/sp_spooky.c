@@ -34,6 +34,18 @@
 #include "sp_box.h"
 #include "sp_config.h"
 
+static const size_t MAX_TILES_ROW_LEN = 64;
+static const size_t MAX_TILES_COL_LEN = 64;
+static const size_t MAX_TILES_DEPTH_LEN = 64;
+static const size_t VOXEL_WIDTH = 8;
+static const size_t VOXEL_HEIGHT = 8;
+
+typedef struct spooky_vector {
+  size_t x;
+  size_t y;
+  size_t z;
+} spooky_vector;
+
 typedef enum spooky_biom {
   SB_EMPTY,
   SB_TUNDRA,
@@ -93,10 +105,8 @@ typedef struct spooky_tile {
   spooky_tile_type type;
 } spooky_tile;
 
-static const size_t MAX_TILES_ROW_LEN = 64;
-static const size_t MAX_TILES_COL_LEN = 64;
-static const size_t MAX_TILES_DEPTH_LEN = 64;
 
+static void spooky_render_landscape(SDL_Renderer * renderer, const spooky_context * context, spooky_tile * tiles, size_t tiles_len, const spooky_vector * cursor);
 static errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex);
 static errno_t spooky_command_parser(spooky_context * context, const spooky_console * console, const spooky_log * log, const char * command) ;
 
@@ -400,28 +410,25 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
   SDL_Rect box0_rect = { .x = center_x, .y = center_y, .w = sprite_w, .h = sprite_h };
   const spooky_box * box0 = spooky_box_acquire();
   box0 = box0->ctor(box0, context, box0_rect);
-  // box0->set_sprite(box0, sprite);
 
-  //SDL_Rect box1_rect = { .x = 200, .y = 200, .w = 50, .h = 50 };
-  //const spooky_box * box1 = spooky_box_acquire();
-  //box1 = box1->ctor(box1, context, box1_rect);
+  const spooky_config * config = context->get_config(context);
 
-  // box0->as_base(box0)->add_child(box0->as_base(box0), box1->as_base(box1), NULL);
+  SDL_ClearError();
+  SDL_Texture * landscape = SDL_CreateTexture(renderer
+      , SDL_GetWindowPixelFormat(window)
+      , SDL_TEXTUREACCESS_TARGET
+      , config->get_canvas_width(config)
+      , config->get_canvas_height(config)
+      );
+  if(!landscape || spooky_is_sdl_error(SDL_GetError())) { abort(); }
+  bool update_landscape = true;
 
   log->prepend(log, "Logging enabled\n", SLS_INFO);
   int x_dir = 30, y_dir = 30;
   double interpolation = 0.0;
   int seconds_to_save = 0;
-
-  typedef struct spooky_vector {
-    size_t x;
-    size_t y;
-    size_t z;
-  } spooky_vector;
-
   spooky_vector cursor = { .x = MAX_TILES_ROW_LEN / 2, .y = MAX_TILES_COL_LEN / 2, .z = 0 };
 
-  const spooky_config * config = context->get_config(context);
   const spooky_base * box = box0->as_base(box0);
   while(spooky_context_get_is_running(context)) {
     SDL_SetRenderTarget(renderer, context->get_canvas(context));
@@ -463,7 +470,7 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
           case SDL_QUIT:
             spooky_context_set_is_running(context, false);
             goto end_of_running_loop;
-          case SDL_KEYUP:
+          case SDL_KEYDOWN:
             {
               SDL_Keycode sym = evt.key.keysym.sym;
               switch(sym) {
@@ -505,7 +512,26 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
                     cursor.z++;
                     if(cursor.z >= MAX_TILES_DEPTH_LEN - 1) { cursor.z = MAX_TILES_DEPTH_LEN - 1; }
                   }
+                  update_landscape = true;
                   break;
+                case SDLK_q:
+                  {
+                    /* ctrl-q to quit */
+                    if((SDL_GetModState() & KMOD_CTRL) != 0) {
+                      spooky_context_set_is_running(context, false);
+                      goto end_of_running_loop;
+                    }
+                  }
+                  break;
+                default:
+                  break;
+              }
+            }
+            break;
+          case SDL_KEYUP:
+            {
+              SDL_Keycode sym = evt.key.keysym.sym;
+              switch(sym) {
                 case SDLK_F12: /* fullscreen window */
                   {
                     bool previous_is_fullscreen = context->get_is_fullscreen(context);
@@ -523,23 +549,6 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
               } /* >> switch(sym ... */
             }
             break;
-          case SDL_KEYDOWN:
-            {
-              SDL_Keycode sym = evt.key.keysym.sym;
-              switch(sym) {
-                case SDLK_q:
-                  {
-                    /* ctrl-q to quit */
-                    if((SDL_GetModState() & KMOD_CTRL) != 0) {
-                      spooky_context_set_is_running(context, false);
-                      goto end_of_running_loop;
-                    }
-                  }
-                  break;
-                default:
-                  break;
-              }
-            }
           default:
             break;
         } /* >> switch(evt.type ... */
@@ -611,86 +620,38 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
       }
     }
 
-    static const int W = 8;
-    static const int H = 8;
-    box->set_w(box, W);
-    box->set_h(box, H);
-    box->set_x(box, 0);
-    box->set_y(box, 0);
-
-    for(size_t x = 0; x < MAX_TILES_ROW_LEN; x++) {
-      for(size_t y = 0; y < MAX_TILES_COL_LEN; y++) {
-        size_t offset = SP_OFFSET(x, y, cursor.z);
-        spooky_tile_type type = tiles[offset].type;
-        SDL_Color block_color = { 0 };
-
-        switch(type) {
-          case STT_EMPTY:
-            block_color = (SDL_Color){ .r = 0, .g = 0, .b = 0, .a = 255 }; /* Black */
-            break;
-          case STT_BEDROCK:
-            block_color = (SDL_Color){ .r = 64, .g = 64, .b = 64, .a = 255 }; /* Dark gray */
-            break;
-          case STT_METAMORPHIC:
-            block_color = (SDL_Color){ .r = 112, .g = 128, .b = 144, .a = 255 }; /* Slate gray color */
-            break;
-          case STT_IGNEOUS:
-            block_color = (SDL_Color){ .r = 255, .g = 253, .b = 208, .a = 255 };/* Cream color */
-            break;
-          case STT_SEDIMENTARY:
-            block_color = (SDL_Color){ .r = 213, .g = 194, .b = 165, .a = 255 };/* Sandstone color */
-            break;
-          case STT_TREE:
-            block_color = (SDL_Color){ .r = 0, .g = 128, .b = 0, .a = 255 }; /* Green tree */
-            break;
-          case STT_WATER:
-            block_color = (SDL_Color){ .r = 0, .g = 0, .b = 255, .a = 255 }; /* Blue water */
-            break;
-          case STT_SAND:
-          case STT_SILT:
-          case STT_CLAY:
-          case STT_LOAM:
-          case STT_GRAVEL:
-            block_color = (SDL_Color){ .r = 44, .g = 33, .b = 24, .a = 255 }; /* Mud color */
-            break;
-          case STT_EOE:
-          default:
-            block_color = (SDL_Color){ .r = 255, .g = 0, .b = 0, .a = 255 }; /* Red Error */
-            break;
-        }
-        const spooky_gui_rgba_context * tile_rgba = spooky_gui_push_draw_color(renderer, &block_color);
-        {
-          box->render(box, renderer);
-          {
-            const SDL_Color black = { 0, 0, 0, 255 };
-            const spooky_gui_rgba_context * outline = spooky_gui_push_draw_color(renderer, &black);
-            {
-
-              spooky_box_draw_style style = box0->get_draw_style(box0);
-              box0->set_draw_style(box0, SBDS_OUTLINE);
-              box->render(box, renderer);
-              box0->set_draw_style(box0, style);
-              spooky_gui_pop_draw_color(outline);
-            }
-          }
-          spooky_gui_pop_draw_color(tile_rgba);
-        }
-        box->set_y(box, box->get_y(box) + H);
-      }
-
-      box->set_x(box, box->get_x(box) + W);
-      box->set_y(box, 0);
+    if(update_landscape) {
+      SDL_SetRenderTarget(renderer, landscape);
+      spooky_render_landscape(renderer, context, tiles, tiles_len, &cursor);
+      update_landscape = false;
+      SDL_SetRenderTarget(renderer, context->get_canvas(context));
     }
+
+    SDL_Rect landscape_rect = {
+      .x = 0,
+      .y = 0,
+      .w = config->get_canvas_width(config),
+      .h = config->get_canvas_height(config)
+    };
+    //context->translate_rect(context, &landscape_rect);
+    SDL_RenderCopy(renderer, landscape, NULL, &landscape_rect);
 
     const SDL_Color cursor_color = { 255, 0, 255, 255};
     const spooky_gui_rgba_context * cursor_rgba = spooky_gui_push_draw_color(renderer, &cursor_color);
     {
       SDL_Rect cursor_rect = {
-        .x = (int)(cursor.x * (size_t)W),
-        .y = (int)(cursor.y * (size_t)H),
-        .w = (int)W,
-        .h = (int)H
+        .x = (int)(cursor.x * (size_t)VOXEL_WIDTH),
+        .y = (int)(cursor.y * (size_t)VOXEL_HEIGHT),
+        .w = (int)VOXEL_WIDTH,
+        .h = (int)VOXEL_HEIGHT
       };
+
+      if(cursor_rect.x >= (int)(VOXEL_WIDTH * MAX_TILES_ROW_LEN)) { cursor.x = (int)(VOXEL_WIDTH * MAX_TILES_ROW_LEN); }
+      if(cursor_rect.x < 0) { cursor_rect.x = 0; }
+
+      if(cursor_rect.y >= (int)(VOXEL_HEIGHT * MAX_TILES_COL_LEN)) { cursor.y = (int)(VOXEL_HEIGHT * MAX_TILES_COL_LEN); }
+      if(cursor_rect.y < 0) { cursor_rect.y = 0; }
+
       spooky_box_draw_style style = box0->get_draw_style(box0);
       box0->set_draw_style(box0, SBDS_OUTLINE);
       box->set_rect(box, &cursor_rect, NULL);
@@ -717,6 +678,7 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
       static char tile_info[1920] = { 0 };
       int info_len = 0;
       const char * info = spooky_tile_info(current_tile, tile_info, sizeof(tile_info), &info_len);
+      info_len += snprintf((tile_info + info_len), 1920 - info_len, "\nx: %lu, y: %lu, z: %lu, offset: %lu", cursor.x, cursor.y, cursor.z, SP_OFFSET(cursor.x, cursor.y, cursor.z));
       const spooky_font * font = context->get_font(context);
       static const SDL_Color white = { 255, 255, 255, 255 };
       SDL_Point info_point = { 0 };
@@ -1008,4 +970,98 @@ static const char * spooky_tile_info(const spooky_tile * tile, char * buf, size_
 
   *buf_len_out = snprintf(buf, buf_len, "type: '%s'", type);
   return buf;
+}
+
+static void spooky_tile_color(spooky_tile_type type, SDL_Color * color) {
+  if(!color) { return; }
+  switch(type) {
+    case STT_EMPTY:
+      *color = (SDL_Color){ .r = 0, .g = 0, .b = 0, .a = 255 }; /* Black */
+      break;
+    case STT_BEDROCK:
+      *color = (SDL_Color){ .r = 64, .g = 64, .b = 64, .a = 255 }; /* Dark gray */
+      break;
+    case STT_METAMORPHIC:
+      *color = (SDL_Color){ .r = 112, .g = 128, .b = 144, .a = 255 }; /* Slate gray color */
+      break;
+    case STT_IGNEOUS:
+      *color = (SDL_Color){ .r = 255, .g = 253, .b = 208, .a = 255 };/* Cream color */
+      break;
+    case STT_SEDIMENTARY:
+      *color = (SDL_Color){ .r = 213, .g = 194, .b = 165, .a = 255 };/* Sandstone color */
+      break;
+    case STT_TREE:
+      *color = (SDL_Color){ .r = 0, .g = 128, .b = 0, .a = 255 }; /* Green tree */
+      break;
+    case STT_WATER:
+      *color = (SDL_Color){ .r = 0, .g = 0, .b = 255, .a = 255 }; /* Blue water */
+      break;
+    case STT_SAND:
+    case STT_SILT:
+    case STT_CLAY:
+    case STT_LOAM:
+    case STT_GRAVEL:
+      *color = (SDL_Color){ .r = 44, .g = 33, .b = 24, .a = 255 }; /* Mud color */
+      break;
+    case STT_EOE:
+    default:
+      *color = (SDL_Color){ .r = 255, .g = 0, .b = 0, .a = 255 }; /* Red Error */
+      break;
+  }
+}
+
+static void spooky_render_landscape(SDL_Renderer * renderer, const spooky_context * context, spooky_tile * tiles, size_t tiles_len, const spooky_vector * cursor) {
+  static const spooky_box * box0 = NULL;
+  static const spooky_base * box = NULL;
+  if(!box0 && !box) {
+    SDL_Rect box0_rect = { 0 };
+    box0 = spooky_box_acquire();
+    box0 = box0->ctor(box0, context, box0_rect);
+    box = box0->as_base(box0);
+  }
+
+  (void)tiles_len;
+
+  box->set_w(box, VOXEL_WIDTH);
+  box->set_h(box, VOXEL_HEIGHT);
+  box->set_x(box, 0);
+  box->set_y(box, 0);
+
+  for(size_t x = 0; x < MAX_TILES_ROW_LEN; x++) {
+    for(size_t y = 0; y < MAX_TILES_COL_LEN; y++) {
+      size_t offset = SP_OFFSET(x, y, cursor->z);
+      spooky_tile_type type = tiles[offset].type;
+      SDL_Color block_color = { 0 };
+      if(type == STT_EMPTY && cursor->z > 0) {
+        offset = SP_OFFSET(x, y, cursor->z - 1);
+        type = tiles[offset].type;
+      }
+
+      spooky_tile_color(type, &block_color);
+      if(type == STT_EMPTY && cursor->z > 0) {
+        block_color.a = 200;
+      }
+      const spooky_gui_rgba_context * tile_rgba = spooky_gui_push_draw_color(renderer, &block_color);
+      {
+        box->render(box, renderer);
+        {
+          const SDL_Color black = { 0, 0, 0, 255 };
+          const spooky_gui_rgba_context * outline = spooky_gui_push_draw_color(renderer, &black);
+          {
+
+            spooky_box_draw_style style = box0->get_draw_style(box0);
+            box0->set_draw_style(box0, SBDS_OUTLINE);
+            box->render(box, renderer);
+            box0->set_draw_style(box0, style);
+            spooky_gui_pop_draw_color(outline);
+          }
+        }
+        spooky_gui_pop_draw_color(tile_rgba);
+      }
+      box->set_y(box, box->get_y(box) + (int)VOXEL_HEIGHT);
+    }
+
+    box->set_x(box, box->get_x(box) + (int)VOXEL_WIDTH);
+    box->set_y(box, 0);
+  }
 }
