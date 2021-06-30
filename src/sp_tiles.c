@@ -30,52 +30,117 @@ const spooky_tiles_tile_meta spooky_tiles_global_tiles_meta[STT_EOE + 1] = {
   { .type = STT_EOE, .is_breakable = false }
 };
 
-const spooky_tile spooky_tiles_global_empty_tile = {
+static spooky_tile spooky_tiles_global_empty_tile = {
   .meta = &(spooky_tiles_global_tiles_meta[STT_EMPTY])
 };
 
 typedef struct spooky_tiles_manager_data {
-  int foo;
+  spooky_tile * allocated_tiles;
+  size_t allocated_tiles_capacity;
+  size_t allocated_tiles_len;
+
+  spooky_tile * tiles;
+  size_t tiles_capacity;
+  size_t tiles_len;
 } spooky_tiles_manager_data;
 
+static void spooky_tiles_manager_generate_tiles(const spooky_tiles_manager * self);
+static spooky_tile * spooky_tiles_manager_set_empty(const spooky_tiles_manager * self, uint32_t x, uint32_t y, uint32_t z);
+static const spooky_tile * spooky_tiles_manager_create_tile(const spooky_tiles_manager * self, uint32_t x, uint32_t y, uint32_t z, spooky_tiles_tile_type type);
+static const spooky_tile * spooky_tiles_manager_get_tiles(const spooky_tiles_manager * self);
+
 const spooky_tiles_manager * spooky_tiles_manager_alloc() {
-  return NULL;
+  spooky_tiles_manager * self = calloc(1, sizeof * self);
+  return self;
 }
 
 const spooky_tiles_manager * spooky_tiles_manager_init(spooky_tiles_manager * self) {
-  (void)self;
-  return NULL;
+  assert(self);
+
+  self->ctor = &spooky_tiles_manager_ctor;
+  self->dtor = &spooky_tiles_manager_dtor;
+  self->free = &spooky_tiles_manager_free;
+  self->release = &spooky_tiles_manager_release;
+  self->create_tile = &spooky_tiles_manager_create_tile;
+  self->set_empty = &spooky_tiles_manager_set_empty;
+  self->generate_tiles = &spooky_tiles_manager_generate_tiles;
+  self->get_tiles = &spooky_tiles_manager_get_tiles;
+  self->data = NULL;
+  return self;
 }
 
 const spooky_tiles_manager * spooky_tiles_manager_acquire() {
-  return NULL;
+  return spooky_tiles_manager_init(((spooky_tiles_manager *)(uintptr_t)spooky_tiles_manager_alloc()));
 }
 const spooky_tiles_manager * spooky_tiles_manager_ctor(const spooky_tiles_manager * self) {
-  (void)self;
-  return NULL;
+  assert(self);
+
+  spooky_tiles_manager_data * data = calloc(1, sizeof * data);
+
+  /* Free store from which tiles are allocated; the allocated
+     array is resized as needed (a pointer to structure). */
+  data->allocated_tiles_capacity = 128;
+  data->allocated_tiles_len = 0;
+  data->allocated_tiles = calloc(data->allocated_tiles_capacity, sizeof * (data->allocated_tiles));
+
+  /* Pointers to the allocated tiles; using 'empty', we can save
+     some memory when no tile is allocated (a pointer to pointers). */
+  data->tiles_capacity = SPOOKY_TILES_MAX_TILES_ROW_LEN * SPOOKY_TILES_MAX_TILES_COL_LEN * SPOOKY_TILES_MAX_TILES_DEPTH_LEN;
+  data->tiles_len = data->tiles_capacity;
+  data->tiles = calloc(SPOOKY_TILES_MAX_TILES_ROW_LEN * SPOOKY_TILES_MAX_TILES_COL_LEN * SPOOKY_TILES_MAX_TILES_DEPTH_LEN, sizeof data->tiles);
+
+  ((spooky_tiles_manager *)(uintptr_t)self)->data = data;
+
+  return self;
 }
 
 const spooky_tiles_manager * spooky_tiles_manager_dtor(const spooky_tiles_manager * self) {
-  (void)self;
-  return NULL;
+  if(self && self->data) {
+    self->data->tiles_capacity = 0;
+    self->data->tiles_len = 0;
+    free(self->data->tiles), self->data->tiles = NULL;
+
+    self->data->allocated_tiles_capacity = 0;
+    self->data->allocated_tiles_len = 0;
+    free(self->data->allocated_tiles), self->data->allocated_tiles = NULL;
+
+    free(self->data), ((spooky_tiles_manager *)(uintptr_t)self)->data = NULL;
+  }
+  return self;
 }
 void spooky_tiles_manager_free(const spooky_tiles_manager * self) {
-  (void)self;
+  free(((spooky_tiles_manager *)(uintptr_t)self)), self = NULL;
 }
 
 void spooky_tiles_manager_release(const spooky_tiles_manager * self) {
-  (void)self;
+  self->free(self->dtor(self));
 }
 
-static void spooky_create_tile(spooky_tile * tiles, size_t tiles_len, uint32_t x, uint32_t y, uint32_t z, spooky_tiles_tile_type type) {
-  assert(tiles_len > 0);
-
-  const spooky_tile * tiles_end = tiles + tiles_len;
-
+static spooky_tile * spooky_tiles_manager_set_empty(const spooky_tiles_manager * self, uint32_t x, uint32_t y, uint32_t z) {
   uint32_t offset = SP_OFFSET(x, y, z);
-  spooky_tile * tile = &(tiles[offset]);
-  tile->meta = &(spooky_tiles_global_tiles_meta[type]);
-  assert(tile >= tiles && tile < tiles_end);
+  self->data->tiles[offset] = spooky_tiles_global_empty_tile;
+  return &(self->data->tiles[offset]);
+}
+
+static const spooky_tile * spooky_tiles_manager_create_tile(const spooky_tiles_manager * self, uint32_t x, uint32_t y, uint32_t z, spooky_tiles_tile_type type) {
+  if(type == STT_EMPTY) {
+    return self->set_empty(self, x, y, z);
+  } else {
+    uint32_t offset = SP_OFFSET(x, y, z);
+    if(self->data->allocated_tiles_len + 1 >= self->data->allocated_tiles_capacity) {
+      /* reallocate allocated tiles */
+      self->data->allocated_tiles_capacity += 64;
+      spooky_tile * temp = realloc(self->data->allocated_tiles, self->data->allocated_tiles_capacity * sizeof * self->data->allocated_tiles);
+      if(!temp) { abort(); }
+      self->data->allocated_tiles = temp;
+    }
+    spooky_tile * new_tile = &(self->data->allocated_tiles[self->data->allocated_tiles_len]);
+    assert(type > STT_EMPTY && type < STT_EOE);
+    new_tile->meta = &(spooky_tiles_global_tiles_meta[type]);
+    ++self->data->allocated_tiles_len;
+    self->data->tiles[offset] = *new_tile;
+    return new_tile;
+  }
 }
 
 const char * spooky_tiles_tile_type_as_string(spooky_tiles_tile_type type) {
@@ -92,9 +157,8 @@ const char * spooky_tiles_tile_type_as_string(spooky_tiles_tile_type type) {
     case STT_TREE: return "tree";
     case STT_SAND: return "sand";
     case STT_LOAM: return "loam";
-    case STT_EOE:
-    default:
-      return "error";
+    case STT_EOE: /* fall-through */
+    default: return "error";
   }
 }
 
@@ -105,8 +169,8 @@ const char * spooky_tiles_get_tile_info(const spooky_tile * tile, char * buf, si
   return buf;
 }
 
-void spooky_tiles_generate_tiles(spooky_tile * tiles, size_t tiles_len) {
-  const spooky_tile * tiles_end = tiles + tiles_len; (void)tiles_end;
+static void spooky_tiles_manager_generate_tiles(const spooky_tiles_manager * self) {
+  const spooky_tile * tiles_end = self->data->tiles + self->data->tiles_len; (void)tiles_end;
   /* basic biom layout */
   // unsigned int seed = randombytes_uniform(100);
   for(uint32_t x = 0; x < SPOOKY_TILES_MAX_TILES_ROW_LEN; ++x) {
@@ -159,7 +223,7 @@ void spooky_tiles_generate_tiles(spooky_tile * tiles, size_t tiles_len) {
             while(new_type == STT_BEDROCK) {
               /* we only want bedrock if the block below is also bedrock */
               size_t under_offset = SP_OFFSET(x, y, z - 1);
-              const spooky_tile * under = &(tiles[under_offset]);
+              const spooky_tile * under = &(self->data->tiles[under_offset]);
               if(under->meta->type != STT_BEDROCK) {
                 new_type = randombytes_uniform((uint32_t)STT_METAMORPHIC + 1);
                 assert(new_type >= STT_EMPTY && new_type <= STT_METAMORPHIC);
@@ -175,7 +239,7 @@ void spooky_tiles_generate_tiles(spooky_tile * tiles, size_t tiles_len) {
         }
 
 create_tile:
-        spooky_create_tile(tiles, tiles_len, x, y, z, type);
+        self->create_tile(self, x, y, z, type);
       }
     }
   }
@@ -217,4 +281,8 @@ void spooky_tiles_get_tile_color(spooky_tiles_tile_type type, SDL_Color * color)
       *color = (SDL_Color){ .r = 255, .g = 0, .b = 0, .a = 255 }; /* Red Error */
       break;
   }
+}
+
+static const spooky_tile * spooky_tiles_manager_get_tiles(const spooky_tiles_manager * self) {
+  return self->data->tiles;
 }

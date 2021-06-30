@@ -35,7 +35,7 @@
 #include "sp_config.h"
 #include "sp_tiles.h"
 
-static void spooky_render_landscape(SDL_Renderer * renderer, const spooky_context * context, spooky_tile * tiles, size_t tiles_len, const spooky_vector * cursor);
+static void spooky_render_landscape(SDL_Renderer * renderer, const spooky_context * context, const spooky_tiles_manager * tiles_manager, const spooky_vector * cursor);
 static errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex);
 static errno_t spooky_command_parser(spooky_context * context, const spooky_console * console, const spooky_log * log, const char * command) ;
 
@@ -232,11 +232,9 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
   const int MAX_UPDATES_BEFORE_RENDER = 5;
   const int TARGET_TIME_BETWEEN_RENDERS = BILLION / TARGET_FPS;
 
-  spooky_tile * tiles = calloc(SPOOKY_TILES_MAX_TILES_ROW_LEN * SPOOKY_TILES_MAX_TILES_COL_LEN * SPOOKY_TILES_MAX_TILES_DEPTH_LEN, sizeof * tiles);
-  size_t tiles_len = SPOOKY_TILES_MAX_TILES_ROW_LEN * SPOOKY_TILES_MAX_TILES_COL_LEN * SPOOKY_TILES_MAX_TILES_DEPTH_LEN * sizeof * tiles;
-
-  fprintf(stdout, "Tiles Len: %lu\n", tiles_len);
-  spooky_tiles_generate_tiles(tiles, tiles_len);
+  const spooky_tiles_manager * tiles_manager = spooky_tiles_manager_acquire();
+  tiles_manager = tiles_manager->ctor(tiles_manager);
+  tiles_manager->generate_tiles(tiles_manager);
 
   int64_t now = 0;
   int64_t last_render_time = sp_get_time_in_us();
@@ -352,6 +350,7 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
   int seconds_to_save = 0;
   spooky_vector cursor = { .x = SPOOKY_TILES_MAX_TILES_ROW_LEN / 2, .y = SPOOKY_TILES_MAX_TILES_COL_LEN / 2, .z = 0 };
 
+  const spooky_tile * tiles = tiles_manager->get_tiles(tiles_manager);
   const spooky_base * box = box0->as_base(box0);
   while(spooky_context_get_is_running(context)) {
     SDL_SetRenderTarget(renderer, context->get_canvas(context));
@@ -545,7 +544,7 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
 
     if(update_landscape) {
       SDL_SetRenderTarget(renderer, landscape);
-      spooky_render_landscape(renderer, context, tiles, tiles_len, &cursor);
+      spooky_render_landscape(renderer, context, tiles_manager, &cursor);
       update_landscape = false;
       SDL_SetRenderTarget(renderer, context->get_canvas(context));
     }
@@ -666,8 +665,7 @@ end_of_running_loop: ;
   if(background != NULL) { SDL_DestroyTexture(background), background = NULL; }
   if(letterbox_background != NULL) { SDL_DestroyTexture(letterbox_background), letterbox_background = NULL; }
 
-  free(tiles), tiles = NULL;
-
+  spooky_tiles_manager_release(tiles_manager);
   spooky_help_release(help);
   spooky_console_release(console);
   spooky_log_release(log);
@@ -778,7 +776,7 @@ void Resize() {
   // TODO: resize the world/window
 }
 
-static void spooky_render_landscape(SDL_Renderer * renderer, const spooky_context * context, spooky_tile * tiles, size_t tiles_len, const spooky_vector * cursor) {
+static void spooky_render_landscape(SDL_Renderer * renderer, const spooky_context * context, const spooky_tiles_manager * tiles_manager, const spooky_vector * cursor) {
   static const spooky_box * box0 = NULL;
   static const spooky_base * box = NULL;
   if(!box0 && !box) {
@@ -788,13 +786,12 @@ static void spooky_render_landscape(SDL_Renderer * renderer, const spooky_contex
     box = box0->as_base(box0);
   }
 
-  (void)tiles_len;
-
   box->set_w(box, (int)SPOOKY_TILES_VOXEL_WIDTH);
   box->set_h(box, (int)SPOOKY_TILES_VOXEL_HEIGHT);
   box->set_x(box, 0);
   box->set_y(box, 0);
 
+  const spooky_tile * tiles = tiles_manager->get_tiles(tiles_manager);
   for(uint32_t x = 0; x < SPOOKY_TILES_MAX_TILES_ROW_LEN; x++) {
     for(uint32_t y = 0; y < SPOOKY_TILES_MAX_TILES_COL_LEN; y++) {
       SDL_Color block_color = { 0 };

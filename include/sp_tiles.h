@@ -62,7 +62,6 @@ typedef struct spooky_tile {
 } spooky_tile;
 
 const spooky_tiles_tile_meta spooky_tiles_global_tiles_meta[STT_EOE + 1];
-const spooky_tile spooky_tiles_global_empty_tile;
 
 typedef struct spooky_tiles_manager_data spooky_tiles_manager_data;
 typedef struct spooky_tiles_manager spooky_tiles_manager;
@@ -72,6 +71,11 @@ typedef struct spooky_tiles_manager {
   const spooky_tiles_manager * (*dtor)(const spooky_tiles_manager * /* self */);
   void (*free)(const spooky_tiles_manager * /* self */);
   void (*release)(const spooky_tiles_manager * /* self */);
+
+  void (*generate_tiles)(const spooky_tiles_manager * /* self */);
+  const spooky_tile * (*create_tile)(const spooky_tiles_manager * /* self */, uint32_t /* x */, uint32_t /* y */, uint32_t /* z */, spooky_tiles_tile_type /* type */);
+  spooky_tile * (*set_empty)(const spooky_tiles_manager * /* self */, uint32_t /* x */, uint32_t /* y */, uint32_t /* z */);
+  const spooky_tile * (*get_tiles)(const spooky_tiles_manager * /* self */);
 
   spooky_tiles_manager_data * data;
 } spooky_tiles_manager;
