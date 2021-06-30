@@ -105,6 +105,10 @@ typedef struct spooky_tile {
   spooky_tile_type type;
 } spooky_tile;
 
+static spooky_tile spooky_global_tiles[2] = {
+  { .type = STT_EMPTY },
+  { .type = STT_BEDROCK }
+};
 
 static void spooky_render_landscape(SDL_Renderer * renderer, const spooky_context * context, spooky_tile * tiles, size_t tiles_len, const spooky_vector * cursor);
 static errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex);
@@ -116,7 +120,7 @@ typedef struct spooky_options {
 } spooky_options;
 
 static errno_t spooky_parse_args(int argc, char ** argv, spooky_options * options);
-static void spooky_generate_tiles(spooky_tile ** tiles_in, size_t tiles_len);
+static void spooky_generate_tiles(spooky_tile * tiles_in, size_t tiles_len);
 static const char * spooky_tile_info(const spooky_tile * tile, char * buf, size_t buf_len, int * buf_len_out);
 
 inline static size_t SP_OFFSET(size_t x, size_t y, size_t z) {
@@ -309,11 +313,11 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
   const int MAX_UPDATES_BEFORE_RENDER = 5;
   const int TARGET_TIME_BETWEEN_RENDERS = BILLION / TARGET_FPS;
 
-  spooky_tile * tiles = calloc(MAX_TILES_ROW_LEN * MAX_TILES_COL_LEN * MAX_TILES_DEPTH_LEN, sizeof * tiles);
-  size_t tiles_len = MAX_TILES_ROW_LEN * MAX_TILES_COL_LEN * MAX_TILES_DEPTH_LEN * sizeof * tiles;
+  spooky_tile * tiles = calloc(MAX_TILES_ROW_LEN * MAX_TILES_COL_LEN * MAX_TILES_DEPTH_LEN, sizeof tiles);
+  size_t tiles_len = MAX_TILES_ROW_LEN * MAX_TILES_COL_LEN * MAX_TILES_DEPTH_LEN * sizeof tiles;
 
   fprintf(stdout, "Tiles Len: %lu\n", tiles_len);
-  spooky_generate_tiles(&tiles, tiles_len);
+  spooky_generate_tiles(tiles, tiles_len);
 
   int64_t now = 0;
   int64_t last_render_time = sp_get_time_in_us();
@@ -861,14 +865,12 @@ static void spooky_create_tile(spooky_tile * tiles, size_t tiles_len, size_t x, 
   const spooky_tile * tiles_end = tiles + tiles_len;
 
   size_t offset = SP_OFFSET(x, y, z);
+  tiles[offset] = spooky_global_tiles[type];
   spooky_tile * tile = &(tiles[offset]);
   assert(tile >= tiles && tile < tiles_end);
-
-  tile->type = type;
 }
 
-static void spooky_generate_tiles(spooky_tile ** tiles_in, size_t tiles_len) {
-  spooky_tile * tiles = *tiles_in;
+static void spooky_generate_tiles(spooky_tile * tiles, size_t tiles_len) {
   const spooky_tile * tiles_end = tiles + tiles_len; (void)tiles_end;
   /* basic biom layout */
   // unsigned int seed = randombytes_uniform(100);
@@ -942,7 +944,6 @@ create_tile:
       }
     }
   }
-  *tiles_in = tiles;
 }
 
 const char * spooky_tile_type_as_string(spooky_tile_type type) {
