@@ -350,7 +350,6 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
   int seconds_to_save = 0;
   spooky_vector cursor = { .x = SPOOKY_TILES_MAX_TILES_ROW_LEN / 2, .y = SPOOKY_TILES_MAX_TILES_COL_LEN / 2, .z = 0 };
 
-  const spooky_tile * tiles = tiles_manager->get_tiles(tiles_manager);
   const spooky_base * box = box0->as_base(box0);
   while(spooky_context_get_is_running(context)) {
     SDL_SetRenderTarget(renderer, context->get_canvas(context));
@@ -596,11 +595,11 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
 
     {
       /* Tile Details */
-      const spooky_tile * current_tile = &(tiles[SP_OFFSET(cursor.x, cursor.y, cursor.z)]);
+      const spooky_tile * current_tile = tiles_manager->get_tile(tiles_manager, cursor.x, cursor.y, cursor.z);
       static char tile_info[1920] = { 0 };
       int info_len = 0;
       const char * info = spooky_tiles_get_tile_info(current_tile, tile_info, sizeof(tile_info), &info_len);
-      info_len += snprintf((tile_info + info_len), 1920 - info_len, "\nx: %iu, y: %iu, z: %iu, offset: %iu", cursor.x, cursor.y, cursor.z, SP_OFFSET(cursor.x, cursor.y, cursor.z));
+      info_len += snprintf((tile_info + info_len), 1920 - info_len, "\nx: %i, y: %i, z: %i", cursor.x, cursor.y, cursor.z);
       const spooky_font * font = context->get_font(context);
       static const SDL_Color white = { 255, 255, 255, 255 };
       SDL_Point info_point = { 0 };
@@ -791,13 +790,12 @@ static void spooky_render_landscape(SDL_Renderer * renderer, const spooky_contex
   box->set_x(box, 0);
   box->set_y(box, 0);
 
-  const spooky_tile * tiles = tiles_manager->get_tiles(tiles_manager);
   for(uint32_t x = 0; x < SPOOKY_TILES_MAX_TILES_ROW_LEN; x++) {
     for(uint32_t y = 0; y < SPOOKY_TILES_MAX_TILES_COL_LEN; y++) {
       SDL_Color block_color = { 0 };
       {
-        uint32_t offset = SP_OFFSET(x, y, cursor->z);
-        spooky_tiles_tile_type type = tiles[offset].meta->type;
+        const spooky_tile * tile = tiles_manager->get_tile(tiles_manager, x, y, cursor->z);
+        spooky_tiles_tile_type type = tile->meta->type;
         spooky_tiles_get_tile_color(type, &block_color);
       }
 

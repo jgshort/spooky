@@ -52,13 +52,16 @@ const uint32_t SPOOKY_TILES_VOXEL_HEIGHT;
 typedef struct spooky_tiles_tile_meta spooky_tiles_tile_meta;
 typedef struct spooky_tiles_tile_meta {
   spooky_tiles_tile_type type;
+  bool unbreakable;
   char padding[7];
-  bool is_breakable;
 } spooky_tiles_tile_meta;
 
 typedef struct spooky_tile spooky_tile;
 typedef struct spooky_tile {
   const spooky_tiles_tile_meta * meta;
+  uint32_t offset;
+  bool free;
+  char padding[3];
 } spooky_tile;
 
 const spooky_tiles_tile_meta spooky_tiles_global_tiles_meta[STT_EOE + 1];
@@ -76,7 +79,7 @@ typedef struct spooky_tiles_manager {
   const spooky_tile * (*create_tile)(const spooky_tiles_manager * /* self */, uint32_t /* x */, uint32_t /* y */, uint32_t /* z */, spooky_tiles_tile_type /* type */);
   spooky_tile * (*set_empty)(const spooky_tiles_manager * /* self */, uint32_t /* x */, uint32_t /* y */, uint32_t /* z */);
   const spooky_tile * (*get_tiles)(const spooky_tiles_manager * /* self */);
-
+  const spooky_tile * (*get_tile)(const spooky_tiles_manager * /* self */, uint32_t /* x */, uint32_t /* y */, uint32_t /* z */);
   spooky_tiles_manager_data * data;
 } spooky_tiles_manager;
 
@@ -100,8 +103,6 @@ const char * spooky_tiles_tile_type_as_string(spooky_tiles_tile_type /* type */)
 void spooky_tiles_generate_tiles(spooky_tile * /* tiles_in */, size_t /* tiles_len */);
 const char * spooky_tiles_get_tile_info(const spooky_tile * /* tile */, char * /* buf */, size_t /* buf_len */, int * /* buf_len_out */);
 
-inline uint32_t SP_OFFSET(uint32_t x, uint32_t y, uint32_t z) {
-  return x + (y * SPOOKY_TILES_MAX_TILES_ROW_LEN) + (z * SPOOKY_TILES_MAX_TILES_ROW_LEN * SPOOKY_TILES_MAX_TILES_COL_LEN);
-}
+
 
 #endif /* SP_TILES__H */
