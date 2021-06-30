@@ -232,11 +232,11 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
   const int MAX_UPDATES_BEFORE_RENDER = 5;
   const int TARGET_TIME_BETWEEN_RENDERS = BILLION / TARGET_FPS;
 
-  spooky_tile * tiles = calloc(MAX_TILES_ROW_LEN * MAX_TILES_COL_LEN * MAX_TILES_DEPTH_LEN, sizeof * tiles);
-  size_t tiles_len = MAX_TILES_ROW_LEN * MAX_TILES_COL_LEN * MAX_TILES_DEPTH_LEN * sizeof * tiles;
+  spooky_tile * tiles = calloc(SPOOKY_TILES_MAX_TILES_ROW_LEN * SPOOKY_TILES_MAX_TILES_COL_LEN * SPOOKY_TILES_MAX_TILES_DEPTH_LEN, sizeof * tiles);
+  size_t tiles_len = SPOOKY_TILES_MAX_TILES_ROW_LEN * SPOOKY_TILES_MAX_TILES_COL_LEN * SPOOKY_TILES_MAX_TILES_DEPTH_LEN * sizeof * tiles;
 
   fprintf(stdout, "Tiles Len: %lu\n", tiles_len);
-  spooky_generate_tiles(tiles, tiles_len);
+  spooky_tiles_generate_tiles(tiles, tiles_len);
 
   int64_t now = 0;
   int64_t last_render_time = sp_get_time_in_us();
@@ -350,7 +350,7 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
   int x_dir = 30, y_dir = 30;
   double interpolation = 0.0;
   int seconds_to_save = 0;
-  spooky_vector cursor = { .x = MAX_TILES_ROW_LEN / 2, .y = MAX_TILES_COL_LEN / 2, .z = 0 };
+  spooky_vector cursor = { .x = SPOOKY_TILES_MAX_TILES_ROW_LEN / 2, .y = SPOOKY_TILES_MAX_TILES_COL_LEN / 2, .z = 0 };
 
   const spooky_base * box = box0->as_base(box0);
   while(spooky_context_get_is_running(context)) {
@@ -407,14 +407,14 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
                   }
                   else if(sym == SDLK_l) {
                     cursor.x++;
-                    if(cursor.x >= MAX_TILES_ROW_LEN - 1) { cursor.x = MAX_TILES_ROW_LEN - 1; }
+                    if(cursor.x >= SPOOKY_TILES_MAX_TILES_ROW_LEN - 1) { cursor.x = SPOOKY_TILES_MAX_TILES_ROW_LEN - 1; }
                   }
                   break;
                 case SDLK_k:
                 case SDLK_j:
                   if(sym == SDLK_j) {
                     cursor.y++;
-                    if(cursor.y >= MAX_TILES_COL_LEN - 1) { cursor.y = MAX_TILES_COL_LEN - 1; }
+                    if(cursor.y >= SPOOKY_TILES_MAX_TILES_COL_LEN - 1) { cursor.y = SPOOKY_TILES_MAX_TILES_COL_LEN - 1; }
                   }
                   else if(sym == SDLK_k) {
                     if(cursor.y - 1 > cursor.y) { cursor.y = 0; }
@@ -433,7 +433,7 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
                   }
                   else if(sym == SDLK_PERIOD) {
                     cursor.z++;
-                    if(cursor.z >= MAX_TILES_DEPTH_LEN - 1) { cursor.z = MAX_TILES_DEPTH_LEN - 1; }
+                    if(cursor.z >= SPOOKY_TILES_MAX_TILES_DEPTH_LEN - 1) { cursor.z = SPOOKY_TILES_MAX_TILES_DEPTH_LEN - 1; }
                   }
                   update_landscape = true;
                   break;
@@ -563,16 +563,16 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
     const spooky_gui_rgba_context * cursor_rgba = spooky_gui_push_draw_color(renderer, &cursor_color);
     {
       SDL_Rect cursor_rect = {
-        .x = (int)(cursor.x * VOXEL_WIDTH),
-        .y = (int)(cursor.y * VOXEL_HEIGHT),
-        .w = (int)VOXEL_WIDTH,
-        .h = (int)VOXEL_HEIGHT
+        .x = (int)(cursor.x * SPOOKY_TILES_VOXEL_WIDTH),
+        .y = (int)(cursor.y * SPOOKY_TILES_VOXEL_HEIGHT),
+        .w = (int)SPOOKY_TILES_VOXEL_WIDTH,
+        .h = (int)SPOOKY_TILES_VOXEL_HEIGHT
       };
 
-      if(cursor_rect.x >= (int)(VOXEL_WIDTH * MAX_TILES_ROW_LEN)) { cursor.x = (VOXEL_WIDTH * MAX_TILES_ROW_LEN); }
+      if(cursor_rect.x >= (int)(SPOOKY_TILES_VOXEL_WIDTH * SPOOKY_TILES_MAX_TILES_ROW_LEN)) { cursor.x = (SPOOKY_TILES_VOXEL_WIDTH * SPOOKY_TILES_MAX_TILES_ROW_LEN); }
       if(cursor_rect.x < 0) { cursor_rect.x = 0; }
 
-      if(cursor_rect.y >= (int)(VOXEL_HEIGHT * MAX_TILES_COL_LEN)) { cursor.y = (VOXEL_HEIGHT * MAX_TILES_COL_LEN); }
+      if(cursor_rect.y >= (int)(SPOOKY_TILES_VOXEL_HEIGHT * SPOOKY_TILES_MAX_TILES_COL_LEN)) { cursor.y = (SPOOKY_TILES_VOXEL_HEIGHT * SPOOKY_TILES_MAX_TILES_COL_LEN); }
       if(cursor_rect.y < 0) { cursor_rect.y = 0; }
 
       spooky_box_draw_style style = box0->get_draw_style(box0);
@@ -600,7 +600,7 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
       const spooky_tile * current_tile = &(tiles[SP_OFFSET(cursor.x, cursor.y, cursor.z)]);
       static char tile_info[1920] = { 0 };
       int info_len = 0;
-      const char * info = spooky_tile_info(current_tile, tile_info, sizeof(tile_info), &info_len);
+      const char * info = spooky_tiles_get_tile_info(current_tile, tile_info, sizeof(tile_info), &info_len);
       info_len += snprintf((tile_info + info_len), 1920 - info_len, "\nx: %iu, y: %iu, z: %iu, offset: %iu", cursor.x, cursor.y, cursor.z, SP_OFFSET(cursor.x, cursor.y, cursor.z));
       const spooky_font * font = context->get_font(context);
       static const SDL_Color white = { 255, 255, 255, 255 };
@@ -790,18 +790,18 @@ static void spooky_render_landscape(SDL_Renderer * renderer, const spooky_contex
 
   (void)tiles_len;
 
-  box->set_w(box, (int)VOXEL_WIDTH);
-  box->set_h(box, (int)VOXEL_HEIGHT);
+  box->set_w(box, (int)SPOOKY_TILES_VOXEL_WIDTH);
+  box->set_h(box, (int)SPOOKY_TILES_VOXEL_HEIGHT);
   box->set_x(box, 0);
   box->set_y(box, 0);
 
-  for(uint32_t x = 0; x < MAX_TILES_ROW_LEN; x++) {
-    for(uint32_t y = 0; y < MAX_TILES_COL_LEN; y++) {
+  for(uint32_t x = 0; x < SPOOKY_TILES_MAX_TILES_ROW_LEN; x++) {
+    for(uint32_t y = 0; y < SPOOKY_TILES_MAX_TILES_COL_LEN; y++) {
       SDL_Color block_color = { 0 };
       {
         uint32_t offset = SP_OFFSET(x, y, cursor->z);
-        spooky_tile_type type = tiles[offset].meta->type;
-        spooky_tile_color(type, &block_color);
+        spooky_tiles_tile_type type = tiles[offset].meta->type;
+        spooky_tiles_get_tile_color(type, &block_color);
       }
 
       const spooky_gui_rgba_context * tile_rgba = spooky_gui_push_draw_color(renderer, &block_color);
@@ -821,10 +821,10 @@ static void spooky_render_landscape(SDL_Renderer * renderer, const spooky_contex
         }
         spooky_gui_pop_draw_color(tile_rgba);
       }
-      box->set_y(box, box->get_y(box) + (int)VOXEL_HEIGHT);
+      box->set_y(box, box->get_y(box) + (int)SPOOKY_TILES_VOXEL_HEIGHT);
     }
 
-    box->set_x(box, box->get_x(box) + (int)VOXEL_WIDTH);
+    box->set_x(box, box->get_x(box) + (int)SPOOKY_TILES_VOXEL_WIDTH);
     box->set_y(box, 0);
   }
 }

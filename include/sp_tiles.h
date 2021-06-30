@@ -6,7 +6,7 @@
 #include <stdbool.h>
 #include "sp_gui.h"
 
-typedef enum spooky_tile_type {
+typedef enum spooky_tiles_tile_type {
   STT_EMPTY,
   /* Impassible */
   STT_BEDROCK,
@@ -29,9 +29,9 @@ typedef enum spooky_tile_type {
   /* Ground */
   STT_TREE,
   STT_EOE
-} spooky_tile_type;
+} spooky_tiles_tile_type;
 
-typedef enum spooky_biom {
+typedef enum spooky_tiles_biom {
   SB_EMPTY,
   SB_TUNDRA,
   SB_CONIFEROUS_FOREST,
@@ -41,28 +41,28 @@ typedef enum spooky_biom {
   SB_SHRUBLAND,
   SB_RAINFOREST,
   SB_EOE
-} spooky_biom;
+} spooky_tiles_biom;
 
-const uint32_t MAX_TILES_ROW_LEN;
-const uint32_t MAX_TILES_COL_LEN;
-const uint32_t MAX_TILES_DEPTH_LEN;
-const uint32_t VOXEL_WIDTH;
-const uint32_t VOXEL_HEIGHT;
+const uint32_t SPOOKY_TILES_MAX_TILES_ROW_LEN;
+const uint32_t SPOOKY_TILES_MAX_TILES_COL_LEN;
+const uint32_t SPOOKY_TILES_MAX_TILES_DEPTH_LEN;
+const uint32_t SPOOKY_TILES_VOXEL_WIDTH;
+const uint32_t SPOOKY_TILES_VOXEL_HEIGHT;
 
-typedef struct spooky_tile_meta spooky_tile_meta;
-typedef struct spooky_tile_meta {
-  spooky_tile_type type;
+typedef struct spooky_tiles_tile_meta spooky_tiles_tile_meta;
+typedef struct spooky_tiles_tile_meta {
+  spooky_tiles_tile_type type;
   char padding[7];
   bool is_breakable;
-} spooky_tile_meta;
+} spooky_tiles_tile_meta;
 
 typedef struct spooky_tile spooky_tile;
 typedef struct spooky_tile {
-  const spooky_tile_meta * meta;
+  const spooky_tiles_tile_meta * meta;
 } spooky_tile;
 
-const spooky_tile_meta spooky_global_tiles[STT_EOE + 1];
-const spooky_tile spooky_global_empty;
+const spooky_tiles_tile_meta spooky_tiles_global_tiles_meta[STT_EOE + 1];
+const spooky_tile spooky_tiles_global_empty_tile;
 
 typedef struct spooky_tiles_manager_data spooky_tiles_manager_data;
 typedef struct spooky_tiles_manager spooky_tiles_manager;
@@ -91,13 +91,13 @@ void spooky_tiles_manager_free(const spooky_tiles_manager * /* self */);
 /* Destruct and free interface */
 void spooky_tiles_manager_release(const spooky_tiles_manager * /* self */);
 
-void spooky_tile_color(spooky_tile_type /* type */, SDL_Color * /* color */);
-const char * spooky_tile_type_as_string(spooky_tile_type /* type */);
-void spooky_generate_tiles(spooky_tile * /* tiles_in */, size_t /* tiles_len */);
-const char * spooky_tile_info(const spooky_tile * /* tile */, char * /* buf */, size_t /* buf_len */, int * /* buf_len_out */);
+void spooky_tiles_get_tile_color(spooky_tiles_tile_type /* type */, SDL_Color * /* color */);
+const char * spooky_tiles_tile_type_as_string(spooky_tiles_tile_type /* type */);
+void spooky_tiles_generate_tiles(spooky_tile * /* tiles_in */, size_t /* tiles_len */);
+const char * spooky_tiles_get_tile_info(const spooky_tile * /* tile */, char * /* buf */, size_t /* buf_len */, int * /* buf_len_out */);
 
 inline uint32_t SP_OFFSET(uint32_t x, uint32_t y, uint32_t z) {
-  return x + (y * MAX_TILES_ROW_LEN) + (z * MAX_TILES_ROW_LEN * MAX_TILES_COL_LEN);
+  return x + (y * SPOOKY_TILES_MAX_TILES_ROW_LEN) + (z * SPOOKY_TILES_MAX_TILES_ROW_LEN * SPOOKY_TILES_MAX_TILES_COL_LEN);
 }
 
 #endif /* SP_TILES__H */

@@ -5,13 +5,13 @@
 #include "sp_gui.h"
 #include "sp_tiles.h"
 
-const uint32_t MAX_TILES_ROW_LEN = 64;
-const uint32_t MAX_TILES_COL_LEN = 64;
-const uint32_t MAX_TILES_DEPTH_LEN = 64;
-const uint32_t VOXEL_WIDTH = 8;
-const uint32_t VOXEL_HEIGHT = 8;
+const uint32_t SPOOKY_TILES_MAX_TILES_ROW_LEN = 64;
+const uint32_t SPOOKY_TILES_MAX_TILES_COL_LEN = 64;
+const uint32_t SPOOKY_TILES_MAX_TILES_DEPTH_LEN = 64;
+const uint32_t SPOOKY_TILES_VOXEL_WIDTH = 8;
+const uint32_t SPOOKY_TILES_VOXEL_HEIGHT = 8;
 
-const spooky_tile_meta spooky_global_tiles[STT_EOE + 1] = {
+const spooky_tiles_tile_meta spooky_tiles_global_tiles_meta[STT_EOE + 1] = {
   { .type = STT_EMPTY, .is_breakable = false },
   { .type = STT_BEDROCK, .is_breakable = false },
   { .type = STT_IGNEOUS, .is_breakable = true },
@@ -30,8 +30,8 @@ const spooky_tile_meta spooky_global_tiles[STT_EOE + 1] = {
   { .type = STT_EOE, .is_breakable = false }
 };
 
-const spooky_tile spooky_global_empty = {
-  .meta = &(spooky_global_tiles[STT_EMPTY])
+const spooky_tile spooky_tiles_global_empty_tile = {
+  .meta = &(spooky_tiles_global_tiles_meta[STT_EMPTY])
 };
 
 typedef struct spooky_tiles_manager_data {
@@ -67,18 +67,18 @@ void spooky_tiles_manager_release(const spooky_tiles_manager * self) {
   (void)self;
 }
 
-static void spooky_create_tile(spooky_tile * tiles, size_t tiles_len, uint32_t x, uint32_t y, uint32_t z, spooky_tile_type type) {
+static void spooky_create_tile(spooky_tile * tiles, size_t tiles_len, uint32_t x, uint32_t y, uint32_t z, spooky_tiles_tile_type type) {
   assert(tiles_len > 0);
 
   const spooky_tile * tiles_end = tiles + tiles_len;
 
   uint32_t offset = SP_OFFSET(x, y, z);
   spooky_tile * tile = &(tiles[offset]);
-  tile->meta = &(spooky_global_tiles[type]);
+  tile->meta = &(spooky_tiles_global_tiles_meta[type]);
   assert(tile >= tiles && tile < tiles_end);
 }
 
-const char * spooky_tile_type_as_string(spooky_tile_type type) {
+const char * spooky_tiles_tile_type_as_string(spooky_tiles_tile_type type) {
   switch(type) {
     case STT_EMPTY: return "empty";
     case STT_BEDROCK: return "bedrock";
@@ -98,23 +98,23 @@ const char * spooky_tile_type_as_string(spooky_tile_type type) {
   }
 }
 
-const char * spooky_tile_info(const spooky_tile * tile, char * buf, size_t buf_len, int * buf_len_out) {
-  const char * type = spooky_tile_type_as_string(tile->meta->type);
+const char * spooky_tiles_get_tile_info(const spooky_tile * tile, char * buf, size_t buf_len, int * buf_len_out) {
+  const char * type = spooky_tiles_tile_type_as_string(tile->meta->type);
 
   *buf_len_out = snprintf(buf, buf_len, "type: '%s'", type);
   return buf;
 }
 
-void spooky_generate_tiles(spooky_tile * tiles, size_t tiles_len) {
+void spooky_tiles_generate_tiles(spooky_tile * tiles, size_t tiles_len) {
   const spooky_tile * tiles_end = tiles + tiles_len; (void)tiles_end;
   /* basic biom layout */
   // unsigned int seed = randombytes_uniform(100);
-  for(uint32_t x = 0; x < MAX_TILES_ROW_LEN; ++x) {
-    for(uint32_t y = 0; y < MAX_TILES_COL_LEN; ++y) {
-      for(uint32_t z = 0; z < MAX_TILES_DEPTH_LEN; ++z) {
+  for(uint32_t x = 0; x < SPOOKY_TILES_MAX_TILES_ROW_LEN; ++x) {
+    for(uint32_t y = 0; y < SPOOKY_TILES_MAX_TILES_COL_LEN; ++y) {
+      for(uint32_t z = 0; z < SPOOKY_TILES_MAX_TILES_DEPTH_LEN; ++z) {
         // static const size_t level_ground = MAX_TILES_DEPTH_LEN / 2;
 
-        spooky_tile_type type = STT_EMPTY;
+        spooky_tiles_tile_type type = STT_EMPTY;
 
         /* Bedrock is only found on the bottom 4 levels of the ground.
            Bedrock is impassible. */
@@ -125,7 +125,7 @@ void spooky_generate_tiles(spooky_tile * tiles, size_t tiles_len) {
           static const int max_loops = 5;
 
           /* generate a random type of rock */
-          spooky_tile_type new_type = STT_EMPTY;
+          spooky_tiles_tile_type new_type = STT_EMPTY;
           int loops = 0;
           do {
             uint32_t percentage = randombytes_uniform(101);
@@ -181,7 +181,7 @@ create_tile:
   }
 }
 
-void spooky_tile_color(spooky_tile_type type, SDL_Color * color) {
+void spooky_tiles_get_tile_color(spooky_tiles_tile_type type, SDL_Color * color) {
   if(!color) { return; }
   switch(type) {
     case STT_EMPTY:
