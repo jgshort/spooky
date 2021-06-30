@@ -5,7 +5,14 @@
 extern "C" {
 #endif
 
+#include <stdlib.h>
 #include <stdbool.h>
+
+typedef struct spooky_vector {
+  uint32_t x;
+  uint32_t y;
+  uint32_t z;
+} spooky_vector;
 
 extern const float SMATH_FLT_EPSILON;
 

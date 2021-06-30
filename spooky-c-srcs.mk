@@ -20,6 +20,7 @@ spooky_SOURCES = \
 								 sp_log.c \
 								 sp_debug.c \
 								 sp_help.c \
+								 sp_tiles.c \
 								 sp_spooky.c \
 								 $(NULL)
 

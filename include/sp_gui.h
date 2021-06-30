@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+#include <stdbool.h>
+
 #include "sp_error.h"
 
 #ifdef __APPLE__

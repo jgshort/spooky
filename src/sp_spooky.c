@@ -33,82 +33,7 @@
 #include "sp_db.h"
 #include "sp_box.h"
 #include "sp_config.h"
-
-static const size_t MAX_TILES_ROW_LEN = 64;
-static const size_t MAX_TILES_COL_LEN = 64;
-static const size_t MAX_TILES_DEPTH_LEN = 64;
-static const size_t VOXEL_WIDTH = 8;
-static const size_t VOXEL_HEIGHT = 8;
-
-typedef struct spooky_vector {
-  size_t x;
-  size_t y;
-  size_t z;
-} spooky_vector;
-
-typedef enum spooky_biom {
-  SB_EMPTY,
-  SB_TUNDRA,
-  SB_CONIFEROUS_FOREST,
-  SB_TEMPERATE_DECIDUOUS_FOREST,
-  SB_GRASSLAND,
-  SB_DESERT,
-  SB_SHRUBLAND,
-  SB_RAINFOREST,
-  SB_EOE
-} spooky_biom;
-
-typedef enum spooky_tile_type {
-  STT_EMPTY,
-  /* Impassible */
-  STT_BEDROCK,
-
-  /* Rock */
-  STT_IGNEOUS,
-  STT_SEDIMENTARY,
-  STT_METAMORPHIC,
-
-  /* Dirt */
-  STT_SAND,
-  STT_SILT,
-  STT_CLAY,
-  STT_LOAM,
-  STT_GRAVEL,
-
-  /* Aqua */
-  STT_WATER,
-
-  /* Ground */
-  STT_TREE,
-  STT_EOE
-} spooky_tile_type;
-
-typedef struct spooky_tile_meta spooky_tile_meta;
-typedef struct spooky_tile_meta {
-  spooky_biom biom;
-} spooky_tile_meta;
-
-/*
-static const spooky_tile_meta meta_definitions[] = {
-  { .biom = SB_EMPTY },
-  { .biom = SB_TUNDRA },
-  { .biom = SB_CONIFEROUS_FOREST },
-  { .biom = SB_TEMPERATE_DECIDUOUS_FOREST },
-  { .biom = SB_GRASSLAND },
-  { .biom = SB_DESERT },
-  { .biom = SB_SHRUBLAND },
-  { .biom = SB_RAINFOREST }
-};
-*/
-typedef struct spooky_tile spooky_tile;
-typedef struct spooky_tile {
-  spooky_tile_type type;
-} spooky_tile;
-
-static spooky_tile spooky_global_tiles[2] = {
-  { .type = STT_EMPTY },
-  { .type = STT_BEDROCK }
-};
+#include "sp_tiles.h"
 
 static void spooky_render_landscape(SDL_Renderer * renderer, const spooky_context * context, spooky_tile * tiles, size_t tiles_len, const spooky_vector * cursor);
 static errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex);
@@ -120,12 +45,6 @@ typedef struct spooky_options {
 } spooky_options;
 
 static errno_t spooky_parse_args(int argc, char ** argv, spooky_options * options);
-static void spooky_generate_tiles(spooky_tile * tiles_in, size_t tiles_len);
-static const char * spooky_tile_info(const spooky_tile * tile, char * buf, size_t buf_len, int * buf_len_out);
-
-inline static size_t SP_OFFSET(size_t x, size_t y, size_t z) {
-  return x + (y * MAX_TILES_ROW_LEN) + (z * MAX_TILES_ROW_LEN * MAX_TILES_COL_LEN);
-}
 
 int main(int argc, char **argv) {
   spooky_options options = { 0 };
@@ -313,8 +232,8 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
   const int MAX_UPDATES_BEFORE_RENDER = 5;
   const int TARGET_TIME_BETWEEN_RENDERS = BILLION / TARGET_FPS;
 
-  spooky_tile * tiles = calloc(MAX_TILES_ROW_LEN * MAX_TILES_COL_LEN * MAX_TILES_DEPTH_LEN, sizeof tiles);
-  size_t tiles_len = MAX_TILES_ROW_LEN * MAX_TILES_COL_LEN * MAX_TILES_DEPTH_LEN * sizeof tiles;
+  spooky_tile * tiles = calloc(MAX_TILES_ROW_LEN * MAX_TILES_COL_LEN * MAX_TILES_DEPTH_LEN, sizeof * tiles);
+  size_t tiles_len = MAX_TILES_ROW_LEN * MAX_TILES_COL_LEN * MAX_TILES_DEPTH_LEN * sizeof * tiles;
 
   fprintf(stdout, "Tiles Len: %lu\n", tiles_len);
   spooky_generate_tiles(tiles, tiles_len);
@@ -644,16 +563,16 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
     const spooky_gui_rgba_context * cursor_rgba = spooky_gui_push_draw_color(renderer, &cursor_color);
     {
       SDL_Rect cursor_rect = {
-        .x = (int)(cursor.x * (size_t)VOXEL_WIDTH),
-        .y = (int)(cursor.y * (size_t)VOXEL_HEIGHT),
+        .x = (int)(cursor.x * VOXEL_WIDTH),
+        .y = (int)(cursor.y * VOXEL_HEIGHT),
         .w = (int)VOXEL_WIDTH,
         .h = (int)VOXEL_HEIGHT
       };
 
-      if(cursor_rect.x >= (int)(VOXEL_WIDTH * MAX_TILES_ROW_LEN)) { cursor.x = (int)(VOXEL_WIDTH * MAX_TILES_ROW_LEN); }
+      if(cursor_rect.x >= (int)(VOXEL_WIDTH * MAX_TILES_ROW_LEN)) { cursor.x = (VOXEL_WIDTH * MAX_TILES_ROW_LEN); }
       if(cursor_rect.x < 0) { cursor_rect.x = 0; }
 
-      if(cursor_rect.y >= (int)(VOXEL_HEIGHT * MAX_TILES_COL_LEN)) { cursor.y = (int)(VOXEL_HEIGHT * MAX_TILES_COL_LEN); }
+      if(cursor_rect.y >= (int)(VOXEL_HEIGHT * MAX_TILES_COL_LEN)) { cursor.y = (VOXEL_HEIGHT * MAX_TILES_COL_LEN); }
       if(cursor_rect.y < 0) { cursor_rect.y = 0; }
 
       spooky_box_draw_style style = box0->get_draw_style(box0);
@@ -682,7 +601,7 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
       static char tile_info[1920] = { 0 };
       int info_len = 0;
       const char * info = spooky_tile_info(current_tile, tile_info, sizeof(tile_info), &info_len);
-      info_len += snprintf((tile_info + info_len), 1920 - info_len, "\nx: %lu, y: %lu, z: %lu, offset: %lu", cursor.x, cursor.y, cursor.z, SP_OFFSET(cursor.x, cursor.y, cursor.z));
+      info_len += snprintf((tile_info + info_len), 1920 - info_len, "\nx: %iu, y: %iu, z: %iu, offset: %iu", cursor.x, cursor.y, cursor.z, SP_OFFSET(cursor.x, cursor.y, cursor.z));
       const spooky_font * font = context->get_font(context);
       static const SDL_Color white = { 255, 255, 255, 255 };
       SDL_Point info_point = { 0 };
@@ -859,158 +778,6 @@ void Resize() {
   // TODO: resize the world/window
 }
 
-static void spooky_create_tile(spooky_tile * tiles, size_t tiles_len, size_t x, size_t y, size_t z, spooky_tile_type type) {
-  assert(tiles_len > 0);
-
-  const spooky_tile * tiles_end = tiles + tiles_len;
-
-  size_t offset = SP_OFFSET(x, y, z);
-  tiles[offset] = spooky_global_tiles[type];
-  spooky_tile * tile = &(tiles[offset]);
-  assert(tile >= tiles && tile < tiles_end);
-}
-
-static void spooky_generate_tiles(spooky_tile * tiles, size_t tiles_len) {
-  const spooky_tile * tiles_end = tiles + tiles_len; (void)tiles_end;
-  /* basic biom layout */
-  // unsigned int seed = randombytes_uniform(100);
-  for(uint32_t x = 0; x < MAX_TILES_ROW_LEN; ++x) {
-    for(uint32_t y = 0; y < MAX_TILES_COL_LEN; ++y) {
-      for(uint32_t z = 0; z < MAX_TILES_DEPTH_LEN; ++z) {
-        // static const size_t level_ground = MAX_TILES_DEPTH_LEN / 2;
-
-        spooky_tile_type type = STT_EMPTY;
-
-        /* Bedrock is only found on the bottom 4 levels of the ground.
-           Bedrock is impassible. */
-
-        /* can't go any deeper than this. */
-        if(z == 0 && (type = STT_BEDROCK) == STT_BEDROCK) { goto create_tile; }
-        if(z <= 4) {
-          static const int max_loops = 5;
-
-          /* generate a random type of rock */
-          spooky_tile_type new_type = STT_EMPTY;
-          int loops = 0;
-          do {
-            uint32_t percentage = randombytes_uniform(101);
-            new_type = randombytes_uniform((uint32_t)STT_METAMORPHIC + 1);
-            assert(new_type >= STT_EMPTY && new_type <= STT_METAMORPHIC);
-            /* Bedrock becomes more common the lower we dig.
-               The lowest level, 0, is 100% bedrock, with the following
-               distribution as we advance upwards:
-
-              Bedrock Distribution Levels:
-                - 0 = 100% bedrock
-                - 1 = 77% bedrock
-                - 2 = 33% bedrock
-                - 3 = 17% bedrock
-                - 4 = 2% bedrock
-
-              Bedrock rises from the ground, forming simple stalagmites.
-              Viewed from the side, we might witness something like:
-
-              Level 5:
-              Level 4:        =
-              Level 3:        =
-              Level 2:      ===
-              Level 1:  ========
-              Level 0: ==========
-            */
-            if(z == 1 && percentage <= 77) { new_type = STT_BEDROCK; }
-            if(z == 2 && percentage <= 33) { new_type = STT_BEDROCK; }
-            if(z == 3 && percentage <= 17) { new_type = STT_BEDROCK; }
-            if(z == 4 && percentage <=  2) { new_type = STT_BEDROCK; }
-            while(new_type == STT_BEDROCK) {
-              /* we only want bedrock if the block below is also bedrock */
-              size_t under_offset = SP_OFFSET(x, y, z - 1);
-              const spooky_tile * under = &(tiles[under_offset]);
-              if(under->type != STT_BEDROCK) {
-                new_type = randombytes_uniform((uint32_t)STT_METAMORPHIC + 1);
-                assert(new_type >= STT_EMPTY && new_type <= STT_METAMORPHIC);
-              } else {
-                break;
-              }
-            }
-          } while(++loops < max_loops && new_type <= STT_EMPTY);
-
-          if(new_type > STT_BEDROCK) { new_type = STT_EMPTY; }
-          /* clean up type */
-          type = new_type;
-        }
-
-create_tile:
-        spooky_create_tile(tiles, tiles_len, x, y, z, type);
-      }
-    }
-  }
-}
-
-const char * spooky_tile_type_as_string(spooky_tile_type type) {
-  switch(type) {
-    case STT_EMPTY: return "empty";
-    case STT_BEDROCK: return "bedrock";
-    case STT_CLAY: return "clay";
-    case STT_GRAVEL: return "gravel";
-    case STT_IGNEOUS: return "igneous";
-    case STT_METAMORPHIC: return "metamorphic";
-    case STT_SEDIMENTARY: return "sedimentary";
-    case STT_SILT: return "silt";
-    case STT_WATER: return "water";
-    case STT_TREE: return "tree";
-    case STT_SAND: return "sand";
-    case STT_LOAM: return "loam";
-    case STT_EOE:
-    default:
-      return "error";
-  }
-}
-
-static const char * spooky_tile_info(const spooky_tile * tile, char * buf, size_t buf_len, int * buf_len_out) {
-  const char * type = spooky_tile_type_as_string(tile->type);
-
-  *buf_len_out = snprintf(buf, buf_len, "type: '%s'", type);
-  return buf;
-}
-
-static void spooky_tile_color(spooky_tile_type type, SDL_Color * color) {
-  if(!color) { return; }
-  switch(type) {
-    case STT_EMPTY:
-      *color = (SDL_Color){ .r = 0, .g = 0, .b = 0, .a = 255 }; /* Black */
-      break;
-    case STT_BEDROCK:
-      *color = (SDL_Color){ .r = 64, .g = 64, .b = 64, .a = 255 }; /* Dark gray */
-      break;
-    case STT_METAMORPHIC:
-      *color = (SDL_Color){ .r = 112, .g = 128, .b = 144, .a = 255 }; /* Slate gray color */
-      break;
-    case STT_IGNEOUS:
-      *color = (SDL_Color){ .r = 255, .g = 253, .b = 208, .a = 255 };/* Cream color */
-      break;
-    case STT_SEDIMENTARY:
-      *color = (SDL_Color){ .r = 213, .g = 194, .b = 165, .a = 255 };/* Sandstone color */
-      break;
-    case STT_TREE:
-      *color = (SDL_Color){ .r = 0, .g = 128, .b = 0, .a = 255 }; /* Green tree */
-      break;
-    case STT_WATER:
-      *color = (SDL_Color){ .r = 0, .g = 0, .b = 255, .a = 255 }; /* Blue water */
-      break;
-    case STT_SAND:
-    case STT_SILT:
-    case STT_CLAY:
-    case STT_LOAM:
-    case STT_GRAVEL:
-      *color = (SDL_Color){ .r = 44, .g = 33, .b = 24, .a = 255 }; /* Mud color */
-      break;
-    case STT_EOE:
-    default:
-      *color = (SDL_Color){ .r = 255, .g = 0, .b = 0, .a = 255 }; /* Red Error */
-      break;
-  }
-}
-
 static void spooky_render_landscape(SDL_Renderer * renderer, const spooky_context * context, spooky_tile * tiles, size_t tiles_len, const spooky_vector * cursor) {
   static const spooky_box * box0 = NULL;
   static const spooky_base * box = NULL;
@@ -1023,17 +790,17 @@ static void spooky_render_landscape(SDL_Renderer * renderer, const spooky_contex
 
   (void)tiles_len;
 
-  box->set_w(box, VOXEL_WIDTH);
-  box->set_h(box, VOXEL_HEIGHT);
+  box->set_w(box, (int)VOXEL_WIDTH);
+  box->set_h(box, (int)VOXEL_HEIGHT);
   box->set_x(box, 0);
   box->set_y(box, 0);
 
-  for(size_t x = 0; x < MAX_TILES_ROW_LEN; x++) {
-    for(size_t y = 0; y < MAX_TILES_COL_LEN; y++) {
+  for(uint32_t x = 0; x < MAX_TILES_ROW_LEN; x++) {
+    for(uint32_t y = 0; y < MAX_TILES_COL_LEN; y++) {
       SDL_Color block_color = { 0 };
       {
-        size_t offset = SP_OFFSET(x, y, cursor->z);
-        spooky_tile_type type = tiles[offset].type;
+        uint32_t offset = SP_OFFSET(x, y, cursor->z);
+        spooky_tile_type type = tiles[offset].meta->type;
         spooky_tile_color(type, &block_color);
       }
 
