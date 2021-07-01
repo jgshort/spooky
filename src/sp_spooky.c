@@ -453,6 +453,20 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
             {
               SDL_Keycode sym = evt.key.keysym.sym;
               switch(sym) {
+                case SDLK_x:
+                  context->set_perspective(context, SPOOKY_SVP_X);
+                  update_landscape = true;
+                  break;
+                case SDLK_y:
+                  context->set_perspective(context, SPOOKY_SVP_Y);
+                  update_landscape = true;
+                  break;
+                case SDLK_EQUALS:
+                case SDLK_z:
+                  /* Switch perspective; default is Z (top down) */
+                  context->set_perspective(context, SPOOKY_SVP_Z);
+                  update_landscape = true;
+                  break;
                 case SDLK_F12: /* fullscreen window */
                   {
                     bool previous_is_fullscreen = context->get_is_fullscreen(context);
@@ -785,6 +799,33 @@ static void spooky_render_landscape(SDL_Renderer * renderer, const spooky_contex
     box_base = box->as_base(box);
   }
 
+  uint32_t row_max, col_max, row_start, col_start;
+
+  spooky_view_perspective perspective = context->get_perspective(context);
+  switch(perspective) {
+    case SPOOKY_SVP_X: /* (x, z) */
+      row_start = cursor->x;
+      col_start = cursor->z;
+      row_max = SPOOKY_TILES_MAX_TILES_ROW_LEN;
+      col_max = SPOOKY_TILES_MAX_TILES_DEPTH_LEN;
+      break;
+    case SPOOKY_SVP_Y: /* (z, x) */
+      row_start = cursor->z;
+      col_start = cursor->x;
+      row_max = SPOOKY_TILES_MAX_TILES_DEPTH_LEN;
+      col_max = SPOOKY_TILES_MAX_TILES_ROW_LEN;
+      break;
+    case SPOOKY_SVP_EOE:
+    case SPOOKY_SVP_Z: /* (x, y) */
+    default:
+      row_start = cursor->x; /* x (0, 0) in top-left */
+      col_start = cursor->y; /* y (0, 0) in top-left */
+      row_max = SPOOKY_TILES_MAX_TILES_ROW_LEN;
+      col_max = SPOOKY_TILES_MAX_TILES_COL_LEN;
+      break;
+  }
+  SDL_RenderClear(renderer);
+
   box_base->set_w(box_base, (int)SPOOKY_TILES_VOXEL_WIDTH);
   box_base->set_h(box_base, (int)SPOOKY_TILES_VOXEL_HEIGHT);
   box_base->set_x(box_base, 0);
@@ -794,9 +835,33 @@ static void spooky_render_landscape(SDL_Renderer * renderer, const spooky_contex
   SDL_GetRenderDrawBlendMode(renderer, &old_blend_mode);
   SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
 
-  for(uint32_t x = 0; x < SPOOKY_TILES_MAX_TILES_ROW_LEN; x++) {
-    for(uint32_t y = 0; y < SPOOKY_TILES_MAX_TILES_COL_LEN; y++) {
-      const spooky_tile * tile = tiles_manager->get_tile(tiles_manager, x, y, cursor->z);
+  for(uint32_t i = row_start; i < row_max; i++) {
+    for(uint32_t j = col_start; j < col_max; j++) {
+      uint32_t p_x, p_y, p_z;
+      const spooky_tile * under = NULL;
+      switch(perspective) {
+        case SPOOKY_SVP_X:
+          p_x = cursor->x;
+          p_y = i;
+          p_z = j;
+          if(p_x > 0) { under = tiles_manager->get_tile(tiles_manager, p_x - 1, p_y, p_z); }
+          break;
+        case SPOOKY_SVP_Y:
+          p_z = j;
+          p_x = i;
+          p_y = cursor->y;
+          if(p_y > 0) { under = tiles_manager->get_tile(tiles_manager, p_x, p_y - 1, p_z); }
+          break;
+        case SPOOKY_SVP_Z:
+        case SPOOKY_SVP_EOE:
+        default:
+          p_x = i;
+          p_y = j;
+          p_z = cursor->z;
+          if(p_z > 0) { under = tiles_manager->get_tile(tiles_manager, p_x, p_y, p_z - 1); }
+          break;
+      }
+      const spooky_tile * tile = tiles_manager->get_tile(tiles_manager, p_x, p_y, p_z);
       spooky_tiles_tile_type type = tile->meta->type;
       SDL_Color block_color = { 0 };
       spooky_tiles_get_tile_color(type, &block_color);
@@ -804,9 +869,8 @@ static void spooky_render_landscape(SDL_Renderer * renderer, const spooky_contex
       const spooky_gui_rgba_context * tile_rgba = spooky_gui_push_draw_color(renderer, &block_color);
       {
         box_base->render(box_base, renderer);
-        if(tile->meta->type == STT_EMPTY && cursor->z > 0) {
+        if(tile->meta->type == STT_EMPTY && under != NULL) {
           /* try to draw the tile under the current tile if it's not empty */
-          const spooky_tile * under = tiles_manager->get_tile(tiles_manager, x, y, cursor->z - 1);
           SDL_Color under_color = { 0 };
           spooky_tiles_get_tile_color(under->meta->type, &under_color);
           under_color.a = 128;
