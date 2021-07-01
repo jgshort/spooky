@@ -12,10 +12,10 @@ static uint32_t SP_OFFSET(uint32_t x, uint32_t y, uint32_t z) {
 const uint32_t SPOOKY_TILES_MAX_TILES_ROW_LEN = 64;
 const uint32_t SPOOKY_TILES_MAX_TILES_COL_LEN = 64;
 const uint32_t SPOOKY_TILES_MAX_TILES_DEPTH_LEN = 64;
-const uint32_t SPOOKY_TILES_VOXEL_WIDTH = 8;
-const uint32_t SPOOKY_TILES_VOXEL_HEIGHT = 8;
+const uint32_t SPOOKY_TILES_VOXEL_WIDTH = 16;
+const uint32_t SPOOKY_TILES_VOXEL_HEIGHT = 16;
 
-// static const size_t SPOOKY_TILES_ALLOCATED_INCREMENT = 4096;
+static const size_t SPOOKY_TILES_ALLOCATED_INCREMENT = 4096;
 
 const spooky_tiles_tile_meta spooky_tiles_global_tiles_meta[STT_EOE + 1] = {
   [STT_EMPTY]   = { .type = STT_EMPTY, .unbreakable = true },
@@ -98,7 +98,7 @@ const spooky_tiles_manager * spooky_tiles_manager_ctor(const spooky_tiles_manage
 
   /* Free store from which tiles are allocated; the allocated
      array is resized as needed (a pointer to structure). */
-  data->allocated_tiles_capacity = data->tiles_len;
+  data->allocated_tiles_capacity = SPOOKY_TILES_ALLOCATED_INCREMENT;
   data->allocated_tiles_len = 0;
   data->allocated_tiles = calloc(data->allocated_tiles_capacity, sizeof * data->allocated_tiles);
   if(!data->allocated_tiles) { abort(); }
@@ -131,15 +131,7 @@ void spooky_tiles_manager_release(const spooky_tiles_manager * self) {
 
 static spooky_tile * spooky_tiles_manager_set_empty(const spooky_tiles_manager * self, uint32_t x, uint32_t y, uint32_t z) {
   uint32_t offset = SP_OFFSET(x, y, z);
-/*  spooky_tile * tile = self->data->tiles[offset];
-  if(tile != &spooky_tiles_global_empty_tile) {
-    memset(tile, 0, sizeof * tile);
-    tile->offset = UINT_MAX;
-    tile->free = true;
-  }
-*/
   self->data->tiles[offset] = &spooky_tiles_global_empty_tile;
-
   return self->data->tiles[offset];
 }
 
@@ -147,18 +139,11 @@ static const spooky_tile * spooky_tiles_manager_create_tile(const spooky_tiles_m
   if(type == STT_EMPTY) {
     return self->set_empty(self, x, y, z);
   } else {
-    #if 1 == 2
     if(self->data->allocated_tiles_len + 1 > self->data->allocated_tiles_capacity) {
       /* reallocate allocated tiles */
       self->data->allocated_tiles_capacity += SPOOKY_TILES_ALLOCATED_INCREMENT;
       spooky_tile * temp = realloc(self->data->allocated_tiles, self->data->allocated_tiles_capacity * (sizeof * temp));
       if(!temp) { abort(); }
-
-      /* clear out original tile pointers */
-      memset(self->data->tiles, 0, self->data->tiles_capacity * sizeof * self->data->tiles);
-      for(size_t i = 0; i < self->data->tiles_capacity; ++i) {
-        self->data->tiles[i] = &spooky_tiles_global_empty_tile;
-      }
 
       for(size_t i = 0; i < self->data->allocated_tiles_len; ++i) {
         spooky_tile * tile = &(temp[i]);
@@ -170,23 +155,20 @@ static const spooky_tile * spooky_tiles_manager_create_tile(const spooky_tiles_m
       self->data->allocated_tiles = temp;
 
       if(self->data->allocated_tiles_capacity % SPOOKY_TILES_ALLOCATED_INCREMENT == 0) {
-        fprintf(stdout, "Reallocated tiles to %lu\n", self->data->allocated_tiles_capacity);
+        fprintf(stdout, "Voxels to %lu\n", self->data->allocated_tiles_capacity);
       }
     }
-    #endif
 
     spooky_tile * new_tile = &(self->data->allocated_tiles[self->data->allocated_tiles_len]);
     self->data->allocated_tiles_len++;
 
     uint32_t offset = SP_OFFSET(x, y, z);
-    // fprintf(stdout, "Offset: %i\n", offset);
-    // fflush(stdout);
     assert(type > STT_EMPTY && type < STT_EOE);
     *new_tile = (spooky_tile){
       .meta = &(spooky_tiles_global_tiles_meta[type]),
       .offset = offset,
       .free = false,
-      .padding = { 0, 0, 0 }
+      .padding = { 0 }
     };
 
     assert(new_tile->meta);
@@ -296,13 +278,15 @@ create_tile:
       }
     }
   }
+
+  fprintf(stdout, "%lu total voxels, %lu allocated voxels\n", self->data->tiles_len, self->data->allocated_tiles_len);
 }
 
 void spooky_tiles_get_tile_color(spooky_tiles_tile_type type, SDL_Color * color) {
   if(!color) { return; }
   switch(type) {
     case STT_EMPTY:
-      *color = (SDL_Color){ .r = 0, .g = 0, .b = 0, .a = 255 }; /* Black */
+      *color = (SDL_Color){ .r = 0, .g = 0, .b = 0, .a = 255 }; /* Empty (?) */
       break;
     case STT_BEDROCK:
       *color = (SDL_Color){ .r = 64, .g = 64, .b = 64, .a = 255 }; /* Dark gray */

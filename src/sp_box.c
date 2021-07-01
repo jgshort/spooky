@@ -200,27 +200,17 @@ static void spooky_box_render(const spooky_base * self, SDL_Renderer * renderer)
   if(data->sprite && data->sprite->render) {
     data->sprite->render(data->sprite, renderer, NULL, &translated);
   } else {
-    const spooky_gui_rgba_context *  rgba = spooky_gui_push_draw_color(renderer, NULL);
-    {
-      /*
-      if(self->get_focus(self)) {
-        SDL_SetRenderDrawColor(renderer, 255, 255, 0, 0);
-      } else {
-        SDL_SetRenderDrawColor(renderer, 255, 0, 0, 0);
-      }*/
-      switch(data->style) {
-        case SBDS_FILL:
-          SDL_RenderFillRect(renderer, &translated);
-          break;
-        case SBDS_OUTLINE:
-          SDL_RenderDrawRect(renderer, &translated);
-          break;
-        case SBDS_EMPTY:
-        case SBDS_EOE:
-        default:
-          break;
-      }
-      spooky_gui_pop_draw_color(rgba);
+    switch(data->style) {
+      case SBDS_FILL:
+        SDL_RenderFillRect(renderer, &translated);
+        break;
+      case SBDS_OUTLINE:
+        SDL_RenderDrawRect(renderer, &translated);
+        break;
+      case SBDS_EMPTY:
+      case SBDS_EOE:
+      default:
+        break;
     }
   }
 }

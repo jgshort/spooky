@@ -776,50 +776,66 @@ void Resize() {
 }
 
 static void spooky_render_landscape(SDL_Renderer * renderer, const spooky_context * context, const spooky_tiles_manager * tiles_manager, const spooky_vector * cursor) {
-  static const spooky_box * box0 = NULL;
-  static const spooky_base * box = NULL;
-  if(!box0 && !box) {
-    SDL_Rect box0_rect = { 0 };
-    box0 = spooky_box_acquire();
-    box0 = box0->ctor(box0, context, box0_rect);
-    box = box0->as_base(box0);
+  static const spooky_box * box = NULL;
+  static const spooky_base * box_base = NULL;
+  if(!box && !box_base) {
+    SDL_Rect box_rect = { 0 };
+    box = spooky_box_acquire();
+    box = box->ctor(box, context, box_rect);
+    box_base = box->as_base(box);
   }
 
-  box->set_w(box, (int)SPOOKY_TILES_VOXEL_WIDTH);
-  box->set_h(box, (int)SPOOKY_TILES_VOXEL_HEIGHT);
-  box->set_x(box, 0);
-  box->set_y(box, 0);
+  box_base->set_w(box_base, (int)SPOOKY_TILES_VOXEL_WIDTH);
+  box_base->set_h(box_base, (int)SPOOKY_TILES_VOXEL_HEIGHT);
+  box_base->set_x(box_base, 0);
+  box_base->set_y(box_base, 0);
+
+  SDL_BlendMode old_blend_mode;
+  SDL_GetRenderDrawBlendMode(renderer, &old_blend_mode);
+  SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
 
   for(uint32_t x = 0; x < SPOOKY_TILES_MAX_TILES_ROW_LEN; x++) {
     for(uint32_t y = 0; y < SPOOKY_TILES_MAX_TILES_COL_LEN; y++) {
+      const spooky_tile * tile = tiles_manager->get_tile(tiles_manager, x, y, cursor->z);
+      spooky_tiles_tile_type type = tile->meta->type;
       SDL_Color block_color = { 0 };
-      {
-        const spooky_tile * tile = tiles_manager->get_tile(tiles_manager, x, y, cursor->z);
-        spooky_tiles_tile_type type = tile->meta->type;
-        spooky_tiles_get_tile_color(type, &block_color);
-      }
+      spooky_tiles_get_tile_color(type, &block_color);
 
       const spooky_gui_rgba_context * tile_rgba = spooky_gui_push_draw_color(renderer, &block_color);
       {
-        box->render(box, renderer);
+        box_base->render(box_base, renderer);
+        if(tile->meta->type == STT_EMPTY && cursor->z > 0) {
+          /* try to draw the tile under the current tile if it's not empty */
+          const spooky_tile * under = tiles_manager->get_tile(tiles_manager, x, y, cursor->z - 1);
+          SDL_Color under_color = { 0 };
+          spooky_tiles_get_tile_color(under->meta->type, &under_color);
+          under_color.a = 128;
+          const spooky_gui_rgba_context * under_rgba = spooky_gui_push_draw_color(renderer, &under_color);
+          {
+            box_base->render(box_base, renderer);
+            spooky_gui_pop_draw_color(under_rgba);
+          }
+        }
+
         {
           const SDL_Color black = { 0, 0, 0, 255 };
           const spooky_gui_rgba_context * outline = spooky_gui_push_draw_color(renderer, &black);
           {
-
-            spooky_box_draw_style style = box0->get_draw_style(box0);
-            box0->set_draw_style(box0, SBDS_OUTLINE);
-            box->render(box, renderer);
-            box0->set_draw_style(box0, style);
+            spooky_box_draw_style style = box->get_draw_style(box);
+            box->set_draw_style(box, SBDS_OUTLINE);
+            box_base->render(box_base, renderer);
+            box->set_draw_style(box, style);
             spooky_gui_pop_draw_color(outline);
           }
         }
         spooky_gui_pop_draw_color(tile_rgba);
       }
-      box->set_y(box, box->get_y(box) + (int)SPOOKY_TILES_VOXEL_HEIGHT);
+      box_base->set_y(box_base, box_base->get_y(box_base) + (int)SPOOKY_TILES_VOXEL_HEIGHT);
     }
 
-    box->set_x(box, box->get_x(box) + (int)SPOOKY_TILES_VOXEL_WIDTH);
-    box->set_y(box, 0);
+    box_base->set_x(box_base, box_base->get_x(box_base) + (int)SPOOKY_TILES_VOXEL_WIDTH);
+    box_base->set_y(box_base, 0);
   }
+
+  SDL_SetRenderDrawBlendMode(renderer, old_blend_mode);
 }
