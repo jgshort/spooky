@@ -393,45 +393,62 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
             goto end_of_running_loop;
           case SDL_KEYDOWN:
             {
+              spooky_view_perspective perspective = context->get_perspective(context);
+              uint32_t * directional_pointer = NULL;
+              uint32_t max_directional_value = 0;
               SDL_Keycode sym = evt.key.keysym.sym;
               switch(sym) {
                 case SDLK_h:
                 case SDLK_l:
-                  if(sym == SDLK_h) {
-                    if(cursor.x - 1 > cursor.x) { cursor.x = 0; }
-                    else {
-                      cursor.x--;
-                    }
-                  }
-                  else if(sym == SDLK_l) {
-                    cursor.x++;
-                    if(cursor.x >= SPOOKY_TILES_MAX_TILES_ROW_LEN - 1) { cursor.x = SPOOKY_TILES_MAX_TILES_ROW_LEN - 1; }
+                  if(perspective == SPOOKY_SVP_Z) {
+                    directional_pointer = &(cursor.x);
+                    max_directional_value = SPOOKY_TILES_MAX_TILES_ROW_LEN;
                   }
                   break;
                 case SDLK_k:
                 case SDLK_j:
-                  if(sym == SDLK_j) {
-                    cursor.y++;
-                    if(cursor.y >= SPOOKY_TILES_MAX_TILES_COL_LEN - 1) { cursor.y = SPOOKY_TILES_MAX_TILES_COL_LEN - 1; }
-                  }
-                  else if(sym == SDLK_k) {
-                    if(cursor.y - 1 > cursor.y) { cursor.y = 0; }
-                    else {
-                      cursor.y--;
-                    }
+                  if(perspective == SPOOKY_SVP_Z) {
+                    directional_pointer = &(cursor.y);
+                    max_directional_value = SPOOKY_TILES_MAX_TILES_COL_LEN;
                   }
                   break;
-                case SDLK_COMMA: /* DOWN */
-                case SDLK_PERIOD: /* UP */
-                  if(sym == SDLK_COMMA) {
-                    if(cursor.z - 1 > cursor.z) { cursor.z = 0; }
+                case SDLK_COMMA:
+                case SDLK_PERIOD:
+                  if(perspective == SPOOKY_SVP_Z) {
+                    directional_pointer = &(cursor.z);
+                    max_directional_value = SPOOKY_TILES_MAX_TILES_DEPTH_LEN;
+                  }
+                  break;
+                default:
+                  break;
+              }
+              switch(sym) {
+                case SDLK_h: /* LEFT */
+                case SDLK_l: /* RIGHT */
+                case SDLK_k: /* UP */
+                case SDLK_j: /* DOWN */
+                  if(sym == SDLK_h || sym == SDLK_k) {
+                    if((*directional_pointer) - 1 > *directional_pointer) { *directional_pointer = 0; }
                     else {
-                      cursor.z--;
+                      (*directional_pointer)--;
+                    }
+                  }
+                  else if(sym == SDLK_l || sym == SDLK_j) {
+                    (*directional_pointer)++;
+                    if(*directional_pointer >= max_directional_value - 1) { *directional_pointer = max_directional_value - 1; }
+                  }
+                  break;
+                case SDLK_PERIOD: /* UP */
+                case SDLK_COMMA: /* DOWN */
+                  if(sym == SDLK_COMMA) {
+                    if((*directional_pointer) - 1 > *directional_pointer) { *directional_pointer = 0; }
+                    else {
+                      (*directional_pointer)--;
                     }
                   }
                   else if(sym == SDLK_PERIOD) {
-                    cursor.z++;
-                    if(cursor.z >= SPOOKY_TILES_MAX_TILES_DEPTH_LEN - 1) { cursor.z = SPOOKY_TILES_MAX_TILES_DEPTH_LEN - 1; }
+                    (*directional_pointer)++;
+                    if(*directional_pointer >= max_directional_value - 1) { *directional_pointer = max_directional_value - 1; }
                   }
                   update_landscape = true;
                   break;
