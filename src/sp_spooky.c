@@ -348,7 +348,9 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
   int x_dir = 30, y_dir = 30;
   double interpolation = 0.0;
   int seconds_to_save = 0;
-  spooky_vector cursor = { .x = SPOOKY_TILES_MAX_TILES_ROW_LEN / 2, .y = SPOOKY_TILES_MAX_TILES_COL_LEN / 2, .z = 0 };
+
+  spooky_vector world_cursor = { .x = 0, .y = 0, .z = 0 };
+  spooky_vector screen_cursor = { .x = 0, .y = 0, .z = 0 };
 
   const spooky_base * box = box0->as_base(box0);
   while(spooky_context_get_is_running(context)) {
@@ -393,25 +395,66 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
             goto end_of_running_loop;
           case SDL_KEYDOWN:
             {
+              /*
+                Perspective changes are right-handed orientation.
+                Key bindings are x, y, and z. = resets to default (z)
+
+                z
+                |  y
+                | /
+                |/___ x
+
+                Default orientation is Z:
+
+                z = 0, xy plane:
+                    y
+                    |
+                  --+-- x
+                    |
+
+                x = 0, yz plane:
+                    z
+                    |
+                  --+-- y
+                    |
+
+                y = 0, xz plane:
+                    x
+                    |
+                  --+-- z
+                    |
+              */
+
               spooky_view_perspective perspective = context->get_perspective(context);
-              uint32_t * directional_pointer = NULL;
-              uint32_t max_directional_value = 0;
+              uint32_t * directional_pointer = NULL, *left_right_pointer = NULL, *up_down_pointer = NULL;
+              uint32_t max_directional_value = 0, max_left_right_value = 0, max_up_down_value = 0;
               SDL_Keycode sym = evt.key.keysym.sym;
+              switch(sym) {
+                //case SDLK_h:
+                //case SDLK_l:
+                //case SDLK_k:
+                //case SDLK_j:
+                case SDLK_COMMA:
+                case SDLK_PERIOD:
+                  update_landscape = true;
+                default:
+                  break;
+              }
               switch(sym) {
                 case SDLK_h: /* LEFT */
                 case SDLK_l: /* RIGHT */
                   switch(perspective) {
-                    case SPOOKY_SVP_Z:
-                      directional_pointer = &(cursor.x);
-                      max_directional_value = SPOOKY_TILES_MAX_TILES_ROW_LEN;
+                    case SPOOKY_SVP_Z: /* z = 0, xy plane */
+                      left_right_pointer = &(screen_cursor.x);
+                      max_left_right_value = SPOOKY_TILES_MAX_TILES_ROW_LEN;
                       break;
-                    case SPOOKY_SVP_X:
-                      directional_pointer = &(cursor.x);
-                      max_directional_value = SPOOKY_TILES_MAX_TILES_ROW_LEN;
+                    case SPOOKY_SVP_X: /* x = 0, yz plane */
+                      left_right_pointer = &(screen_cursor.x);
+                      max_left_right_value = SPOOKY_TILES_MAX_TILES_ROW_LEN;
                       break;
-                    case SPOOKY_SVP_Y:
-                      directional_pointer = &(cursor.x);
-                      max_directional_value = SPOOKY_TILES_MAX_TILES_ROW_LEN;
+                    case SPOOKY_SVP_Y: /* y = 0, xz plane */
+                      left_right_pointer = &(screen_cursor.x);
+                      max_left_right_value = SPOOKY_TILES_MAX_TILES_ROW_LEN;
                       break;
                     case SPOOKY_SVP_EOE:
                     default:
@@ -421,17 +464,17 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
                 case SDLK_k: /* UP */
                 case SDLK_j: /* DOWN */
                   switch(perspective) {
-                    case SPOOKY_SVP_Z:
-                      directional_pointer = &(cursor.y);
-                      max_directional_value = SPOOKY_TILES_MAX_TILES_COL_LEN;
+                    case SPOOKY_SVP_Z: /* z = 0, xy plane */
+                      up_down_pointer = &(screen_cursor.y);
+                      max_up_down_value = SPOOKY_TILES_MAX_TILES_COL_LEN;
                       break;
-                    case SPOOKY_SVP_X:
-                      directional_pointer = &(cursor.z);
-                      max_directional_value = SPOOKY_TILES_MAX_TILES_DEPTH_LEN;
+                    case SPOOKY_SVP_X: /* x = 0, yz plane */
+                      up_down_pointer = &(screen_cursor.y);
+                      max_up_down_value = SPOOKY_TILES_MAX_TILES_COL_LEN;
                       break;
-                    case SPOOKY_SVP_Y:
-                      directional_pointer = &(cursor.y);
-                      max_directional_value = SPOOKY_TILES_MAX_TILES_COL_LEN;
+                    case SPOOKY_SVP_Y: /* y = 0, xz plane */
+                      up_down_pointer = &(screen_cursor.y);
+                      max_up_down_value = SPOOKY_TILES_MAX_TILES_COL_LEN;
                       break;
                     case SPOOKY_SVP_EOE:
                     default:
@@ -441,17 +484,17 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
                 case SDLK_COMMA: /* FOWARD */
                 case SDLK_PERIOD: /* BACK */
                   switch(perspective) {
-                    case SPOOKY_SVP_Z:
-                      directional_pointer = &(cursor.z);
+                    case SPOOKY_SVP_Z: /* z = 0, xy plane */
+                      directional_pointer = &(world_cursor.z);
                       max_directional_value = SPOOKY_TILES_MAX_TILES_DEPTH_LEN;
                       break;
-                    case SPOOKY_SVP_X:
-                      directional_pointer = &(cursor.y);
-                      max_directional_value = SPOOKY_TILES_MAX_TILES_COL_LEN;
-                      break;
-                    case SPOOKY_SVP_Y:
-                      directional_pointer = &(cursor.x);
+                    case SPOOKY_SVP_X: /* x = 0, yz plane */
+                      directional_pointer = &(world_cursor.x);
                       max_directional_value = SPOOKY_TILES_MAX_TILES_ROW_LEN;
+                      break;
+                    case SPOOKY_SVP_Y: /* y = 0, xz plane */
+                      directional_pointer = &(world_cursor.y);
+                      max_directional_value = SPOOKY_TILES_MAX_TILES_COL_LEN;
                       break;
                     case SPOOKY_SVP_EOE:
                     default:
@@ -464,23 +507,30 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
               switch(sym) {
                 case SDLK_h: /* LEFT */
                 case SDLK_l: /* RIGHT */
-                case SDLK_k: /* UP */
-                case SDLK_j: /* DOWN */
-                  if(directional_pointer) {
-                    if(sym == SDLK_h || sym == SDLK_k) {
-                      if((*directional_pointer) - 1 > *directional_pointer) { *directional_pointer = 0; }
-                      else {
-                        (*directional_pointer)--;
-                      }
+                  if(left_right_pointer && sym == SDLK_h) {
+                    if((*left_right_pointer) - 1 > *left_right_pointer) { *left_right_pointer = 0; }
+                    else {
+                      (*left_right_pointer)--;
                     }
-                    else if(sym == SDLK_l || sym == SDLK_j) {
-                      (*directional_pointer)++;
-                      if(*directional_pointer >= max_directional_value - 1) { *directional_pointer = max_directional_value - 1; }
-                    }
+                  } else if(left_right_pointer && sym == SDLK_l) {
+                    (*left_right_pointer)++;
+                    if(*left_right_pointer >= max_left_right_value - 1) { *left_right_pointer = max_left_right_value - 1; }
                   }
                   break;
-                case SDLK_PERIOD: /* UP */
-                case SDLK_COMMA: /* DOWN */
+                case SDLK_k: /* UP */
+                case SDLK_j: /* DOWN */
+                  if(up_down_pointer && sym == SDLK_k) {
+                    if((*up_down_pointer) - 1 > *up_down_pointer) { *up_down_pointer = 0; }
+                    else {
+                      (*up_down_pointer)--;
+                    }
+                  } else if(up_down_pointer && sym == SDLK_j) {
+                    (*up_down_pointer)++;
+                    if(*up_down_pointer >= max_up_down_value - 1) { *up_down_pointer = max_up_down_value - 1; }
+                  }
+                  break;
+                case SDLK_PERIOD: /* FORWARD */
+                case SDLK_COMMA: /* BACK */
                   if(directional_pointer) {
                     if(sym == SDLK_COMMA) {
                       if((*directional_pointer) - 1 > *directional_pointer) { *directional_pointer = 0; }
@@ -492,7 +542,6 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
                       (*directional_pointer)++;
                       if(*directional_pointer >= max_directional_value - 1) { *directional_pointer = max_directional_value - 1; }
                     }
-                    update_landscape = true;
                   }
                   break;
                 case SDLK_q:
@@ -617,7 +666,7 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
 
     if(update_landscape) {
       SDL_SetRenderTarget(renderer, landscape);
-      spooky_render_landscape(renderer, context, tiles_manager, &cursor);
+      spooky_render_landscape(renderer, context, tiles_manager, &world_cursor);
       update_landscape = false;
       SDL_SetRenderTarget(renderer, context->get_canvas(context));
     }
@@ -635,16 +684,16 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
     const spooky_gui_rgba_context * cursor_rgba = spooky_gui_push_draw_color(renderer, &cursor_color);
     {
       SDL_Rect cursor_rect = {
-        .x = (int)(cursor.x * SPOOKY_TILES_VOXEL_WIDTH),
-        .y = (int)(cursor.y * SPOOKY_TILES_VOXEL_HEIGHT),
+        .x = (int)(screen_cursor.x * SPOOKY_TILES_VOXEL_WIDTH),
+        .y = (int)(screen_cursor.y * SPOOKY_TILES_VOXEL_HEIGHT),
         .w = (int)SPOOKY_TILES_VOXEL_WIDTH,
         .h = (int)SPOOKY_TILES_VOXEL_HEIGHT
       };
 
-      if(cursor_rect.x >= (int)(SPOOKY_TILES_VOXEL_WIDTH * SPOOKY_TILES_MAX_TILES_ROW_LEN)) { cursor.x = (SPOOKY_TILES_VOXEL_WIDTH * SPOOKY_TILES_MAX_TILES_ROW_LEN); }
+      if(cursor_rect.x >= (int)(SPOOKY_TILES_VOXEL_WIDTH * SPOOKY_TILES_MAX_TILES_ROW_LEN)) { screen_cursor.x = (SPOOKY_TILES_VOXEL_WIDTH * SPOOKY_TILES_MAX_TILES_ROW_LEN); }
       if(cursor_rect.x < 0) { cursor_rect.x = 0; }
 
-      if(cursor_rect.y >= (int)(SPOOKY_TILES_VOXEL_HEIGHT * SPOOKY_TILES_MAX_TILES_COL_LEN)) { cursor.y = (SPOOKY_TILES_VOXEL_HEIGHT * SPOOKY_TILES_MAX_TILES_COL_LEN); }
+      if(cursor_rect.y >= (int)(SPOOKY_TILES_VOXEL_HEIGHT * SPOOKY_TILES_MAX_TILES_COL_LEN)) { screen_cursor.y = (SPOOKY_TILES_VOXEL_HEIGHT * SPOOKY_TILES_MAX_TILES_COL_LEN); }
       if(cursor_rect.y < 0) { cursor_rect.y = 0; }
 
       spooky_box_draw_style style = box0->get_draw_style(box0);
@@ -669,11 +718,11 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
 
     {
       /* Tile Details */
-      const spooky_tile * current_tile = tiles_manager->get_tile(tiles_manager, cursor.x, cursor.y, cursor.z);
+      const spooky_tile * current_tile = tiles_manager->get_tile(tiles_manager, screen_cursor.x, screen_cursor.y, screen_cursor.z);
       static char tile_info[1920] = { 0 };
       int info_len = 0;
       const char * info = spooky_tiles_get_tile_info(current_tile, tile_info, sizeof(tile_info), &info_len);
-      info_len += snprintf((tile_info + info_len), 1920 - info_len, "\nx: %i, y: %i, z: %i", cursor.x, cursor.y, cursor.z);
+      info_len += snprintf((tile_info + info_len), 1920 - info_len, "\nx: %i, y: %i, z: %i", screen_cursor.x, screen_cursor.y, screen_cursor.z);
       const spooky_font * font = context->get_font(context);
       static const SDL_Color white = { 255, 255, 255, 255 };
       SDL_Point info_point = { 0 };
@@ -861,25 +910,54 @@ static void spooky_render_landscape(SDL_Renderer * renderer, const spooky_contex
 
   uint32_t row_max, col_max, row_start, col_start;
 
+  /*
+  Perspective changes are right-handed orientation.
+  Key bindings are x, y, and z. = resets to default (z)
+
+    z
+    |  y
+    | /
+    |/___ x
+
+    Default orientation is Z:
+
+    z = 0, xy plane:
+        y
+        |
+      --+-- x
+        |
+
+    x = 0, yz plane:
+        z
+        |
+      --+-- y
+        |
+
+    y = 0, xz plane:
+        x
+        |
+      --+-- z
+        |
+  */
   spooky_view_perspective perspective = context->get_perspective(context);
   switch(perspective) {
-    case SPOOKY_SVP_X: /* (x, z) */
-      row_start = cursor->x;
-      col_start = cursor->z;
+    case SPOOKY_SVP_X: /* x = 0, yz plane */
+      row_start = 0;//cursor->y;
+      col_start = 0;//cursor->z;
+      row_max = SPOOKY_TILES_MAX_TILES_COL_LEN;
+      col_max = SPOOKY_TILES_MAX_TILES_DEPTH_LEN;
+      break;
+    case SPOOKY_SVP_Y: /* y = 0, xz plane */
+      row_start = 0;//cursor->x;
+      col_start = 0;//cursor->z;
       row_max = SPOOKY_TILES_MAX_TILES_ROW_LEN;
       col_max = SPOOKY_TILES_MAX_TILES_DEPTH_LEN;
       break;
-    case SPOOKY_SVP_Y: /* (z, x) */
-      row_start = cursor->z;
-      col_start = cursor->x;
-      row_max = SPOOKY_TILES_MAX_TILES_DEPTH_LEN;
-      col_max = SPOOKY_TILES_MAX_TILES_ROW_LEN;
-      break;
     case SPOOKY_SVP_EOE:
-    case SPOOKY_SVP_Z: /* (x, y) */
+    case SPOOKY_SVP_Z: /* z = 0, xy plane */
     default:
-      row_start = cursor->x; /* x (0, 0) in top-left */
-      col_start = cursor->y; /* y (0, 0) in top-left */
+      row_start = 0;//cursor->x; /* x (0, 0) in top-left */
+      col_start = 0;//cursor->y; /* y (0, 0) in top-left */
       row_max = SPOOKY_TILES_MAX_TILES_ROW_LEN;
       col_max = SPOOKY_TILES_MAX_TILES_COL_LEN;
       break;
@@ -897,22 +975,22 @@ static void spooky_render_landscape(SDL_Renderer * renderer, const spooky_contex
 
   for(uint32_t i = row_start; i < row_max; i++) {
     for(uint32_t j = col_start; j < col_max; j++) {
-      uint32_t p_x, p_y, p_z;
+      uint32_t p_x = 0, p_y = 0, p_z = 0;
       const spooky_tile * under = NULL;
       switch(perspective) {
-        case SPOOKY_SVP_X:
+        case SPOOKY_SVP_X:/* x = 0, yz plane */
           p_x = cursor->x;
           p_y = i;
           p_z = j;
           if(p_x > 0) { under = tiles_manager->get_tile(tiles_manager, p_x - 1, p_y, p_z); }
           break;
-        case SPOOKY_SVP_Y:
-          p_z = j;
+        case SPOOKY_SVP_Y:/* y = 0, xz plane */
           p_x = i;
+          p_z = j;
           p_y = cursor->y;
           if(p_y > 0) { under = tiles_manager->get_tile(tiles_manager, p_x, p_y - 1, p_z); }
           break;
-        case SPOOKY_SVP_Z:
+        case SPOOKY_SVP_Z: /* z = 0, xy plane */
         case SPOOKY_SVP_EOE:
         default:
           p_x = i;
