@@ -52,6 +52,8 @@ typedef struct spooky_tiles_manager_data {
 
   spooky_tile ** tiles;
   size_t tiles_len;
+  bool test_world;
+  char padding[7];
 } spooky_tiles_manager_data;
 
 static void spooky_tiles_manager_generate_tiles(const spooky_tiles_manager * self);
@@ -102,6 +104,8 @@ const spooky_tiles_manager * spooky_tiles_manager_ctor(const spooky_tiles_manage
   data->allocated_tiles_len = 0;
   data->allocated_tiles = calloc(data->allocated_tiles_capacity, sizeof * data->allocated_tiles);
   if(!data->allocated_tiles) { abort(); }
+
+  data->test_world = true;
 
   ((spooky_tiles_manager *)(uintptr_t)self)->data = data;
 
@@ -206,6 +210,33 @@ const char * spooky_tiles_get_tile_info(const spooky_tile * tile, char * buf, si
 }
 
 static void spooky_tiles_manager_generate_tiles(const spooky_tiles_manager * self) {
+  if(self->data->test_world) {
+    for(uint32_t x = 0; x < SPOOKY_TILES_MAX_TILES_ROW_LEN; ++x) {
+      for(uint32_t y = 0; y < SPOOKY_TILES_MAX_TILES_COL_LEN; ++y) {
+        for(uint32_t z = 0; z < SPOOKY_TILES_MAX_TILES_DEPTH_LEN; ++z) {
+          self->create_tile(self, x, y, z, STT_EMPTY);
+        }
+      }
+    }
+
+    self->create_tile(self, 1, 1, 0, STT_BEDROCK);
+    self->create_tile(self, 2, 1, 0, STT_BEDROCK);
+    self->create_tile(self, 3, 1, 0, STT_BEDROCK);
+
+    self->create_tile(self, 1, 2, 0, STT_BEDROCK);
+    self->create_tile(self, 2, 2, 0, STT_BEDROCK);
+    self->create_tile(self, 3, 2, 0, STT_BEDROCK);
+
+    self->create_tile(self, 1, 3, 0, STT_BEDROCK);
+    self->create_tile(self, 2, 3, 0, STT_BEDROCK);
+    self->create_tile(self, 3, 3, 0, STT_BEDROCK);
+
+    self->create_tile(self, 2, 2, 1, STT_BEDROCK);
+    self->create_tile(self, 2, 2, 2, STT_BEDROCK);
+    self->create_tile(self, 2, 2, 3, STT_BEDROCK);
+
+    return;
+  }
   /* basic biom layout */
   // unsigned int seed = randombytes_uniform(100);
   for(uint32_t x = 0; x < SPOOKY_TILES_MAX_TILES_ROW_LEN; ++x) {
