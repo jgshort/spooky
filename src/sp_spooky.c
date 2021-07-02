@@ -398,25 +398,64 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
               uint32_t max_directional_value = 0;
               SDL_Keycode sym = evt.key.keysym.sym;
               switch(sym) {
-                case SDLK_h:
-                case SDLK_l:
-                  if(perspective == SPOOKY_SVP_Z) {
-                    directional_pointer = &(cursor.x);
-                    max_directional_value = SPOOKY_TILES_MAX_TILES_ROW_LEN;
+                case SDLK_h: /* LEFT */
+                case SDLK_l: /* RIGHT */
+                  switch(perspective) {
+                    case SPOOKY_SVP_Z:
+                      directional_pointer = &(cursor.x);
+                      max_directional_value = SPOOKY_TILES_MAX_TILES_ROW_LEN;
+                      break;
+                    case SPOOKY_SVP_X:
+                      directional_pointer = &(cursor.x);
+                      max_directional_value = SPOOKY_TILES_MAX_TILES_ROW_LEN;
+                      break;
+                    case SPOOKY_SVP_Y:
+                      directional_pointer = &(cursor.x);
+                      max_directional_value = SPOOKY_TILES_MAX_TILES_ROW_LEN;
+                      break;
+                    case SPOOKY_SVP_EOE:
+                    default:
+                      break;
                   }
                   break;
-                case SDLK_k:
-                case SDLK_j:
-                  if(perspective == SPOOKY_SVP_Z) {
-                    directional_pointer = &(cursor.y);
-                    max_directional_value = SPOOKY_TILES_MAX_TILES_COL_LEN;
+                case SDLK_k: /* UP */
+                case SDLK_j: /* DOWN */
+                  switch(perspective) {
+                    case SPOOKY_SVP_Z:
+                      directional_pointer = &(cursor.y);
+                      max_directional_value = SPOOKY_TILES_MAX_TILES_COL_LEN;
+                      break;
+                    case SPOOKY_SVP_X:
+                      directional_pointer = &(cursor.z);
+                      max_directional_value = SPOOKY_TILES_MAX_TILES_DEPTH_LEN;
+                      break;
+                    case SPOOKY_SVP_Y:
+                      directional_pointer = &(cursor.y);
+                      max_directional_value = SPOOKY_TILES_MAX_TILES_COL_LEN;
+                      break;
+                    case SPOOKY_SVP_EOE:
+                    default:
+                      break;
                   }
                   break;
-                case SDLK_COMMA:
-                case SDLK_PERIOD:
-                  if(perspective == SPOOKY_SVP_Z) {
-                    directional_pointer = &(cursor.z);
-                    max_directional_value = SPOOKY_TILES_MAX_TILES_DEPTH_LEN;
+                case SDLK_COMMA: /* FOWARD */
+                case SDLK_PERIOD: /* BACK */
+                  switch(perspective) {
+                    case SPOOKY_SVP_Z:
+                      directional_pointer = &(cursor.z);
+                      max_directional_value = SPOOKY_TILES_MAX_TILES_DEPTH_LEN;
+                      break;
+                    case SPOOKY_SVP_X:
+                      directional_pointer = &(cursor.y);
+                      max_directional_value = SPOOKY_TILES_MAX_TILES_COL_LEN;
+                      break;
+                    case SPOOKY_SVP_Y:
+                      directional_pointer = &(cursor.x);
+                      max_directional_value = SPOOKY_TILES_MAX_TILES_ROW_LEN;
+                      break;
+                    case SPOOKY_SVP_EOE:
+                    default:
+                      break;
                   }
                   break;
                 default:
@@ -427,30 +466,34 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
                 case SDLK_l: /* RIGHT */
                 case SDLK_k: /* UP */
                 case SDLK_j: /* DOWN */
-                  if(sym == SDLK_h || sym == SDLK_k) {
-                    if((*directional_pointer) - 1 > *directional_pointer) { *directional_pointer = 0; }
-                    else {
-                      (*directional_pointer)--;
+                  if(directional_pointer) {
+                    if(sym == SDLK_h || sym == SDLK_k) {
+                      if((*directional_pointer) - 1 > *directional_pointer) { *directional_pointer = 0; }
+                      else {
+                        (*directional_pointer)--;
+                      }
                     }
-                  }
-                  else if(sym == SDLK_l || sym == SDLK_j) {
-                    (*directional_pointer)++;
-                    if(*directional_pointer >= max_directional_value - 1) { *directional_pointer = max_directional_value - 1; }
+                    else if(sym == SDLK_l || sym == SDLK_j) {
+                      (*directional_pointer)++;
+                      if(*directional_pointer >= max_directional_value - 1) { *directional_pointer = max_directional_value - 1; }
+                    }
                   }
                   break;
                 case SDLK_PERIOD: /* UP */
                 case SDLK_COMMA: /* DOWN */
-                  if(sym == SDLK_COMMA) {
-                    if((*directional_pointer) - 1 > *directional_pointer) { *directional_pointer = 0; }
-                    else {
-                      (*directional_pointer)--;
+                  if(directional_pointer) {
+                    if(sym == SDLK_COMMA) {
+                      if((*directional_pointer) - 1 > *directional_pointer) { *directional_pointer = 0; }
+                      else {
+                        (*directional_pointer)--;
+                      }
                     }
+                    else if(sym == SDLK_PERIOD) {
+                      (*directional_pointer)++;
+                      if(*directional_pointer >= max_directional_value - 1) { *directional_pointer = max_directional_value - 1; }
+                    }
+                    update_landscape = true;
                   }
-                  else if(sym == SDLK_PERIOD) {
-                    (*directional_pointer)++;
-                    if(*directional_pointer >= max_directional_value - 1) { *directional_pointer = max_directional_value - 1; }
-                  }
-                  update_landscape = true;
                   break;
                 case SDLK_q:
                   {
