@@ -5,6 +5,7 @@
 
 #include <stdbool.h>
 #include "sp_gui.h"
+#include "sp_context.h"
 
 typedef enum spooky_tiles_tile_type {
   STT_EMPTY,
@@ -70,7 +71,7 @@ typedef struct spooky_tiles_manager_data spooky_tiles_manager_data;
 typedef struct spooky_tiles_manager spooky_tiles_manager;
 
 typedef struct spooky_tiles_manager {
-  const spooky_tiles_manager * (*ctor)(const spooky_tiles_manager * /* self */);
+  const spooky_tiles_manager * (*ctor)(const spooky_tiles_manager * /* self */, const spooky_context * /* context */);
   const spooky_tiles_manager * (*dtor)(const spooky_tiles_manager * /* self */);
   void (*free)(const spooky_tiles_manager * /* self */);
   void (*release)(const spooky_tiles_manager * /* self */);
@@ -84,6 +85,10 @@ typedef struct spooky_tiles_manager {
   const spooky_tile * (*get_active_tile)(const spooky_tiles_manager * /* self */);
   void (*set_active_tile)(const spooky_tiles_manager * /* self */, uint32_t /* x */, uint32_t /* y */, uint32_t /* z */);
 
+  spooky_view_perspective (*get_perspective)(const spooky_tiles_manager * /* self */);
+  void (*set_perspective)(const spooky_tiles_manager * /* self */, spooky_view_perspective /* perspective */);
+  void (*rotate_perspective)(const spooky_tiles_manager * /* self */, spooky_view_perspective /* new_perspective */);
+
   spooky_tiles_manager_data * data;
 } spooky_tiles_manager;
 
@@ -94,7 +99,7 @@ const spooky_tiles_manager * spooky_tiles_manager_init(spooky_tiles_manager * /*
 /* Allocate and initialize interface methods */
 const spooky_tiles_manager * spooky_tiles_manager_acquire();
 /* Construct data */
-const spooky_tiles_manager * spooky_tiles_manager_ctor(const spooky_tiles_manager * /* self */);
+const spooky_tiles_manager * spooky_tiles_manager_ctor(const spooky_tiles_manager * /* self */, const spooky_context * /* context */);
 /* Destruct (dtor) data */
 const spooky_tiles_manager * spooky_tiles_manager_dtor(const spooky_tiles_manager * /* self */);
 /* Free interface */

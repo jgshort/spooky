@@ -233,7 +233,7 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
   const int TARGET_TIME_BETWEEN_RENDERS = BILLION / TARGET_FPS;
 
   const spooky_tiles_manager * tiles_manager = spooky_tiles_manager_acquire();
-  tiles_manager = tiles_manager->ctor(tiles_manager);
+  tiles_manager = tiles_manager->ctor(tiles_manager, context);
   tiles_manager->generate_tiles(tiles_manager);
 
   int64_t now = 0;
@@ -424,7 +424,7 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
                     |
               */
 
-              spooky_view_perspective perspective = context->get_perspective(context);
+              spooky_view_perspective perspective = tiles_manager->get_perspective(tiles_manager);
               uint32_t * directional_pointer = NULL, *left_right_pointer = NULL, *up_down_pointer = NULL;
               uint32_t max_directional_value = 0, max_left_right_value = 0, max_up_down_value = 0;
               SDL_Keycode sym = evt.key.keysym.sym;
@@ -570,15 +570,18 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
                   update_landscape = true;
                   break;
                 case SDLK_x:
-                  context->set_perspective(context, SPOOKY_SVP_X);
+                  tiles_manager->rotate_perspective(tiles_manager, SPOOKY_SVP_X);
+                  update_landscape = true;
                   break;
                 case SDLK_y:
-                  context->set_perspective(context, SPOOKY_SVP_Y);
+                  tiles_manager->rotate_perspective(tiles_manager, SPOOKY_SVP_Y);
+                  update_landscape = true;
                   break;
                 case SDLK_EQUALS:
                 case SDLK_z:
                   /* Switch perspective; default is Z (top down) */
-                  context->set_perspective(context, SPOOKY_SVP_Z);
+                  tiles_manager->rotate_perspective(tiles_manager, SPOOKY_SVP_Z);
+                  update_landscape = true;
                   break;
                 case SDLK_F12: /* fullscreen window */
                   {
@@ -914,60 +917,6 @@ static void spooky_render_landscape(SDL_Renderer * renderer, const spooky_contex
     box_base = box->as_base(box);
   }
 
-  uint32_t row_max = 0, col_max = 0, row_start = 0, col_start = 0;
-
-  /*
-  Perspective changes are right-handed orientation.
-  Key bindings are x, y, and z. = resets to default (z)
-
-    z
-    |  y
-    | /
-    |/___ x
-
-    Default orientation is Z:
-
-    z = 0, xy plane:
-        y
-        |
-      --+-- x
-        |
-
-    x = 0, yz plane:
-        z
-        |
-      --+-- y
-        |
-
-    y = 0, xz plane:
-        x
-        |
-      --+-- z
-        |
-  */
-  spooky_view_perspective perspective = context->get_perspective(context);
-  switch(perspective) {
-    case SPOOKY_SVP_X: /* x = 0, yz plane */
-      /*row_start = 0;//cursor->y;
-      col_start = 0;//cursor->z;
-      row_max = SPOOKY_TILES_MAX_TILES_COL_LEN;
-      col_max = SPOOKY_TILES_MAX_TILES_DEPTH_LEN; */
-      break;
-    case SPOOKY_SVP_Y: /* y = 0, xz plane */
-      /* row_start = 0;//cursor->x;
-      col_start = 0;//cursor->z;
-      row_max = SPOOKY_TILES_MAX_TILES_ROW_LEN;
-      col_max = SPOOKY_TILES_MAX_TILES_DEPTH_LEN; */
-      break;
-    case SPOOKY_SVP_EOE:
-    case SPOOKY_SVP_Z: /* z = 0, xy plane */
-    default:
-      row_start = 0;//cursor->x; /* x (0, 0) in top-left */
-      col_start = 0;//cursor->y; /* y (0, 0) in top-left */
-      row_max = SPOOKY_TILES_MAX_TILES_ROW_LEN;
-      col_max = SPOOKY_TILES_MAX_TILES_COL_LEN;
-      break;
-  }
   SDL_RenderClear(renderer);
 
   box_base->set_w(box_base, (int)SPOOKY_TILES_VOXEL_WIDTH);
@@ -979,32 +928,12 @@ static void spooky_render_landscape(SDL_Renderer * renderer, const spooky_contex
   SDL_GetRenderDrawBlendMode(renderer, &old_blend_mode);
   SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
 
-  for(uint32_t i = row_start; i < row_max; i++) {
-    for(uint32_t j = col_start; j < col_max; j++) {
-      uint32_t p_x = 0, p_y = 0, p_z = 0;
+  for(uint32_t i = 0; i < SPOOKY_TILES_MAX_TILES_ROW_LEN; i++) {
+    for(uint32_t j = 0; j < SPOOKY_TILES_MAX_TILES_COL_LEN; j++) {
+      uint32_t p_x = i, p_y = j, p_z = cursor->z;
       const spooky_tile * under = NULL;
-      switch(perspective) {
-        case SPOOKY_SVP_X:/* x = 0, yz plane */
-          /*p_x = cursor->x;
-          p_y = i;
-          p_z = j;
-          if(p_x > 0) { under = tiles_manager->get_tile(tiles_manager, p_x - 1, p_y, p_z); } */
-          break;
-        case SPOOKY_SVP_Y:/* y = 0, xz plane */
-          /*p_x = i;
-          p_z = j;
-          p_y = cursor->y;
-          if(p_y > 0) { under = tiles_manager->get_tile(tiles_manager, p_x, p_y - 1, p_z); } */
-          break;
-        case SPOOKY_SVP_Z: /* z = 0, xy plane */
-        case SPOOKY_SVP_EOE:
-        default:
-          p_x = i;
-          p_y = j;
-          p_z = cursor->z;
-          if(p_z > 0) { under = tiles_manager->get_tile(tiles_manager, p_x, p_y, p_z - 1); }
-          break;
-      }
+      if(p_z > 0) { under = tiles_manager->get_tile(tiles_manager, p_x, p_y, p_z - 1); }
+
       const spooky_tile * tile = tiles_manager->get_tile(tiles_manager, p_x, p_y, p_z);
 
       spooky_tiles_tile_type type = tile->meta->type;

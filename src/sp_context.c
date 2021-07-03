@@ -103,15 +103,6 @@ static void spooky_context_translate_rect(const spooky_context * context, SDL_Re
   rect->h = (int)floor((float)(rect->h) * scale_factor);
 }
 
-static spooky_view_perspective spooky_context_get_perspective(const spooky_context * context) {
-  return context->data->perspective;
-}
-
-static void spooky_context_set_perspective(const spooky_context * context, spooky_view_perspective perspective) {
-  assert(perspective >= SPOOKY_SVP_DEFAULT && perspective < SPOOKY_SVP_EOE);
-  context->data->perspective = perspective;
-}
-
 static float spooky_context_get_renderer_to_window_scale_factor(const spooky_context * context) {
   return context->data->renderer_to_window_scale_factor;
 }
@@ -253,8 +244,6 @@ errno_t spooky_init_context(spooky_context * context, FILE * fp) {
   context->translate_point = &spooky_context_translate_point;
   context->translate_rect = &spooky_context_translate_rect;
   context->get_config = &spooky_context_get_config;
-  context->set_perspective = &spooky_context_set_perspective;
-  context->get_perspective = &spooky_context_get_perspective;
   context->data = &global_data;
 
   const spooky_config * config = spooky_config_acquire();

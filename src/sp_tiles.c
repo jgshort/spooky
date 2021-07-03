@@ -3,6 +3,7 @@
 #include <sodium.h>
 
 #include "sp_gui.h"
+#include "sp_context.h"
 #include "sp_tiles.h"
 
 static uint32_t SP_OFFSET(uint32_t x, uint32_t y, uint32_t z) {
@@ -46,6 +47,7 @@ static spooky_tile spooky_tiles_global_empty_tile = {
 };
 
 typedef struct spooky_tiles_manager_data {
+  const spooky_context * context;
   spooky_tile * active_tile;
 
   spooky_tile * allocated_tiles;
@@ -53,10 +55,13 @@ typedef struct spooky_tiles_manager_data {
   size_t allocated_tiles_len;
 
   spooky_tile ** tiles;
+  spooky_tile ** rotated_tiles; /* tiles rotated around an axis */
   size_t tiles_len;
 
+  spooky_view_perspective perspective;
+
   bool test_world;
-  char padding[7];
+  char padding[3];
 } spooky_tiles_manager_data;
 
 static void spooky_tiles_manager_generate_tiles(const spooky_tiles_manager * self);
@@ -66,6 +71,16 @@ static const spooky_tile * spooky_tiles_manager_get_tiles(const spooky_tiles_man
 static const spooky_tile * spooky_tiles_manager_get_tile(const spooky_tiles_manager * self, uint32_t x, uint32_t y, uint32_t z);
 static const spooky_tile * spooky_tiles_get_active_tile(const spooky_tiles_manager * self);
 static void spooky_tiles_set_active_tile(const spooky_tiles_manager * self, uint32_t x, uint32_t y, uint32_t z);
+static void spooky_tiles_rotate_perspective(const spooky_tiles_manager * self, spooky_view_perspective new_perspective);
+
+static spooky_view_perspective spooky_tiles_get_perspective(const spooky_tiles_manager * self) {
+  return self->data->perspective;
+}
+
+static void spooky_tiles_set_perspective(const spooky_tiles_manager * self, spooky_view_perspective perspective) {
+  assert(perspective >= SPOOKY_SVP_DEFAULT && perspective < SPOOKY_SVP_EOE);
+  self->data->perspective = perspective;
+}
 
 const spooky_tiles_manager * spooky_tiles_manager_alloc() {
   spooky_tiles_manager * self = calloc(1, sizeof * self);
@@ -86,6 +101,10 @@ const spooky_tiles_manager * spooky_tiles_manager_init(spooky_tiles_manager * se
   self->get_tile = &spooky_tiles_manager_get_tile;
   self->set_active_tile = &spooky_tiles_set_active_tile;
   self->get_active_tile = &spooky_tiles_get_active_tile;
+  self->set_perspective = &spooky_tiles_set_perspective;
+  self->get_perspective = &spooky_tiles_get_perspective;
+  self->rotate_perspective = &spooky_tiles_rotate_perspective;
+
   self->data = NULL;
   return self;
 }
@@ -93,7 +112,7 @@ const spooky_tiles_manager * spooky_tiles_manager_init(spooky_tiles_manager * se
 const spooky_tiles_manager * spooky_tiles_manager_acquire() {
   return spooky_tiles_manager_init(((spooky_tiles_manager *)(uintptr_t)spooky_tiles_manager_alloc()));
 }
-const spooky_tiles_manager * spooky_tiles_manager_ctor(const spooky_tiles_manager * self) {
+const spooky_tiles_manager * spooky_tiles_manager_ctor(const spooky_tiles_manager * self, const spooky_context * context) {
   assert(self);
 
   spooky_tiles_manager_data * data = calloc(1, sizeof * data);
@@ -103,7 +122,8 @@ const spooky_tiles_manager * spooky_tiles_manager_ctor(const spooky_tiles_manage
   data->tiles_len = SPOOKY_TILES_MAX_TILES_ROW_LEN * SPOOKY_TILES_MAX_TILES_COL_LEN * SPOOKY_TILES_MAX_TILES_DEPTH_LEN;
   data->tiles = calloc(data->tiles_len, sizeof(void *));
   if(!data->tiles) { abort(); }
-
+  //data->rotated_tiles = calloc(data->tiles_len, sizeof(void *));
+  //if(!data->rotated_tiles) { abort(); }
   /* Free store from which tiles are allocated; the allocated
      array is resized as needed (a pointer to structure). */
   data->allocated_tiles_capacity = SPOOKY_TILES_ALLOCATED_INCREMENT;
@@ -111,10 +131,13 @@ const spooky_tiles_manager * spooky_tiles_manager_ctor(const spooky_tiles_manage
   data->allocated_tiles = calloc(data->allocated_tiles_capacity, sizeof * data->allocated_tiles);
   if(!data->allocated_tiles) { abort(); }
 
+  data->context = context;
   data->active_tile = NULL;
-  data->test_world = true;
+  data->test_world = false;
 
   ((spooky_tiles_manager *)(uintptr_t)self)->data = data;
+
+  spooky_tiles_rotate_perspective(self, SPOOKY_SVP_X);
 
   return self;
 }
@@ -123,6 +146,7 @@ const spooky_tiles_manager * spooky_tiles_manager_dtor(const spooky_tiles_manage
   if(self && self->data) {
     self->data->tiles_len = 0;
     free(self->data->tiles), self->data->tiles = NULL;
+    free(self->data->rotated_tiles), self->data->rotated_tiles = NULL;
 
     self->data->allocated_tiles_capacity = 0;
     self->data->allocated_tiles_len = 0;
@@ -132,6 +156,7 @@ const spooky_tiles_manager * spooky_tiles_manager_dtor(const spooky_tiles_manage
   }
   return self;
 }
+
 void spooky_tiles_manager_free(const spooky_tiles_manager * self) {
   free(((spooky_tiles_manager *)(uintptr_t)self)), self = NULL;
 }
@@ -243,8 +268,11 @@ static void spooky_tiles_manager_generate_tiles(const spooky_tiles_manager * sel
       }
     }
 
+    memmove(self->data->rotated_tiles, self->data->tiles, self->data->tiles_len * sizeof(void *));
+
     return;
   }
+
   /* basic biom layout */
   // unsigned int seed = randombytes_uniform(100);
   for(uint32_t x = 0; x < SPOOKY_TILES_MAX_TILES_ROW_LEN; ++x) {
@@ -318,6 +346,8 @@ create_tile:
     }
   }
 
+  memmove(self->data->rotated_tiles, self->data->tiles, self->data->tiles_len * sizeof(void *));
+
   fprintf(stdout, "%lu total voxels, %lu allocated voxels\n", self->data->tiles_len, self->data->allocated_tiles_len);
 }
 
@@ -360,12 +390,12 @@ void spooky_tiles_get_tile_color(spooky_tiles_tile_type type, SDL_Color * color)
 }
 
 static const spooky_tile * spooky_tiles_manager_get_tiles(const spooky_tiles_manager * self) {
-  return *(self->data->tiles);
+  return *(self->data->rotated_tiles);
 }
 
 static const spooky_tile * spooky_tiles_manager_get_tile(const spooky_tiles_manager * self, uint32_t x, uint32_t y, uint32_t z) {
   uint32_t offset = SP_OFFSET(x, y, z);
-  return self->data->tiles[offset];
+  return self->data->rotated_tiles[offset];
 }
 
 static const spooky_tile * spooky_tiles_get_active_tile(const spooky_tiles_manager * self) {
@@ -374,9 +404,54 @@ static const spooky_tile * spooky_tiles_get_active_tile(const spooky_tiles_manag
 
 static void spooky_tiles_set_active_tile(const spooky_tiles_manager * self, uint32_t x, uint32_t y, uint32_t z) {
   uint32_t offset = SP_OFFSET(x, y, z);
-  spooky_tile * tile = self->data->tiles[offset];
+  spooky_tile * tile = self->data->rotated_tiles[offset];
   if(tile->meta->type != STT_EMPTY) {
     self->data->active_tile = tile;
   } else { self->data->active_tile = NULL; }
 }
 
+static void spooky_tiles_rotate_perspective(const spooky_tiles_manager * self, spooky_view_perspective new_perspective) {
+  spooky_view_perspective old_perspective = self->data->perspective;
+  if(old_perspective == new_perspective) { return; }
+
+  spooky_tile ** rotated = calloc(self->data->tiles_len, sizeof(void *));
+  if(!rotated) { abort(); }
+
+  // Degrees / 57.29578 = radians
+  static const float theta = 90.f / 57.29578f;
+  const float sin_theta = (float)sin(theta);
+  const float cos_theta = (float)cos(theta);
+  for(uint32_t x = 0; x < SPOOKY_TILES_MAX_TILES_ROW_LEN; ++x) {
+    for(uint32_t y = 0; y < SPOOKY_TILES_MAX_TILES_ROW_LEN; ++y) {
+      for(uint32_t z = 0; z < SPOOKY_TILES_MAX_TILES_ROW_LEN; ++z) {
+        uint32_t new_x = 0, new_y = 0, new_z = 0;
+        switch(new_perspective) {
+          case SPOOKY_SVP_X:
+            new_x = x;
+            new_y = (uint32_t)(abs((int)floor(((float)y * cos_theta) - ((float)z * sin_theta))));
+            new_z = (uint32_t)(abs((int)floor(((float)y * sin_theta) + ((float)z * cos_theta))));
+            break;
+          case SPOOKY_SVP_Y:
+            new_x = (uint32_t)(abs((int)floor(((float)x * cos_theta) + ((float)z * sin_theta))));
+            new_y = y;
+            new_z = (uint32_t)(abs((int)floor(((float)z * cos_theta) - ((float)x * sin_theta))));
+            break;
+          case SPOOKY_SVP_Z:
+          case SPOOKY_SVP_EOE:
+          default:
+            new_x = (uint32_t)(abs((int)floor(((float)x * cos_theta) - ((float)y * sin_theta))));
+            new_z = z;
+            new_y = (uint32_t)(abs((int)floor(((float)x * sin_theta) + ((float)y * cos_theta))));
+            break;
+        }
+
+        uint32_t offset = SP_OFFSET(new_x, new_y, new_z);
+        fflush(stdout);
+        rotated[offset] = self->data->tiles[SP_OFFSET(x, y, z)];
+      }
+    }
+  }
+  free(self->data->rotated_tiles), self->data->rotated_tiles = NULL;
+  self->data->rotated_tiles = rotated;
+  self->data->perspective = new_perspective;
+}

@@ -9,14 +9,6 @@
 #include "sp_gui.h"
 #include "sp_font.h"
 
-typedef enum spooky_view_perspective {
-  SPOOKY_SVP_DEFAULT = 0,
-  SPOOKY_SVP_Z = SPOOKY_SVP_DEFAULT,
-  SPOOKY_SVP_X,
-  SPOOKY_SVP_Y,
-  SPOOKY_SVP_EOE
-} spooky_view_perspective;
-
 struct spooky_context_data;
 typedef struct spooky_context spooky_context;
 typedef struct spooky_context {
@@ -57,8 +49,7 @@ typedef struct spooky_context {
   void (*translate_point)(const spooky_context * context, SDL_Point * point);
   void (*translate_rect)(const spooky_context * context, SDL_Rect * rect);
 
-  spooky_view_perspective (*get_perspective)(const spooky_context * context);
-  void (*set_perspective)(const spooky_context * context, spooky_view_perspective perspective);
+
 
   struct spooky_context_data * data;
 } spooky_context;
