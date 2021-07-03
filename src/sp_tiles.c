@@ -219,21 +219,22 @@ static void spooky_tiles_manager_generate_tiles(const spooky_tiles_manager * sel
       }
     }
 
-    self->create_tile(self, 1, 1, 0, STT_BEDROCK);
-    self->create_tile(self, 2, 1, 0, STT_BEDROCK);
-    self->create_tile(self, 3, 1, 0, STT_BEDROCK);
+    static const uint32_t x_offset = 10; (void)x_offset;
+    static const uint32_t y_offset = 10; (void)y_offset;
 
-    self->create_tile(self, 1, 2, 0, STT_BEDROCK);
-    self->create_tile(self, 2, 2, 0, STT_BEDROCK);
-    self->create_tile(self, 3, 2, 0, STT_BEDROCK);
+    static const spooky_tiles_tile_type demo[3][3][3] = {
+      { { 1, 0, 0 }, { 0, 0, 1 }, { 1, 0, 0 } },
+      { { 0, 0, 1 }, { 1, 1, 0 }, { 0, 0, 1 } },
+      { { 1, 0, 0 }, { 0, 0, 1 }, { 1, 0, 0 } },
+    };
 
-    self->create_tile(self, 1, 3, 0, STT_BEDROCK);
-    self->create_tile(self, 2, 3, 0, STT_BEDROCK);
-    self->create_tile(self, 3, 3, 0, STT_BEDROCK);
-
-    self->create_tile(self, 2, 2, 1, STT_BEDROCK);
-    self->create_tile(self, 2, 2, 2, STT_BEDROCK);
-    self->create_tile(self, 2, 2, 3, STT_BEDROCK);
+    for(uint32_t x = 0; x < sizeof demo / sizeof demo[0]; ++x) {
+      for(uint32_t y = 0; y < sizeof demo[0] / sizeof demo[0][0]; ++y) {
+        for(uint32_t z = 0; z < sizeof demo[0][0] / sizeof demo[0][0][0]; ++z) {
+          self->create_tile(self, x, y, z, demo[x][y][z]);
+        }
+      }
+    }
 
     return;
   }

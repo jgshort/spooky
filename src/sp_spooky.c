@@ -717,6 +717,7 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
     }
 
     {
+      #if 1 == 2
       /* Tile Details */
       const spooky_tile * current_tile = tiles_manager->get_tile(tiles_manager, screen_cursor.x, screen_cursor.y, screen_cursor.z);
       static char tile_info[1920] = { 0 };
@@ -729,6 +730,7 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
       info_point.x = font->get_m_dash(font);
       info_point.y = font->get_line_skip(font);
       font->write_to_renderer(font, renderer, &info_point, &white, info, (size_t)info_len, NULL, NULL);
+      #endif
     }
     SDL_SetRenderTarget(renderer, NULL);
 
