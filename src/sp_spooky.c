@@ -349,7 +349,6 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
   double interpolation = 0.0;
   int seconds_to_save = 0;
 
-  spooky_vector world_cursor = { .x = 0, .y = 0, .z = 0 };
   spooky_vector screen_cursor = { .x = 0, .y = 0, .z = 0 };
 
   const spooky_base * box = box0->as_base(box0);
@@ -483,22 +482,24 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
                   break;
                 case SDLK_COMMA: /* FOWARD */
                 case SDLK_PERIOD: /* BACK */
-                  switch(perspective) {
-                    case SPOOKY_SVP_Z: /* z = 0, xy plane */
-                      directional_pointer = &(world_cursor.z);
-                      max_directional_value = SPOOKY_TILES_MAX_TILES_DEPTH_LEN;
-                      break;
-                    case SPOOKY_SVP_X: /* x = 0, yz plane */
-                      directional_pointer = &(world_cursor.x);
-                      max_directional_value = SPOOKY_TILES_MAX_TILES_ROW_LEN;
-                      break;
-                    case SPOOKY_SVP_Y: /* y = 0, xz plane */
-                      directional_pointer = &(world_cursor.y);
-                      max_directional_value = SPOOKY_TILES_MAX_TILES_COL_LEN;
-                      break;
-                    case SPOOKY_SVP_EOE:
-                    default:
-                      break;
+                  if((SDL_GetModState() & KMOD_SHIFT) != 0) {
+                    switch(perspective) {
+                      case SPOOKY_SVP_Z: /* z = 0, xy plane */
+                        directional_pointer = &(screen_cursor.z);
+                        max_directional_value = SPOOKY_TILES_MAX_TILES_DEPTH_LEN;
+                        break;
+                      case SPOOKY_SVP_X: /* x = 0, yz plane */
+                        directional_pointer = &(screen_cursor.x);
+                        max_directional_value = SPOOKY_TILES_MAX_TILES_ROW_LEN;
+                        break;
+                      case SPOOKY_SVP_Y: /* y = 0, xz plane */
+                        directional_pointer = &(screen_cursor.y);
+                        max_directional_value = SPOOKY_TILES_MAX_TILES_COL_LEN;
+                        break;
+                      case SPOOKY_SVP_EOE:
+                      default:
+                        break;
+                    }
                   }
                   break;
                 default:
@@ -563,22 +564,21 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
               SDL_Keycode sym = evt.key.keysym.sym;
               switch(sym) {
                 case SDLK_PERIOD:
-                  tiles_manager->set_active_tile(tiles_manager, screen_cursor.x, screen_cursor.y, world_cursor.z);
+                  if((SDL_GetModState() & KMOD_SHIFT) == 0) {
+                    tiles_manager->set_active_tile(tiles_manager, screen_cursor.x, screen_cursor.y, screen_cursor.z);
+                  }
                   update_landscape = true;
                   break;
                 case SDLK_x:
                   context->set_perspective(context, SPOOKY_SVP_X);
-                  update_landscape = true;
                   break;
                 case SDLK_y:
                   context->set_perspective(context, SPOOKY_SVP_Y);
-                  update_landscape = true;
                   break;
                 case SDLK_EQUALS:
                 case SDLK_z:
                   /* Switch perspective; default is Z (top down) */
                   context->set_perspective(context, SPOOKY_SVP_Z);
-                  update_landscape = true;
                   break;
                 case SDLK_F12: /* fullscreen window */
                   {
@@ -670,7 +670,7 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
 
     if(update_landscape) {
       SDL_SetRenderTarget(renderer, landscape);
-      spooky_render_landscape(renderer, context, tiles_manager, &world_cursor);
+      spooky_render_landscape(renderer, context, tiles_manager, &screen_cursor);
       update_landscape = false;
       SDL_SetRenderTarget(renderer, context->get_canvas(context));
     }
@@ -914,7 +914,7 @@ static void spooky_render_landscape(SDL_Renderer * renderer, const spooky_contex
     box_base = box->as_base(box);
   }
 
-  uint32_t row_max, col_max, row_start, col_start;
+  uint32_t row_max = 0, col_max = 0, row_start = 0, col_start = 0;
 
   /*
   Perspective changes are right-handed orientation.
@@ -948,16 +948,16 @@ static void spooky_render_landscape(SDL_Renderer * renderer, const spooky_contex
   spooky_view_perspective perspective = context->get_perspective(context);
   switch(perspective) {
     case SPOOKY_SVP_X: /* x = 0, yz plane */
-      row_start = 0;//cursor->y;
+      /*row_start = 0;//cursor->y;
       col_start = 0;//cursor->z;
       row_max = SPOOKY_TILES_MAX_TILES_COL_LEN;
-      col_max = SPOOKY_TILES_MAX_TILES_DEPTH_LEN;
+      col_max = SPOOKY_TILES_MAX_TILES_DEPTH_LEN; */
       break;
     case SPOOKY_SVP_Y: /* y = 0, xz plane */
-      row_start = 0;//cursor->x;
+      /* row_start = 0;//cursor->x;
       col_start = 0;//cursor->z;
       row_max = SPOOKY_TILES_MAX_TILES_ROW_LEN;
-      col_max = SPOOKY_TILES_MAX_TILES_DEPTH_LEN;
+      col_max = SPOOKY_TILES_MAX_TILES_DEPTH_LEN; */
       break;
     case SPOOKY_SVP_EOE:
     case SPOOKY_SVP_Z: /* z = 0, xy plane */
@@ -985,16 +985,16 @@ static void spooky_render_landscape(SDL_Renderer * renderer, const spooky_contex
       const spooky_tile * under = NULL;
       switch(perspective) {
         case SPOOKY_SVP_X:/* x = 0, yz plane */
-          p_x = cursor->x;
+          /*p_x = cursor->x;
           p_y = i;
           p_z = j;
-          if(p_x > 0) { under = tiles_manager->get_tile(tiles_manager, p_x - 1, p_y, p_z); }
+          if(p_x > 0) { under = tiles_manager->get_tile(tiles_manager, p_x - 1, p_y, p_z); } */
           break;
         case SPOOKY_SVP_Y:/* y = 0, xz plane */
-          p_x = i;
+          /*p_x = i;
           p_z = j;
           p_y = cursor->y;
-          if(p_y > 0) { under = tiles_manager->get_tile(tiles_manager, p_x, p_y - 1, p_z); }
+          if(p_y > 0) { under = tiles_manager->get_tile(tiles_manager, p_x, p_y - 1, p_z); } */
           break;
         case SPOOKY_SVP_Z: /* z = 0, xy plane */
         case SPOOKY_SVP_EOE:
@@ -1037,24 +1037,24 @@ static void spooky_render_landscape(SDL_Renderer * renderer, const spooky_contex
             box->set_draw_style(box, style);
             spooky_gui_pop_draw_color(outline);
           }
-        }
-        spooky_gui_pop_draw_color(tile_rgba);
-      }
 
-      const spooky_tile * active_tile = tiles_manager->get_active_tile(tiles_manager);
-      {
-        /* highlight active tile */
-        if(active_tile && active_tile->meta->type != STT_EMPTY && tile == active_tile) {
-          SDL_Color highlight_color = { .r = 128, .g = 0, .b = 0, .a = 255 };
-          const spooky_gui_rgba_context * highlight = spooky_gui_push_draw_color(renderer, &highlight_color);
+          const spooky_tile * active_tile = tiles_manager->get_active_tile(tiles_manager);
           {
-            spooky_box_draw_style style = box->get_draw_style(box);
-            box->set_draw_style(box, SBDS_OUTLINE);
-            box_base->render(box_base, renderer);
-            box->set_draw_style(box, style);
-            spooky_gui_pop_draw_color(highlight );
+            /* highlight active tile */
+            if(active_tile && tile == active_tile) {
+              SDL_Color highlight_color = { .r = 255, .g = 0, .b = 0, .a = 255 };
+              const spooky_gui_rgba_context * highlight = spooky_gui_push_draw_color(renderer, &highlight_color);
+              {
+                spooky_box_draw_style style = box->get_draw_style(box);
+                box->set_draw_style(box, SBDS_OUTLINE);
+                box_base->render(box_base, renderer);
+                box->set_draw_style(box, style);
+                spooky_gui_pop_draw_color(highlight );
+              }
+            }
           }
         }
+        spooky_gui_pop_draw_color(tile_rgba);
       }
 
       box_base->set_y(box_base, box_base->get_y(box_base) + (int)SPOOKY_TILES_VOXEL_HEIGHT);

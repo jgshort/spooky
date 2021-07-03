@@ -374,6 +374,9 @@ static const spooky_tile * spooky_tiles_get_active_tile(const spooky_tiles_manag
 
 static void spooky_tiles_set_active_tile(const spooky_tiles_manager * self, uint32_t x, uint32_t y, uint32_t z) {
   uint32_t offset = SP_OFFSET(x, y, z);
-  self->data->active_tile = self->data->tiles[offset];
+  spooky_tile * tile = self->data->tiles[offset];
+  if(tile->meta->type != STT_EMPTY) {
+    self->data->active_tile = tile;
+  } else { self->data->active_tile = NULL; }
 }
 
