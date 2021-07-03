@@ -80,6 +80,10 @@ typedef struct spooky_tiles_manager {
   spooky_tile * (*set_empty)(const spooky_tiles_manager * /* self */, uint32_t /* x */, uint32_t /* y */, uint32_t /* z */);
   const spooky_tile * (*get_tiles)(const spooky_tiles_manager * /* self */);
   const spooky_tile * (*get_tile)(const spooky_tiles_manager * /* self */, uint32_t /* x */, uint32_t /* y */, uint32_t /* z */);
+
+  const spooky_tile * (*get_active_tile)(const spooky_tiles_manager * /* self */);
+  void (*set_active_tile)(const spooky_tiles_manager * /* self */, uint32_t /* x */, uint32_t /* y */, uint32_t /* z */);
+
   spooky_tiles_manager_data * data;
 } spooky_tiles_manager;
 

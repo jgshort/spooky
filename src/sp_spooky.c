@@ -532,13 +532,13 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
                 case SDLK_PERIOD: /* FORWARD */
                 case SDLK_COMMA: /* BACK */
                   if(directional_pointer) {
-                    if(sym == SDLK_COMMA) {
+                    if(sym == SDLK_COMMA && (SDL_GetModState() & KMOD_SHIFT) != 0) {
                       if((*directional_pointer) - 1 > *directional_pointer) { *directional_pointer = 0; }
                       else {
                         (*directional_pointer)--;
                       }
                     }
-                    else if(sym == SDLK_PERIOD) {
+                    else if(sym == SDLK_PERIOD && (SDL_GetModState() & KMOD_SHIFT) != 0) {
                       (*directional_pointer)++;
                       if(*directional_pointer >= max_directional_value - 1) { *directional_pointer = max_directional_value - 1; }
                     }
@@ -562,6 +562,10 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
             {
               SDL_Keycode sym = evt.key.keysym.sym;
               switch(sym) {
+                case SDLK_PERIOD:
+                  tiles_manager->set_active_tile(tiles_manager, screen_cursor.x, screen_cursor.y, world_cursor.z);
+                  update_landscape = true;
+                  break;
                 case SDLK_x:
                   context->set_perspective(context, SPOOKY_SVP_X);
                   update_landscape = true;
@@ -1002,6 +1006,7 @@ static void spooky_render_landscape(SDL_Renderer * renderer, const spooky_contex
           break;
       }
       const spooky_tile * tile = tiles_manager->get_tile(tiles_manager, p_x, p_y, p_z);
+
       spooky_tiles_tile_type type = tile->meta->type;
       SDL_Color block_color = { 0 };
       spooky_tiles_get_tile_color(type, &block_color);
@@ -1009,6 +1014,7 @@ static void spooky_render_landscape(SDL_Renderer * renderer, const spooky_contex
       const spooky_gui_rgba_context * tile_rgba = spooky_gui_push_draw_color(renderer, &block_color);
       {
         box_base->render(box_base, renderer);
+
         if(tile->meta->type == STT_EMPTY && under != NULL) {
           /* try to draw the tile under the current tile if it's not empty */
           SDL_Color under_color = { 0 };
@@ -1022,7 +1028,7 @@ static void spooky_render_landscape(SDL_Renderer * renderer, const spooky_contex
         }
 
         {
-          const SDL_Color black = { 0, 0, 0, 255 };
+          SDL_Color black = { 0, 0, 0, 255 };
           const spooky_gui_rgba_context * outline = spooky_gui_push_draw_color(renderer, &black);
           {
             spooky_box_draw_style style = box->get_draw_style(box);
@@ -1034,6 +1040,23 @@ static void spooky_render_landscape(SDL_Renderer * renderer, const spooky_contex
         }
         spooky_gui_pop_draw_color(tile_rgba);
       }
+
+      const spooky_tile * active_tile = tiles_manager->get_active_tile(tiles_manager);
+      {
+        /* highlight active tile */
+        if(active_tile && active_tile->meta->type != STT_EMPTY && tile == active_tile) {
+          SDL_Color highlight_color = { .r = 128, .g = 0, .b = 0, .a = 255 };
+          const spooky_gui_rgba_context * highlight = spooky_gui_push_draw_color(renderer, &highlight_color);
+          {
+            spooky_box_draw_style style = box->get_draw_style(box);
+            box->set_draw_style(box, SBDS_OUTLINE);
+            box_base->render(box_base, renderer);
+            box->set_draw_style(box, style);
+            spooky_gui_pop_draw_color(highlight );
+          }
+        }
+      }
+
       box_base->set_y(box_base, box_base->get_y(box_base) + (int)SPOOKY_TILES_VOXEL_HEIGHT);
     }
 

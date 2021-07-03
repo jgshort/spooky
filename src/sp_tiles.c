@@ -46,12 +46,15 @@ static spooky_tile spooky_tiles_global_empty_tile = {
 };
 
 typedef struct spooky_tiles_manager_data {
+  spooky_tile * active_tile;
+
   spooky_tile * allocated_tiles;
   size_t allocated_tiles_capacity;
   size_t allocated_tiles_len;
 
   spooky_tile ** tiles;
   size_t tiles_len;
+
   bool test_world;
   char padding[7];
 } spooky_tiles_manager_data;
@@ -61,6 +64,8 @@ static spooky_tile * spooky_tiles_manager_set_empty(const spooky_tiles_manager *
 static const spooky_tile * spooky_tiles_manager_create_tile(const spooky_tiles_manager * self, uint32_t x, uint32_t y, uint32_t z, spooky_tiles_tile_type type);
 static const spooky_tile * spooky_tiles_manager_get_tiles(const spooky_tiles_manager * self);
 static const spooky_tile * spooky_tiles_manager_get_tile(const spooky_tiles_manager * self, uint32_t x, uint32_t y, uint32_t z);
+static const spooky_tile * spooky_tiles_get_active_tile(const spooky_tiles_manager * self);
+static void spooky_tiles_set_active_tile(const spooky_tiles_manager * self, uint32_t x, uint32_t y, uint32_t z);
 
 const spooky_tiles_manager * spooky_tiles_manager_alloc() {
   spooky_tiles_manager * self = calloc(1, sizeof * self);
@@ -79,7 +84,8 @@ const spooky_tiles_manager * spooky_tiles_manager_init(spooky_tiles_manager * se
   self->generate_tiles = &spooky_tiles_manager_generate_tiles;
   self->get_tiles = &spooky_tiles_manager_get_tiles;
   self->get_tile = &spooky_tiles_manager_get_tile;
-
+  self->set_active_tile = &spooky_tiles_set_active_tile;
+  self->get_active_tile = &spooky_tiles_get_active_tile;
   self->data = NULL;
   return self;
 }
@@ -105,6 +111,7 @@ const spooky_tiles_manager * spooky_tiles_manager_ctor(const spooky_tiles_manage
   data->allocated_tiles = calloc(data->allocated_tiles_capacity, sizeof * data->allocated_tiles);
   if(!data->allocated_tiles) { abort(); }
 
+  data->active_tile = NULL;
   data->test_world = true;
 
   ((spooky_tiles_manager *)(uintptr_t)self)->data = data;
@@ -360,3 +367,13 @@ static const spooky_tile * spooky_tiles_manager_get_tile(const spooky_tiles_mana
   uint32_t offset = SP_OFFSET(x, y, z);
   return self->data->tiles[offset];
 }
+
+static const spooky_tile * spooky_tiles_get_active_tile(const spooky_tiles_manager * self) {
+  return self->data->active_tile;
+}
+
+static void spooky_tiles_set_active_tile(const spooky_tiles_manager * self, uint32_t x, uint32_t y, uint32_t z) {
+  uint32_t offset = SP_OFFSET(x, y, z);
+  self->data->active_tile = self->data->tiles[offset];
+}
+
