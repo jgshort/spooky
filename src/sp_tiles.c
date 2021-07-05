@@ -275,9 +275,12 @@ static void spooky_tiles_manager_generate_tiles(const spooky_tiles_manager * sel
 
   /* basic biom layout */
   // unsigned int seed = randombytes_uniform(100);
-  for(uint32_t x = SPOOKY_TILES_MAX_TILES_ROW_LEN - 1; x != (uint32_t) - 1; x--) {
-    for(uint32_t y = SPOOKY_TILES_MAX_TILES_COL_LEN - 1; y != (uint32_t) - 1; y--) {
-      for(uint32_t z = SPOOKY_TILES_MAX_TILES_DEPTH_LEN - 1; z != (uint32_t) - 1; z--) {
+  uint32_t x = SPOOKY_TILES_MAX_TILES_ROW_LEN;
+  while(x--) {
+    uint32_t y = SPOOKY_TILES_MAX_TILES_COL_LEN;
+    while(y--) {
+      uint32_t z = SPOOKY_TILES_MAX_TILES_DEPTH_LEN;
+      while(z--) {
         // static const size_t level_ground = MAX_TILES_DEPTH_LEN / 2;
         spooky_tiles_tile_type type = STT_EMPTY;
 
@@ -289,7 +292,7 @@ static void spooky_tiles_manager_generate_tiles(const spooky_tiles_manager * sel
           type = STT_BEDROCK;
           goto create_tile;
         }
-        if(z > SPOOKY_TILES_MAX_TILES_DEPTH_LEN - 7) {
+        if(z > SPOOKY_TILES_MAX_TILES_DEPTH_LEN - 5) {
           static const int max_loops = 5;
 
           /* generate a random type of rock */
@@ -320,10 +323,10 @@ static void spooky_tiles_manager_generate_tiles(const spooky_tiles_manager * sel
               Level 1:  ========
               Level 0: ==========
             */
-            if(z == SPOOKY_TILES_MAX_TILES_DEPTH_LEN - 3 && percentage <= 77) { new_type = STT_BEDROCK; }
-            if(z == SPOOKY_TILES_MAX_TILES_DEPTH_LEN - 4 && percentage <= 33) { new_type = STT_BEDROCK; }
-            if(z == SPOOKY_TILES_MAX_TILES_DEPTH_LEN - 5 && percentage <= 17) { new_type = STT_BEDROCK; }
-            if(z == SPOOKY_TILES_MAX_TILES_DEPTH_LEN - 6 && percentage <=  2) { new_type = STT_BEDROCK; }
+            if(z == SPOOKY_TILES_MAX_TILES_DEPTH_LEN - 2 && percentage <= 77) { new_type = STT_BEDROCK; }
+            if(z == SPOOKY_TILES_MAX_TILES_DEPTH_LEN - 3 && percentage <= 33) { new_type = STT_BEDROCK; }
+            if(z == SPOOKY_TILES_MAX_TILES_DEPTH_LEN - 4 && percentage <= 17) { new_type = STT_BEDROCK; }
+            if(z == SPOOKY_TILES_MAX_TILES_DEPTH_LEN - 5 && percentage <=  2) { new_type = STT_BEDROCK; }
             while(new_type == STT_BEDROCK) {
               /* we only want bedrock if the block below is also bedrock */
               size_t under_offset = SP_OFFSET(x, y, z + 1);
