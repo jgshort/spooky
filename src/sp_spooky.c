@@ -932,7 +932,7 @@ static void spooky_render_landscape(SDL_Renderer * renderer, const spooky_contex
     for(uint32_t j = 0; j < SPOOKY_TILES_MAX_TILES_COL_LEN; j++) {
       uint32_t p_x = i, p_y = j, p_z = cursor->z;
       const spooky_tile * under = NULL;
-      if(p_z > 0) { under = tiles_manager->get_tile(tiles_manager, p_x, p_y, p_z - 1); }
+      if(p_z < SPOOKY_TILES_MAX_TILES_DEPTH_LEN - 1) { under = tiles_manager->get_tile(tiles_manager, p_x, p_y, p_z + 1); }
 
       const spooky_tile * tile = tiles_manager->get_tile(tiles_manager, p_x, p_y, p_z);
 

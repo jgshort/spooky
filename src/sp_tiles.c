@@ -6,10 +6,6 @@
 #include "sp_context.h"
 #include "sp_tiles.h"
 
-static uint32_t SP_OFFSET(uint32_t x, uint32_t y, uint32_t z) {
-  return x + (y * SPOOKY_TILES_MAX_TILES_ROW_LEN) + (z * SPOOKY_TILES_MAX_TILES_ROW_LEN * SPOOKY_TILES_MAX_TILES_COL_LEN);
-}
-
 const uint32_t SPOOKY_TILES_MAX_TILES_ROW_LEN = 64;
 const uint32_t SPOOKY_TILES_MAX_TILES_COL_LEN = 64;
 const uint32_t SPOOKY_TILES_MAX_TILES_DEPTH_LEN = 64;
@@ -17,6 +13,10 @@ const uint32_t SPOOKY_TILES_VOXEL_WIDTH = 16;
 const uint32_t SPOOKY_TILES_VOXEL_HEIGHT = 16;
 
 static const size_t SPOOKY_TILES_ALLOCATED_INCREMENT = 4096;
+
+static uint32_t SP_OFFSET(uint32_t x, uint32_t y, uint32_t z) {
+  return x + (y * SPOOKY_TILES_MAX_TILES_ROW_LEN) + (z * SPOOKY_TILES_MAX_TILES_ROW_LEN * SPOOKY_TILES_MAX_TILES_COL_LEN);
+}
 
 const spooky_tiles_tile_meta spooky_tiles_global_tiles_meta[STT_EOE + 1] = {
   [STT_EMPTY]   = { .type = STT_EMPTY, .unbreakable = true },
@@ -275,19 +275,21 @@ static void spooky_tiles_manager_generate_tiles(const spooky_tiles_manager * sel
 
   /* basic biom layout */
   // unsigned int seed = randombytes_uniform(100);
-  for(uint32_t x = 0; x < SPOOKY_TILES_MAX_TILES_ROW_LEN; ++x) {
-    for(uint32_t y = 0; y < SPOOKY_TILES_MAX_TILES_COL_LEN; ++y) {
-      for(uint32_t z = 0; z < SPOOKY_TILES_MAX_TILES_DEPTH_LEN; ++z) {
+  for(uint32_t x = SPOOKY_TILES_MAX_TILES_ROW_LEN - 1; x != (uint32_t) - 1; x--) {
+    for(uint32_t y = SPOOKY_TILES_MAX_TILES_COL_LEN - 1; y != (uint32_t) - 1; y--) {
+      for(uint32_t z = SPOOKY_TILES_MAX_TILES_DEPTH_LEN - 1; z != (uint32_t) - 1; z--) {
         // static const size_t level_ground = MAX_TILES_DEPTH_LEN / 2;
-
         spooky_tiles_tile_type type = STT_EMPTY;
 
         /* Bedrock is only found on the bottom 4 levels of the ground.
            Bedrock is impassible. */
 
         /* can't go any deeper than this. */
-        if(z == 0 && (type = STT_BEDROCK) == STT_BEDROCK) { goto create_tile; }
-        if(z <= 4) {
+        if(z == SPOOKY_TILES_MAX_TILES_DEPTH_LEN - 1) {
+          type = STT_BEDROCK;
+          goto create_tile;
+        }
+        if(z > SPOOKY_TILES_MAX_TILES_DEPTH_LEN - 7) {
           static const int max_loops = 5;
 
           /* generate a random type of rock */
@@ -318,13 +320,13 @@ static void spooky_tiles_manager_generate_tiles(const spooky_tiles_manager * sel
               Level 1:  ========
               Level 0: ==========
             */
-            if(z == 1 && percentage <= 77) { new_type = STT_BEDROCK; }
-            if(z == 2 && percentage <= 33) { new_type = STT_BEDROCK; }
-            if(z == 3 && percentage <= 17) { new_type = STT_BEDROCK; }
-            if(z == 4 && percentage <=  2) { new_type = STT_BEDROCK; }
+            if(z == SPOOKY_TILES_MAX_TILES_DEPTH_LEN - 3 && percentage <= 77) { new_type = STT_BEDROCK; }
+            if(z == SPOOKY_TILES_MAX_TILES_DEPTH_LEN - 4 && percentage <= 33) { new_type = STT_BEDROCK; }
+            if(z == SPOOKY_TILES_MAX_TILES_DEPTH_LEN - 5 && percentage <= 17) { new_type = STT_BEDROCK; }
+            if(z == SPOOKY_TILES_MAX_TILES_DEPTH_LEN - 6 && percentage <=  2) { new_type = STT_BEDROCK; }
             while(new_type == STT_BEDROCK) {
               /* we only want bedrock if the block below is also bedrock */
-              size_t under_offset = SP_OFFSET(x, y, z - 1);
+              size_t under_offset = SP_OFFSET(x, y, z + 1);
               const spooky_tile * under = self->data->tiles[under_offset];
               if(under->meta->type != STT_BEDROCK) {
                 new_type = randombytes_uniform((uint32_t)STT_METAMORPHIC + 1);
@@ -341,6 +343,8 @@ static void spooky_tiles_manager_generate_tiles(const spooky_tiles_manager * sel
         }
 
 create_tile:
+fprintf(stdout, "%i, %i, %i\n", x, y, z);
+fflush(stdout);
         self->create_tile(self, x, y, z, type);
       }
     }
@@ -446,7 +450,6 @@ static void spooky_tiles_rotate_perspective(const spooky_tiles_manager * self, s
         }
 
         uint32_t offset = SP_OFFSET(new_x, new_y, new_z);
-        fflush(stdout);
         rotated[offset] = self->data->tiles[SP_OFFSET(x, y, z)];
       }
     }
