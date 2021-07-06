@@ -1,7 +1,13 @@
 #include <assert.h>
 #include <stdlib.h>
+#include <stdio.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <errno.h>
 #include <sodium.h>
 
+#include "sp_pak.h"
+#include "sp_z.h"
 #include "sp_gui.h"
 #include "sp_context.h"
 #include "sp_tiles.h"
@@ -74,6 +80,8 @@ static const spooky_tile * spooky_tiles_manager_get_tile(const spooky_tiles_mana
 static const spooky_tile * spooky_tiles_get_active_tile(const spooky_tiles_manager * self);
 static void spooky_tiles_set_active_tile(const spooky_tiles_manager * self, uint32_t x, uint32_t y, uint32_t z);
 static void spooky_tiles_rotate_perspective(const spooky_tiles_manager * self, spooky_view_perspective new_perspective);
+static errno_t spooky_tiles_read_tiles(const spooky_tiles_manager * self);
+static void spooky_tiles_write_tiles(const spooky_tiles_manager * self);
 
 static spooky_view_perspective spooky_tiles_get_perspective(const spooky_tiles_manager * self) {
   return self->data->perspective;
@@ -106,6 +114,8 @@ const spooky_tiles_manager * spooky_tiles_manager_init(spooky_tiles_manager * se
   self->set_perspective = &spooky_tiles_set_perspective;
   self->get_perspective = &spooky_tiles_get_perspective;
   self->rotate_perspective = &spooky_tiles_rotate_perspective;
+  self->write_tiles = &spooky_tiles_write_tiles;
+  self->read_tiles = &spooky_tiles_read_tiles;
 
   self->data = NULL;
   return self;
@@ -168,15 +178,19 @@ void spooky_tiles_manager_release(const spooky_tiles_manager * self) {
   self->free(self->dtor(self));
 }
 
-static spooky_tile * spooky_tiles_manager_set_empty(const spooky_tiles_manager * self, uint32_t x, uint32_t y, uint32_t z) {
-  uint32_t offset = SP_OFFSET(x, y, z);
+static spooky_tile * spooky_tiles_manager_set_empty_by_offset(const spooky_tiles_manager * self, uint32_t offset) {
   self->data->tiles[offset] = &spooky_tiles_global_empty_tile;
   return self->data->tiles[offset];
 }
 
-static const spooky_tile * spooky_tiles_manager_create_tile(const spooky_tiles_manager * self, uint32_t x, uint32_t y, uint32_t z, spooky_tiles_tile_type type) {
+static spooky_tile * spooky_tiles_manager_set_empty(const spooky_tiles_manager * self, uint32_t x, uint32_t y, uint32_t z) {
+  uint32_t offset = SP_OFFSET(x, y, z);
+  return spooky_tiles_manager_set_empty_by_offset(self, offset);
+}
+
+static const spooky_tile * spooky_tiles_manager_create_tile_by_offset(const spooky_tiles_manager * self, uint32_t offset, spooky_tiles_tile_type type) {
   if(type == STT_EMPTY) {
-    return self->set_empty(self, x, y, z);
+    return spooky_tiles_manager_set_empty_by_offset(self, offset);
   } else {
     if(self->data->allocated_tiles_len + 1 > self->data->allocated_tiles_capacity) {
       /* reallocate allocated tiles */
@@ -195,13 +209,13 @@ static const spooky_tile * spooky_tiles_manager_create_tile(const spooky_tiles_m
 
       if(self->data->allocated_tiles_capacity % SPOOKY_TILES_ALLOCATED_INCREMENT == 0) {
         fprintf(stdout, "Voxels to %lu\n", self->data->allocated_tiles_capacity);
+        fflush(stdout);
       }
     }
 
     spooky_tile * new_tile = &(self->data->allocated_tiles[self->data->allocated_tiles_len]);
     self->data->allocated_tiles_len++;
 
-    uint32_t offset = SP_OFFSET(x, y, z);
     assert(type > STT_EMPTY && type < STT_EOE);
     *new_tile = (spooky_tile){
       .meta = &(spooky_tiles_global_tiles_meta[type]),
@@ -215,6 +229,11 @@ static const spooky_tile * spooky_tiles_manager_create_tile(const spooky_tiles_m
 
     return new_tile;
   }
+}
+
+static const spooky_tile * spooky_tiles_manager_create_tile(const spooky_tiles_manager * self, uint32_t x, uint32_t y, uint32_t z, spooky_tiles_tile_type type) {
+  uint32_t offset = SP_OFFSET(x, y, z);
+  return spooky_tiles_manager_create_tile_by_offset(self, offset, type);
 }
 
 const char * spooky_tiles_tile_type_as_string(spooky_tiles_tile_type type) {
@@ -231,6 +250,7 @@ const char * spooky_tiles_tile_type_as_string(spooky_tiles_tile_type type) {
     case STT_TREE: return "tree";
     case STT_SAND: return "sand";
     case STT_LOAM: return "loam";
+    case STT_RLE_MARKER:
     case STT_EOE: /* fall-through */
     default: return "error";
   }
@@ -390,6 +410,7 @@ void spooky_tiles_get_tile_color(spooky_tiles_tile_type type, SDL_Color * color)
     case STT_GRAVEL:
       *color = (SDL_Color){ .r = 44, .g = 33, .b = 24, .a = 255 }; /* Mud color */
       break;
+    case STT_RLE_MARKER:
     case STT_EOE:
     default:
       *color = (SDL_Color){ .r = 255, .g = 0, .b = 0, .a = 255 }; /* Red Error */
@@ -461,4 +482,92 @@ static void spooky_tiles_rotate_perspective(const spooky_tiles_manager * self, s
   free(self->data->rotated_tiles), self->data->rotated_tiles = NULL;
   self->data->rotated_tiles = rotated;
   self->data->perspective = new_perspective;
+}
+
+static errno_t spooky_tiles_read_tiles(const spooky_tiles_manager * self) {
+  (void)self;
+  const char * pak_file = "000001.spdb";
+  FILE * fp = NULL;
+
+  int fd = open(pak_file, O_RDWR | O_EXCL, S_IRUSR | S_IWUSR);
+;
+  if(fd < 0) {
+    return SP_FAILURE;
+  }
+
+  fp = fdopen(fd, "rb");
+  SPOOKY_SET_BINARY_MODE(fp);
+  fseek(fp, 0, SEEK_SET);
+
+  memset(self->data->tiles, 0, self->data->tiles_len * sizeof(void *));
+  for(uint32_t i = 0; i < self->data->tiles_len; i++) {
+    uint32_t type = 0;
+    bool success = spooky_read_uint32(fp, &type);
+    if(success && ((type & STT_RLE_MARKER) == STT_RLE_MARKER)) {
+      /* unpack RLE */
+      uint32_t unpacked_type = (uint32_t)((int)type & ~STT_RLE_MARKER);
+      assert(unpacked_type >= STT_EMPTY && unpacked_type <= STT_TREE);
+      uint32_t rle_count = 0;
+      success = spooky_read_uint32(fp, &rle_count);
+      assert(rle_count >= 5);
+      for(uint32_t j = 0; j <= rle_count; j++) {
+        spooky_tiles_manager_create_tile_by_offset(self, i + j, unpacked_type);
+      }
+      i += rle_count;
+    } else if(success) {
+      assert(type >= STT_EMPTY && type <= STT_TREE);
+      spooky_tiles_manager_create_tile_by_offset(self, i, type);
+    } else {
+      return SP_FAILURE;
+    }
+  }
+
+  memmove(self->data->rotated_tiles, self->data->tiles, self->data->tiles_len * sizeof(void *));
+  return SP_SUCCESS;
+}
+
+static void spooky_tiles_write_tiles(const spooky_tiles_manager * self) {
+
+  const char * pak_file = "000001.spdb";
+  FILE * fp = NULL;
+
+  int fd = open(pak_file, O_CREAT | O_RDWR | O_EXCL, S_IRUSR | S_IWUSR);
+  if(fd < 0) {
+    /* already exists; open it */
+    if(errno == EEXIST) {
+      fd = open(pak_file, O_RDWR | O_EXCL, S_IRUSR | S_IWUSR);
+    } else {
+      abort();
+    }
+  } else {
+    /* doesn't already exist; empty file... populate it */
+  }
+
+  fp = fdopen(fd, "wb+x");
+  SPOOKY_SET_BINARY_MODE(fp);
+  fseek(fp, 0, SEEK_SET);
+
+  for(uint32_t i = 0; i < self->data->tiles_len; i++) {
+    spooky_tile * tile = self->data->tiles[i];
+    uint32_t rle_count = 0;
+    for(uint32_t j = i + 1; j < self->data->tiles_len; j++) {
+      spooky_tile * next_tile = self->data->tiles[j];
+      if(next_tile->meta->type == tile->meta->type) {
+        ++rle_count;
+      } else {
+        i = j - 1;
+        break;
+      }
+    }
+
+    static const uint32_t min_contiguous_types = 5;
+    uint64_t bytes_written = 0;
+    if(rle_count >= min_contiguous_types) {
+      uint32_t rte_marker = (tile->meta->type | STT_RLE_MARKER);
+      spooky_write_uint32(rte_marker, fp, &bytes_written);
+      spooky_write_uint32(rle_count, fp, &bytes_written);
+    } else {
+      spooky_write_uint32(tile->meta->type, fp, &bytes_written);
+    }
+  }
 }

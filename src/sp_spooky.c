@@ -234,7 +234,10 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
 
   const spooky_tiles_manager * tiles_manager = spooky_tiles_manager_acquire();
   tiles_manager = tiles_manager->ctor(tiles_manager, context);
-  tiles_manager->generate_tiles(tiles_manager);
+  if(tiles_manager->read_tiles(tiles_manager) != SP_SUCCESS) {
+    tiles_manager->generate_tiles(tiles_manager);
+    tiles_manager->write_tiles(tiles_manager);
+  }
 
   int64_t now = 0;
   int64_t last_render_time = sp_get_time_in_us();

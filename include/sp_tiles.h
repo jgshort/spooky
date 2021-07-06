@@ -4,31 +4,36 @@
 #define SP_TILES__H
 
 #include <stdbool.h>
+
+#include "sp_error.h"
 #include "sp_gui.h"
 #include "sp_context.h"
 
 typedef enum spooky_tiles_tile_type {
-  STT_EMPTY,
+  STT_EMPTY         = 0,
   /* Impassible */
-  STT_BEDROCK,
+  STT_BEDROCK       = 1 << 1,
 
   /* Rock */
-  STT_IGNEOUS,
-  STT_SEDIMENTARY,
-  STT_METAMORPHIC,
+  STT_IGNEOUS       = 1 << 2,
+  STT_SEDIMENTARY   = 1 << 3,
+  STT_METAMORPHIC   = 1 << 4,
 
   /* Dirt */
-  STT_SAND,
-  STT_SILT,
-  STT_CLAY,
-  STT_LOAM,
-  STT_GRAVEL,
+  STT_SAND          = 1 << 5,
+  STT_SILT          = 1 << 6,
+  STT_CLAY          = 1 << 7,
+  STT_LOAM          = 1 << 8,
+  STT_GRAVEL        = 1 << 9,
 
   /* Aqua */
-  STT_WATER,
+  STT_WATER         = 1 << 10,
 
   /* Ground */
-  STT_TREE,
+  STT_TREE          = 1 << 11,
+
+  STT_RLE_MARKER    = 1 << 20,
+
   STT_EOE
 } spooky_tiles_tile_type;
 
@@ -88,6 +93,9 @@ typedef struct spooky_tiles_manager {
   spooky_view_perspective (*get_perspective)(const spooky_tiles_manager * /* self */);
   void (*set_perspective)(const spooky_tiles_manager * /* self */, spooky_view_perspective /* perspective */);
   void (*rotate_perspective)(const spooky_tiles_manager * /* self */, spooky_view_perspective /* new_perspective */);
+
+  errno_t (*read_tiles)(const spooky_tiles_manager * /* self */);
+  void (*write_tiles)(const spooky_tiles_manager * /* self */);
 
   spooky_tiles_manager_data * data;
 } spooky_tiles_manager;

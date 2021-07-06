@@ -125,7 +125,6 @@ static bool spooky_write_uint8(uint8_t value, FILE * fp, uint64_t * content_len)
 static bool spooky_write_int8(int8_t value, FILE * fp, uint64_t * content_len);
 static bool spooky_write_uint16(uint16_t value, FILE * fp, uint64_t * content_len);
 static bool spooky_write_int16(int16_t value, FILE * fp, uint64_t * content_len);
-static bool spooky_write_uint32(uint32_t value, FILE * fp, uint64_t * content_len);
 static bool spooky_write_int32(int32_t value, FILE * fp, uint64_t * content_len);
 static bool spooky_write_uint64(uint64_t value, FILE * fp, uint64_t * content_len);
 static bool spooky_write_int64(int64_t value, FILE * fp, uint64_t * content_len);
@@ -147,8 +146,6 @@ static bool spooky_read_char(FILE * fp, char * value);
 static bool spooky_read_uint8(FILE * fp, uint8_t * value);
 static bool spooky_read_int8(FILE * fp, int8_t * value);
 static bool spooky_read_uint16(FILE * fp, uint16_t * value);
-static bool spooky_read_int16(FILE * fp, int16_t * value);
-static bool spooky_read_uint32(FILE * fp, uint32_t * value);
 static bool spooky_read_int32(FILE * fp, int32_t * value);
 static bool spooky_read_uint64(FILE * fp, uint64_t * value);
 static bool spooky_read_int64(FILE * fp, int64_t * value);
@@ -539,7 +536,7 @@ static bool spooky_write_int16(int16_t value, FILE * fp, uint64_t * content_len)
   return spooky_write_raw(bytes, sizeof value, fp);
 }
 
-static bool spooky_write_uint32(uint32_t value, FILE * fp, uint64_t * content_len) {
+bool spooky_write_uint32(uint32_t value, FILE * fp, uint64_t * content_len) {
   if(content_len != NULL) { *content_len += sizeof value; }
   uint16_t lo = value & 0xffff;
   uint16_t hi = (uint16_t)((value >> 16) & 0xffff);
@@ -756,7 +753,7 @@ static bool spooky_read_int16(FILE * fp, int16_t * value) {
   return ferror(fp) == 0;
 }
 
-static bool spooky_read_uint32(FILE * fp, uint32_t * value) {
+bool spooky_read_uint32(FILE * fp, uint32_t * value) {
 	if(feof(fp) != 0) return false;
 
   uint8_t bytes[sizeof(uint32_t)] = { 0 } ;
