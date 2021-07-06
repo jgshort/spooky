@@ -58,10 +58,12 @@ typedef struct spooky_tiles_manager_data {
   spooky_tile ** rotated_tiles; /* tiles rotated around an axis */
   size_t tiles_len;
 
+  uint32_t viewport_offset;
+
   spooky_view_perspective perspective;
 
   bool test_world;
-  char padding[3];
+  char padding[7];
 } spooky_tiles_manager_data;
 
 static void spooky_tiles_manager_generate_tiles(const spooky_tiles_manager * self);
@@ -134,6 +136,7 @@ const spooky_tiles_manager * spooky_tiles_manager_ctor(const spooky_tiles_manage
   data->context = context;
   data->active_tile = NULL;
   data->test_world = false;
+  data->viewport_offset = 0;
 
   ((spooky_tiles_manager *)(uintptr_t)self)->data = data;
 
@@ -346,8 +349,6 @@ static void spooky_tiles_manager_generate_tiles(const spooky_tiles_manager * sel
         }
 
 create_tile:
-fprintf(stdout, "%i, %i, %i\n", x, y, z);
-fflush(stdout);
         self->create_tile(self, x, y, z, type);
       }
     }
