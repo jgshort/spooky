@@ -352,7 +352,7 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
   double interpolation = 0.0;
   int seconds_to_save = 0;
 
-  spooky_vector screen_cursor = { .x = 0, .y = 0, .z = 0 };
+  spooky_vector screen_cursor = { .x = 0, .y = 0, .z = SPOOKY_TILES_MAX_TILES_DEPTH_LEN - 1 };
 
   const spooky_base * box = box0->as_base(box0);
   while(spooky_context_get_is_running(context)) {

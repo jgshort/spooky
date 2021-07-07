@@ -503,17 +503,18 @@ static errno_t spooky_tiles_read_tiles(const spooky_tiles_manager * self) {
   for(uint32_t i = 0; i < self->data->tiles_len; i++) {
     uint32_t type = 0;
     bool success = spooky_read_uint32(fp, &type);
+    assert(success);
     if(success && ((type & STT_RLE_MARKER) == STT_RLE_MARKER)) {
       /* unpack RLE */
       uint32_t unpacked_type = (uint32_t)((int)type & ~STT_RLE_MARKER);
       assert(unpacked_type >= STT_EMPTY && unpacked_type <= STT_TREE);
       uint32_t rle_count = 0;
       success = spooky_read_uint32(fp, &rle_count);
-      assert(rle_count >= 5);
-      for(uint32_t j = 0; j <= rle_count; j++) {
+      assert(success && rle_count >= 5);
+      for(uint32_t j = 0; j < rle_count; j++) {
         spooky_tiles_manager_create_tile_by_offset(self, i + j, unpacked_type);
       }
-      i += rle_count;
+      i += rle_count - 1;
     } else if(success) {
       assert(type >= STT_EMPTY && type <= STT_TREE);
       spooky_tiles_manager_create_tile_by_offset(self, i, type);
@@ -555,17 +556,17 @@ static void spooky_tiles_write_tiles(const spooky_tiles_manager * self) {
       if(next_tile->meta->type == tile->meta->type) {
         ++rle_count;
       } else {
-        i = j - 1;
         break;
       }
     }
 
-    static const uint32_t min_contiguous_types = 5;
     uint64_t bytes_written = 0;
+    static const uint32_t min_contiguous_types = 5;
     if(rle_count >= min_contiguous_types) {
       uint32_t rte_marker = (tile->meta->type | STT_RLE_MARKER);
       spooky_write_uint32(rte_marker, fp, &bytes_written);
       spooky_write_uint32(rle_count, fp, &bytes_written);
+      i += rle_count - 1;
     } else {
       spooky_write_uint32(tile->meta->type, fp, &bytes_written);
     }
