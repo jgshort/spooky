@@ -447,10 +447,6 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
               uint32_t max_directional_value = 0, max_left_right_value = 0, max_up_down_value = 0;
               SDL_Keycode sym = evt.key.keysym.sym;
               switch(sym) {
-                //case SDLK_h:
-                //case SDLK_l:
-                //case SDLK_k:
-                //case SDLK_j:
                 case SDLK_COMMA:
                 case SDLK_PERIOD:
                   update_landscape = true;
@@ -584,22 +580,23 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
                 case SDLK_PERIOD:
                   if((SDL_GetModState() & KMOD_SHIFT) == 0) {
                     tiles_manager->set_active_tile(tiles_manager, screen_cursor.x, screen_cursor.y, screen_cursor.z);
+                    fprintf(stdout, "Selected tile at %i, %i, %i\n", screen_cursor.x, screen_cursor.y, screen_cursor.z);
                   }
                   update_landscape = true;
                   break;
                 case SDLK_x:
-                  tiles_manager->rotate_perspective(tiles_manager, SPOOKY_SVP_X);
-                  update_landscape = true;
-                  break;
                 case SDLK_y:
-                  tiles_manager->rotate_perspective(tiles_manager, SPOOKY_SVP_Y);
-                  update_landscape = true;
-                  break;
-                case SDLK_EQUALS:
                 case SDLK_z:
-                  /* Switch perspective; default is Z (top down) */
-                  tiles_manager->rotate_perspective(tiles_manager, SPOOKY_SVP_Z);
-                  update_landscape = true;
+                case SDLK_EQUALS:
+                  {
+                    spooky_view_perspective perspective =
+                      sym == SDLK_x ? SPOOKY_SVP_X
+                        : sym == SDLK_y ? SPOOKY_SVP_Y
+                        : SPOOKY_SVP_Z
+                        ;
+                    tiles_manager->rotate_perspective(tiles_manager, perspective);
+                    update_landscape = true;
+                  }
                   break;
                 case SDLK_F12: /* fullscreen window */
                   {
@@ -969,9 +966,30 @@ static void spooky_render_landscape(SDL_Renderer * renderer, const spooky_contex
   while(i--) {
     uint32_t j = SPOOKY_TILES_MAX_TILES_COL_LEN;
     while(j--) {
-      uint32_t p_x = i, p_y = j, p_z = cursor->z;
       const spooky_tile * under = NULL;
-      if(p_z < SPOOKY_TILES_MAX_TILES_DEPTH_LEN - 1) { under = tiles_manager->get_tile(tiles_manager, p_x, p_y, p_z + 1); }
+      uint32_t p_x, p_y, p_z;
+      switch(tiles_manager->get_perspective(tiles_manager)) {
+        case SPOOKY_SVP_X:
+          p_x = cursor->x;
+          p_y = i;
+          p_z = j;
+          if(p_x > 0 && p_x < SPOOKY_TILES_MAX_TILES_ROW_LEN - 1) { under = tiles_manager->get_tile(tiles_manager, p_x - 1, p_y, p_z); }
+          break;
+        case SPOOKY_SVP_Y:
+          p_x = i;
+          p_y = cursor->y;
+          p_z = j;
+          if(p_y > 0 && p_y < SPOOKY_TILES_MAX_TILES_COL_LEN - 1) { under = tiles_manager->get_tile(tiles_manager, p_x, p_y - 1, p_z); }
+          break;
+        case SPOOKY_SVP_Z:
+        case SPOOKY_SVP_EOE:
+        default:
+          p_x = i;
+          p_y = j;
+          p_z = cursor->z;
+          if(p_z > 0 && p_z < SPOOKY_TILES_MAX_TILES_DEPTH_LEN - 1) { under = tiles_manager->get_tile(tiles_manager, p_x, p_y, p_z + 1); }
+          break;
+      }
 
       const spooky_tile * tile = tiles_manager->get_tile(tiles_manager, p_x, p_y, p_z);
 
@@ -1010,14 +1028,15 @@ static void spooky_render_landscape(SDL_Renderer * renderer, const spooky_contex
           {
             /* highlight active tile */
             if(active_tile && tile == active_tile) {
+              fprintf(stdout, "here we are\n");
               SDL_Color highlight_color = { .r = 255, .g = 0, .b = 0, .a = 255 };
               const spooky_gui_rgba_context * highlight = spooky_gui_push_draw_color(renderer, &highlight_color);
               {
                 spooky_box_draw_style style = box->get_draw_style(box);
-                box->set_draw_style(box, SBDS_OUTLINE);
+                box->set_draw_style(box, SBDS_FILL);
                 box_base->render(box_base, renderer);
                 box->set_draw_style(box, style);
-                spooky_gui_pop_draw_color(highlight );
+                spooky_gui_pop_draw_color(highlight);
               }
             }
           }

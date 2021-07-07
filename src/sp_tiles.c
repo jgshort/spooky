@@ -378,7 +378,7 @@ create_tile:
     }
   }
 
-  memmove(self->data->rotated_tiles, self->data->tiles, self->data->tiles_len * sizeof(void *));
+  self->rotate_perspective(self, self->data->perspective);
 
   /* Diagnostics */
   /* fprintf(stdout, "%lu total voxels, %lu allocated voxels\n", self->data->tiles_len, self->data->allocated_tiles_len); */
@@ -441,13 +441,12 @@ static void spooky_tiles_set_active_tile(const spooky_tiles_manager * self, uint
   spooky_tile * tile = self->data->rotated_tiles[offset];
   if(tile->meta->type != STT_EMPTY) {
     self->data->active_tile = tile;
-  } else { self->data->active_tile = NULL; }
+  } else {
+    self->data->active_tile = NULL;
+  }
 }
 
 static void spooky_tiles_rotate_perspective(const spooky_tiles_manager * self, spooky_view_perspective new_perspective) {
-  spooky_view_perspective old_perspective = self->data->perspective;
-  if(old_perspective == new_perspective) { return; }
-
   spooky_tile ** rotated = calloc(self->data->tiles_len, sizeof(void *));
   if(!rotated) { abort(); }
 
@@ -499,8 +498,6 @@ static errno_t spooky_tiles_read_tiles(const spooky_tiles_manager * self) {
 
   if((fp = spooky_io_open_binary_file_for_reading(pak_file, &fd)) == NULL) { goto err0; }
 
-  // TODO: Do we need to clear presently allocated tiles? This will grow with each load */
-  // memset(self->data->allocated_tiles, 0, self->data->allocated_tiles_len * sizeof * self->data->allocated_tiles_len);
   size_t tiles_len = self->data->tiles_len;
   for(uint32_t i = 0; i < tiles_len; i++) {
     uint32_t type = 0;
@@ -525,7 +522,7 @@ static errno_t spooky_tiles_read_tiles(const spooky_tiles_manager * self) {
     }
   }
 
-  memmove(self->data->rotated_tiles, self->data->tiles, self->data->tiles_len * sizeof(void *));
+  self->rotate_perspective(self, self->data->perspective);
 
   fclose(fp);
   free(pak_file), pak_file = NULL;
@@ -576,9 +573,6 @@ static errno_t spooky_tiles_write_tiles(const spooky_tiles_manager * self) {
   fclose(fp);
   free(pak_file), pak_file = NULL;
   return SP_SUCCESS;
-
-// err1:
-// fclose(fp);
 
 err0:
   free(pak_file), pak_file = NULL;
