@@ -334,7 +334,7 @@ errno_t spooky_init_context(spooky_context * context, FILE * fp) {
   global_data.scaled_window_size.w = renderer_w;
   global_data.scaled_window_size.h = renderer_h;
 
-  SDL_RenderSetViewport(renderer, &global_data.scaled_window_size);
+  //SDL_RenderSetViewport(renderer, &global_data.scaled_window_size);
   const SDL_Color c = { .r = 1, .g = 20, .b = 36, .a = 255 };
   const spooky_gui_rgba_context  * rgba = spooky_gui_push_draw_color(renderer, &c);
   {
@@ -461,7 +461,7 @@ void spooky_release_context(spooky_context * context) {
     spooky_context_data * data = context->data;
 
     spooky_hash_table_release(data->hash, &spooky_index_item_free_item);
-
+ 
     if(data->canvas) {
       SDL_ClearError();
       SDL_DestroyTexture(data->canvas), data->canvas = NULL;
@@ -500,6 +500,10 @@ void spooky_release_context(spooky_context * context) {
       if(spooky_is_sdl_error(error)) {
         fprintf(stderr, "Non-fatal error: Unable to destroy window, '%s'.\n", error);
       }
+    }
+
+    if(data->config) {
+      data->config->free(data->config);
     }
   }
 }

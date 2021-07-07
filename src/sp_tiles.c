@@ -8,6 +8,7 @@
 
 #include "sp_pak.h"
 #include "sp_z.h"
+#include "sp_io.h"
 #include "sp_gui.h"
 #include "sp_context.h"
 #include "sp_tiles.h"
@@ -81,7 +82,7 @@ static const spooky_tile * spooky_tiles_get_active_tile(const spooky_tiles_manag
 static void spooky_tiles_set_active_tile(const spooky_tiles_manager * self, uint32_t x, uint32_t y, uint32_t z);
 static void spooky_tiles_rotate_perspective(const spooky_tiles_manager * self, spooky_view_perspective new_perspective);
 static errno_t spooky_tiles_read_tiles(const spooky_tiles_manager * self);
-static void spooky_tiles_write_tiles(const spooky_tiles_manager * self);
+static errno_t spooky_tiles_write_tiles(const spooky_tiles_manager * self);
 
 static spooky_view_perspective spooky_tiles_get_perspective(const spooky_tiles_manager * self) {
   return self->data->perspective;
@@ -207,10 +208,13 @@ static const spooky_tile * spooky_tiles_manager_create_tile_by_offset(const spoo
 
       self->data->allocated_tiles = temp;
 
+      /*
+      Diagnostics:
       if(self->data->allocated_tiles_capacity % SPOOKY_TILES_ALLOCATED_INCREMENT == 0) {
         fprintf(stdout, "Voxels to %lu\n", self->data->allocated_tiles_capacity);
         fflush(stdout);
       }
+      */
     }
 
     spooky_tile * new_tile = &(self->data->allocated_tiles[self->data->allocated_tiles_len]);
@@ -376,7 +380,8 @@ create_tile:
 
   memmove(self->data->rotated_tiles, self->data->tiles, self->data->tiles_len * sizeof(void *));
 
-  fprintf(stdout, "%lu total voxels, %lu allocated voxels\n", self->data->tiles_len, self->data->allocated_tiles_len);
+  /* Diagnostics */
+  /* fprintf(stdout, "%lu total voxels, %lu allocated voxels\n", self->data->tiles_len, self->data->allocated_tiles_len); */
 }
 
 void spooky_tiles_get_tile_color(spooky_tiles_tile_type type, SDL_Color * color) {
@@ -485,23 +490,19 @@ static void spooky_tiles_rotate_perspective(const spooky_tiles_manager * self, s
 }
 
 static errno_t spooky_tiles_read_tiles(const spooky_tiles_manager * self) {
-  (void)self;
-  const char * pak_file = "000001.spdb";
+  const spooky_config * config = self->data->context->get_config(self->data->context);
+  const char * data_path = config->get_data_path(config);
+
   FILE * fp = NULL;
+  int fd = 0;
+  char * pak_file = spooky_io_alloc_concat_path(data_path, "/000001.spdb");
 
-  int fd = open(pak_file, O_RDWR | O_EXCL, S_IRUSR | S_IWUSR);
-
-  if(fd < 0) {
-    return SP_FAILURE;
-  }
-
-  fp = fdopen(fd, "rb");
-  SPOOKY_SET_BINARY_MODE(fp);
-  fseek(fp, 0, SEEK_SET);
+  if((fp = spooky_io_open_binary_file_for_reading(pak_file, &fd)) == NULL) { goto err0; }
 
   // TODO: Do we need to clear presently allocated tiles? This will grow with each load */
   // memset(self->data->allocated_tiles, 0, self->data->allocated_tiles_len * sizeof * self->data->allocated_tiles_len);
-  for(uint32_t i = 0; i < self->data->tiles_len; i++) {
+  size_t tiles_len = self->data->tiles_len;
+  for(uint32_t i = 0; i < tiles_len; i++) {
     uint32_t type = 0;
     bool success = spooky_read_uint32(fp, &type);
     assert(success);
@@ -520,56 +521,66 @@ static errno_t spooky_tiles_read_tiles(const spooky_tiles_manager * self) {
       assert(type >= STT_EMPTY && type <= STT_TREE);
       spooky_tiles_manager_create_tile_by_offset(self, i, type);
     } else {
-      return SP_FAILURE;
+      goto err1;
     }
   }
 
   memmove(self->data->rotated_tiles, self->data->tiles, self->data->tiles_len * sizeof(void *));
+
+  fclose(fp);
+  free(pak_file), pak_file = NULL;
+
   return SP_SUCCESS;
+
+err1:
+  fclose(fp);
+
+err0:
+  free(pak_file), pak_file = NULL;
+  return SP_FAILURE;
 }
 
-static void spooky_tiles_write_tiles(const spooky_tiles_manager * self) {
+static errno_t spooky_tiles_write_tiles(const spooky_tiles_manager * self) {
+  const spooky_config * config = self->data->context->get_config(self->data->context);
+  const char * data_path = config->get_data_path(config);
 
-  const char * pak_file = "000001.spdb";
+  int fd = -1;
+  char * pak_file = spooky_io_alloc_concat_path(data_path, "/000001.spdb");
   FILE * fp = NULL;
+  if((fp = spooky_io_open_or_create_binary_file_for_writing(pak_file, &fd)) == NULL) { goto err0; };
 
-  int fd = open(pak_file, O_CREAT | O_RDWR | O_EXCL, S_IRUSR | S_IWUSR);
-  if(fd < 0) {
-    /* already exists; open it */
-    if(errno == EEXIST) {
-      fd = open(pak_file, O_RDWR | O_EXCL, S_IRUSR | S_IWUSR);
-    } else {
-      abort();
-    }
-  } else {
-    /* doesn't already exist; empty file... populate it */
-  }
-
-  fp = fdopen(fd, "wb+x");
-  SPOOKY_SET_BINARY_MODE(fp);
-  fseek(fp, 0, SEEK_SET);
-
-  for(uint32_t i = 0; i < self->data->tiles_len; i++) {
-    spooky_tile * tile = self->data->tiles[i];
+  spooky_tiles_manager_data * data = self->data;
+  size_t tiles_len = data->tiles_len;
+  for(uint32_t i = 0; i < tiles_len; i++) {
+    spooky_tile * tile = data->tiles[i];
+    const spooky_tiles_tile_meta * meta = tile->meta;
     uint32_t rle_count = 0;
-    for(uint32_t j = i + 1; j < self->data->tiles_len; j++) {
-      spooky_tile * next_tile = self->data->tiles[j];
-      if(next_tile->meta->type == tile->meta->type) {
-        ++rle_count;
-      } else {
-        break;
-      }
+    for(uint32_t j = i + 1; j < tiles_len; j++) {
+      spooky_tile * next_tile = data->tiles[j];
+      if(next_tile->meta->type != meta->type) { break; }
+      ++rle_count;
     }
 
     uint64_t bytes_written = 0;
     static const uint32_t min_contiguous_types = 5;
     if(rle_count >= min_contiguous_types) {
-      uint32_t rte_marker = (tile->meta->type | STT_RLE_MARKER);
+      uint32_t rte_marker = (meta->type | STT_RLE_MARKER);
       spooky_write_uint32(rte_marker, fp, &bytes_written);
       spooky_write_uint32(rle_count, fp, &bytes_written);
       i += rle_count - 1;
     } else {
-      spooky_write_uint32(tile->meta->type, fp, &bytes_written);
+      spooky_write_uint32(meta->type, fp, &bytes_written);
     }
   }
+
+  fclose(fp);
+  free(pak_file), pak_file = NULL;
+  return SP_SUCCESS;
+
+// err1:
+// fclose(fp);
+
+err0:
+  free(pak_file), pak_file = NULL;
+  return SP_FAILURE;
 }

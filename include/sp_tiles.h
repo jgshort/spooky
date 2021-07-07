@@ -95,7 +95,7 @@ typedef struct spooky_tiles_manager {
   void (*rotate_perspective)(const spooky_tiles_manager * /* self */, spooky_view_perspective /* new_perspective */);
 
   errno_t (*read_tiles)(const spooky_tiles_manager * /* self */);
-  void (*write_tiles)(const spooky_tiles_manager * /* self */);
+  errno_t (*write_tiles)(const spooky_tiles_manager * /* self */);
 
   spooky_tiles_manager_data * data;
 } spooky_tiles_manager;

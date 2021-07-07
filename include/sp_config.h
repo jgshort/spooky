@@ -20,7 +20,7 @@ typedef struct spooky_config {
   int (*get_window_height)(const spooky_config * /* self */);
   int (*get_canvas_width)(const spooky_config * /* self */);
   int (*get_canvas_height)(const spooky_config * /* self */);
-
+  const char * (*get_data_path)(const spooky_config * /* self */);
 
   spooky_config_data * data;
 } spooky_config;

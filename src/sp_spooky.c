@@ -236,7 +236,9 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
   tiles_manager = tiles_manager->ctor(tiles_manager, context);
   if(tiles_manager->read_tiles(tiles_manager) != SP_SUCCESS) {
     tiles_manager->generate_tiles(tiles_manager);
-    tiles_manager->write_tiles(tiles_manager);
+    if(tiles_manager->write_tiles(tiles_manager) != SP_SUCCESS) {
+      fprintf(stderr, "Unable to persist world :(\n");
+    }
   }
 
   int64_t now = 0;
@@ -337,17 +339,30 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
 
   const spooky_config * config = context->get_config(context);
 
+  static const int SPOOKY_VISIBLE_VOXELS_WIDTH = (2 * 26);
+  static const int SPOOKY_VISIBLE_VOXELS_HEIGHT = (2 * 16);
+
   SDL_ClearError();
   SDL_Texture * landscape = SDL_CreateTexture(renderer
       , SDL_GetWindowPixelFormat(window)
       , SDL_TEXTUREACCESS_TARGET
-      , config->get_canvas_width(config)
-      , config->get_canvas_height(config)
+      , ((int)SPOOKY_TILES_VOXEL_WIDTH * SPOOKY_VISIBLE_VOXELS_WIDTH)
+      , ((int)SPOOKY_TILES_VOXEL_HEIGHT * SPOOKY_VISIBLE_VOXELS_HEIGHT)
       );
   if(!landscape || spooky_is_sdl_error(SDL_GetError())) { abort(); }
   bool update_landscape = true;
 
+  SDL_ClearError();
+  SDL_Texture * info = SDL_CreateTexture(renderer
+      , SDL_GetWindowPixelFormat(window)
+      , SDL_TEXTUREACCESS_TARGET
+      , config->get_window_width(config)
+      , config->get_window_height(config) - ((int)SPOOKY_TILES_VOXEL_HEIGHT * SPOOKY_VISIBLE_VOXELS_HEIGHT)
+      );
+  if(!info || spooky_is_sdl_error(SDL_GetError())) { abort(); }
+
   log->prepend(log, "Logging enabled\n", SLS_INFO);
+
   int x_dir = 30, y_dir = 30;
   double interpolation = 0.0;
   int seconds_to_save = 0;
@@ -682,14 +697,22 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
     }
 
     SDL_Rect landscape_rect = {
-      .x = 0,
-      .y = 0,
-      .w = config->get_canvas_width(config),
-      .h = config->get_canvas_height(config)
+      .x = 1,
+      .y = 1,
+      .w = ((int)SPOOKY_TILES_VOXEL_WIDTH * SPOOKY_VISIBLE_VOXELS_WIDTH),
+      .h = ((int)SPOOKY_TILES_VOXEL_HEIGHT * SPOOKY_VISIBLE_VOXELS_HEIGHT)
     };
-    //context->translate_rect(context, &landscape_rect);
+
     SDL_RenderCopy(renderer, landscape, NULL, &landscape_rect);
 
+    {
+      SDL_Color outline_color = { .r = 255, .g = 255, .b = 0, .a = 255 };
+      const spooky_gui_rgba_context * outline_rgba = spooky_gui_push_draw_color(renderer, &outline_color);
+      {
+        SDL_RenderDrawRect(renderer, &landscape_rect);
+        spooky_gui_pop_draw_color(outline_rgba);
+      }
+    }
     const SDL_Color cursor_color = { 255, 0, 255, 255};
     const spooky_gui_rgba_context * cursor_rgba = spooky_gui_push_draw_color(renderer, &cursor_color);
     {
@@ -714,6 +737,21 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
       spooky_gui_pop_draw_color(cursor_rgba);
     }
 
+    SDL_Rect info_rect = {
+      .x = 1,
+      .y = landscape_rect.h,
+      .w = config->get_window_width(config) - 1,
+      .h = config->get_window_height(config) - landscape_rect.h
+    };
+    SDL_RenderCopy(renderer, info, NULL, &info_rect);
+    {
+      SDL_Color outline_color = { .r = 255, .g = 255, .b = 0, .a = 255 };
+      const spooky_gui_rgba_context * outline_rgba = spooky_gui_push_draw_color(renderer, &outline_color);
+      {
+        SDL_RenderDrawRect(renderer, &info_rect);
+        spooky_gui_pop_draw_color(outline_rgba);
+      }
+    }
     /* render bases */
     const spooky_base ** render_iter = first;
     do {
@@ -744,15 +782,11 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
     }
     SDL_SetRenderTarget(renderer, NULL);
 
-    // TODO: Center canvas on window.
-    float renderer_scale = context->get_renderer_to_window_scale_factor(context);
     int canvas_width = config->get_canvas_width(config);
     int canvas_height = config->get_canvas_height(config);
-    int window_width = (int)floor((float)config->get_window_width(config) / renderer_scale);
-    int window_height = (int)floor((float)config->get_window_height(config) / renderer_scale);
     SDL_Rect center_rect = {
-      .x = (window_width / 2),
-      .y = (window_height / 2),
+      .x = 1,
+      .y = 1,
       .w = canvas_width,
       .h = canvas_height
     };

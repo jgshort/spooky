@@ -7,6 +7,12 @@
 extern "C" {
 #endif
 
+char * spooky_io_alloc_config_path();
+char * spooky_io_alloc_concat_path(char const * /* root_path */, char const * /* path */);
+void spooky_io_ensure_path(const char * /* path */, mode_t /* mode */);
+
+FILE * spooky_io_open_binary_file_for_reading(const char * /* path */, int * /* fd_out */);
+FILE * spooky_io_open_or_create_binary_file_for_writing(const char * /* path */, int * /* fd_out */);
 
 #ifdef __cplusplus
 }
