@@ -490,7 +490,7 @@ static errno_t spooky_tiles_read_tiles(const spooky_tiles_manager * self) {
   FILE * fp = NULL;
 
   int fd = open(pak_file, O_RDWR | O_EXCL, S_IRUSR | S_IWUSR);
-;
+
   if(fd < 0) {
     return SP_FAILURE;
   }
@@ -499,7 +499,8 @@ static errno_t spooky_tiles_read_tiles(const spooky_tiles_manager * self) {
   SPOOKY_SET_BINARY_MODE(fp);
   fseek(fp, 0, SEEK_SET);
 
-  memset(self->data->tiles, 0, self->data->tiles_len * sizeof(void *));
+  // TODO: Do we need to clear presently allocated tiles? This will grow with each load */
+  // memset(self->data->allocated_tiles, 0, self->data->allocated_tiles_len * sizeof * self->data->allocated_tiles_len);
   for(uint32_t i = 0; i < self->data->tiles_len; i++) {
     uint32_t type = 0;
     bool success = spooky_read_uint32(fp, &type);
