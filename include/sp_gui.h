@@ -51,6 +51,9 @@ typedef enum spooky_view_perspective {
   SPOOKY_SVP_EOE
 } spooky_view_perspective;
 
+void spooky_gui_color_lighten(SDL_Color * /* color */, float /* luminosity */);
+void spooky_gui_color_darken(SDL_Color * /* color */, int /* percent */);
+
 #ifdef __cplusplus
 }
 #endif

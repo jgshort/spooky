@@ -3,6 +3,7 @@
 #include <stdlib.h>
 
 #include "sp_gui.h"
+#include "sp_math.h"
 
 const bool spooky_gui_is_fullscreen = false;
 const float spooky_gui_canvas_scale_factor = 1.2f;
@@ -128,4 +129,16 @@ void spooky_gui_pop_draw_color(const spooky_gui_rgba_context * context) {
 
   spooky_gui_next_draw_context--;
   if(spooky_gui_next_draw_context < 1) { spooky_gui_next_draw_context = 0; }
+}
+
+void spooky_gui_color_lighten(SDL_Color * color, float luminosity) {
+  color->r = (uint8_t)(spooky_int_min(spooky_int_max(0, (int)((float)color->r + (luminosity * 255.f))), 255));
+	color->g = (uint8_t)(spooky_int_min(spooky_int_max(0, (int)((float)color->g + (luminosity * 255.f))), 255));
+	color->b = (uint8_t)(spooky_int_min(spooky_int_max(0, (int)((float)color->b + (luminosity * 255.f))), 255));
+}
+
+void spooky_gui_color_darken(SDL_Color * color, int percent) {
+  color->r = (uint8_t)(color->r - (int)((color->r * percent) / 100));
+  color->g = (uint8_t)(color->g - (int)((color->g * percent) / 100));
+  color->b = (uint8_t)(color->b - (int)((color->b * percent) / 100));
 }

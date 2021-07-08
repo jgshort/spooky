@@ -542,24 +542,24 @@ static void spooky_tiles_rotate_perspective(const spooky_tiles_manager * self, s
         switch(new_perspective) {
           case SPOOKY_SVP_X:
             new_x = x;
-            new_y = (uint32_t)(abs((int)floor(((float)y * cos_theta) - ((float)z * sin_theta))));
-            new_z = (uint32_t)(abs((int)floor(((float)y * sin_theta) + ((float)z * cos_theta))));
+            new_y = (uint32_t)(/*abs*/((int)floor(((float)y * cos_theta) - ((float)z * sin_theta))));
+            new_z = (uint32_t)(((int)floor(((float)y * sin_theta) + ((float)z * cos_theta))));
             break;
           case SPOOKY_SVP_Y:
-            new_x = (uint32_t)(abs((int)floor(((float)x * cos_theta) + ((float)z * sin_theta))));
+            new_x = (uint32_t)(((int)floor(((float)x * cos_theta) + ((float)z * sin_theta))));
             new_y = y;
-            new_z = (uint32_t)(abs((int)floor(((float)z * cos_theta) - ((float)x * sin_theta))));
+            new_z = (uint32_t)(((int)floor(((float)z * cos_theta) - ((float)x * sin_theta))));
             break;
           case SPOOKY_SVP_Z:
           case SPOOKY_SVP_EOE:
           default:
-            new_x = (uint32_t)(abs((int)floor(((float)x * cos_theta) - ((float)y * sin_theta))));
-            new_y = (uint32_t)(abs((int)floor(((float)x * sin_theta) + ((float)y * cos_theta))));
+            new_x = (uint32_t)(((int)floor(((float)x * cos_theta) - ((float)y * sin_theta))));
+            new_y = (uint32_t)(((int)floor(((float)x * sin_theta) + ((float)y * cos_theta))));
             new_z = z;
             break;
         }
 
-        uint32_t offset = SP_OFFSET(new_x, new_y, new_z);
+        uint32_t offset = SP_OFFSET((uint32_t)abs((int)new_x), (uint32_t)abs((int)new_y), (uint32_t)abs((int)new_z));
         rotated[offset] = self->data->tiles[SP_OFFSET(x, y, z)];
       }
     }
