@@ -381,7 +381,6 @@ errno_t spooky_init_context(spooky_context * context, FILE * fp) {
    */
   SDL_ShowWindow(window);
 
-
   const char * font_name = config->get_font_name(config);
 
   // 16

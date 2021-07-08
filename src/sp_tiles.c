@@ -7,12 +7,15 @@
 #include <sodium.h>
 
 #include "sp_pak.h"
+#include "sp_math.h"
 #include "sp_z.h"
 #include "sp_io.h"
 #include "sp_gui.h"
 #include "sp_context.h"
 #include "sp_tiles.h"
 
+const int SPOOKY_TILES_VISIBLE_VOXELS_WIDTH = (2 * 26);
+const int SPOOKY_TILES_VISIBLE_VOXELS_HEIGHT = (2 * 16);
 const uint32_t SPOOKY_TILES_MAX_TILES_ROW_LEN = 64;
 const uint32_t SPOOKY_TILES_MAX_TILES_COL_LEN = 64;
 const uint32_t SPOOKY_TILES_MAX_TILES_DEPTH_LEN = 64;
@@ -62,15 +65,16 @@ typedef struct spooky_tiles_manager_data {
   size_t allocated_tiles_len;
 
   spooky_tile ** tiles;
-  spooky_tile ** rotated_tiles; /* tiles rotated around an axis */
   size_t tiles_len;
 
-  uint32_t viewport_offset;
+  spooky_tile ** rotated_tiles; /* tiles rotated around an axis */
+  size_t rotated_tiles_len;
+
+  spooky_vector_3df world_pov;
 
   spooky_view_perspective perspective;
-
   bool test_world;
-  char padding[7];
+  char padding[3];
 } spooky_tiles_manager_data;
 
 static void spooky_tiles_manager_generate_tiles(const spooky_tiles_manager * self);
@@ -86,6 +90,72 @@ static errno_t spooky_tiles_write_tiles(const spooky_tiles_manager * self);
 
 static spooky_view_perspective spooky_tiles_get_perspective(const spooky_tiles_manager * self) {
   return self->data->perspective;
+}
+
+static void spooky_tiles_move_left(const spooky_tiles_manager * self) {
+  switch(self->data->perspective) {
+    case SPOOKY_SVP_X:
+    case SPOOKY_SVP_Y:
+    case SPOOKY_SVP_Z:
+    case SPOOKY_SVP_EOE:
+    default:
+      self->data->world_pov.x -= 1.0f;
+  }
+}
+
+static void spooky_tiles_move_right(const spooky_tiles_manager * self) {
+  switch(self->data->perspective) {
+    case SPOOKY_SVP_X:
+    case SPOOKY_SVP_Y:
+    case SPOOKY_SVP_Z:
+    case SPOOKY_SVP_EOE:
+    default:
+      self->data->world_pov.x += 1.0f;
+  }
+}
+
+static void spooky_tiles_move_up(const spooky_tiles_manager * self) {
+  switch(self->data->perspective) {
+    case SPOOKY_SVP_X:
+    case SPOOKY_SVP_Y:
+    case SPOOKY_SVP_Z:
+    case SPOOKY_SVP_EOE:
+    default:
+      self->data->world_pov.y += 1.0f;
+  }
+}
+
+static void spooky_tiles_move_down(const spooky_tiles_manager * self) {
+  switch(self->data->perspective) {
+    case SPOOKY_SVP_X:
+    case SPOOKY_SVP_Y:
+    case SPOOKY_SVP_Z:
+    case SPOOKY_SVP_EOE:
+    default:
+      self->data->world_pov.y -= 1.0f;
+  }
+}
+
+static void spooky_tiles_move_forward(const spooky_tiles_manager * self) {
+  switch(self->data->perspective) {
+    case SPOOKY_SVP_X:
+    case SPOOKY_SVP_Y:
+    case SPOOKY_SVP_Z:
+    case SPOOKY_SVP_EOE:
+    default:
+      self->data->world_pov.z += 1.0f;
+  }
+}
+
+static void spooky_tiles_move_backward(const spooky_tiles_manager * self) {
+  switch(self->data->perspective) {
+    case SPOOKY_SVP_X:
+    case SPOOKY_SVP_Y:
+    case SPOOKY_SVP_Z:
+    case SPOOKY_SVP_EOE:
+    default:
+     self->data->world_pov.z -= 1.0f;
+  }
 }
 
 static void spooky_tiles_set_perspective(const spooky_tiles_manager * self, spooky_view_perspective perspective) {
@@ -118,6 +188,13 @@ const spooky_tiles_manager * spooky_tiles_manager_init(spooky_tiles_manager * se
   self->write_tiles = &spooky_tiles_write_tiles;
   self->read_tiles = &spooky_tiles_read_tiles;
 
+  self->move_left = &spooky_tiles_move_left;
+  self->move_right = &spooky_tiles_move_right;
+  self->move_up = &spooky_tiles_move_up;
+  self->move_down = &spooky_tiles_move_down;
+  self->move_forward = &spooky_tiles_move_forward;
+  self->move_backward = &spooky_tiles_move_backward;
+
   self->data = NULL;
   return self;
 }
@@ -133,10 +210,11 @@ const spooky_tiles_manager * spooky_tiles_manager_ctor(const spooky_tiles_manage
   /* Pointers to the allocated tiles; using 'empty', we can save
      some memory when no tile is allocated (a pointer to pointers). */
   data->tiles_len = SPOOKY_TILES_MAX_TILES_ROW_LEN * SPOOKY_TILES_MAX_TILES_COL_LEN * SPOOKY_TILES_MAX_TILES_DEPTH_LEN;
-  data->tiles = calloc(data->tiles_len, sizeof(void *));
+  data->tiles = calloc(data->tiles_len, sizeof * data->tiles);
   if(!data->tiles) { abort(); }
-  //data->rotated_tiles = calloc(data->tiles_len, sizeof(void *));
-  //if(!data->rotated_tiles) { abort(); }
+
+  data->rotated_tiles_len = data->tiles_len;//;(size_t)(SPOOKY_TILES_VISIBLE_VOXELS_WIDTH * SPOOKY_TILES_VISIBLE_VOXELS_HEIGHT);
+
   /* Free store from which tiles are allocated; the allocated
      array is resized as needed (a pointer to structure). */
   data->allocated_tiles_capacity = SPOOKY_TILES_ALLOCATED_INCREMENT;
@@ -147,7 +225,10 @@ const spooky_tiles_manager * spooky_tiles_manager_ctor(const spooky_tiles_manage
   data->context = context;
   data->active_tile = NULL;
   data->test_world = false;
-  data->viewport_offset = 0;
+
+  data->world_pov.x = 0.f;
+  data->world_pov.y = 0.f;
+  data->world_pov.z = (double)SPOOKY_TILES_MAX_TILES_DEPTH_LEN;
 
   ((spooky_tiles_manager *)(uintptr_t)self)->data = data;
 
@@ -447,7 +528,7 @@ static void spooky_tiles_set_active_tile(const spooky_tiles_manager * self, uint
 }
 
 static void spooky_tiles_rotate_perspective(const spooky_tiles_manager * self, spooky_view_perspective new_perspective) {
-  spooky_tile ** rotated = calloc(self->data->tiles_len, sizeof(void *));
+  spooky_tile ** rotated = calloc(self->data->rotated_tiles_len, sizeof * rotated);
   if(!rotated) { abort(); }
 
   // Degrees / 57.29578 = radians
@@ -473,8 +554,8 @@ static void spooky_tiles_rotate_perspective(const spooky_tiles_manager * self, s
           case SPOOKY_SVP_EOE:
           default:
             new_x = (uint32_t)(abs((int)floor(((float)x * cos_theta) - ((float)y * sin_theta))));
-            new_z = z;
             new_y = (uint32_t)(abs((int)floor(((float)x * sin_theta) + ((float)y * cos_theta))));
+            new_z = z;
             break;
         }
 

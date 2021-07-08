@@ -14,6 +14,12 @@ typedef struct spooky_vector {
   uint32_t z;
 } spooky_vector;
 
+typedef struct spooky_vector_3df {
+  double x;
+  double y;
+  double z;
+} spooky_vector_3df;
+
 extern const float SMATH_FLT_EPSILON;
 
 bool spooky_float_equal(float /* left */, float /* right */, float /* max_rel_diff */ /*SMATH_FLT_EPSILON*/);

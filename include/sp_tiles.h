@@ -49,6 +49,8 @@ typedef enum spooky_tiles_biom {
   SB_EOE
 } spooky_tiles_biom;
 
+const int SPOOKY_TILES_VISIBLE_VOXELS_WIDTH;
+const int SPOOKY_TILES_VISIBLE_VOXELS_HEIGHT;
 const uint32_t SPOOKY_TILES_MAX_TILES_ROW_LEN;
 const uint32_t SPOOKY_TILES_MAX_TILES_COL_LEN;
 const uint32_t SPOOKY_TILES_MAX_TILES_DEPTH_LEN;
@@ -96,6 +98,13 @@ typedef struct spooky_tiles_manager {
 
   errno_t (*read_tiles)(const spooky_tiles_manager * /* self */);
   errno_t (*write_tiles)(const spooky_tiles_manager * /* self */);
+
+  void (*move_left)(const spooky_tiles_manager * /* self */);
+  void (*move_right)(const spooky_tiles_manager * /* self */);
+  void (*move_up)(const spooky_tiles_manager * /* self */);
+  void (*move_down)(const spooky_tiles_manager * /* self */);
+  void (*move_forward)(const spooky_tiles_manager * /* self */);
+  void (*move_backward)(const spooky_tiles_manager * /* self */);
 
   spooky_tiles_manager_data * data;
 } spooky_tiles_manager;
