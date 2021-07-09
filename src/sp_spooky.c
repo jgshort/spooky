@@ -859,11 +859,11 @@ static void spooky_render_landscape(SDL_Renderer * renderer, const spooky_contex
       {
         box_base->render(box_base, renderer);
 
-        uint32_t depth = 4;
+        uint32_t depth = 1;
         uint32_t under_offset = world_z + depth;
         do {
           const spooky_tile * under = NULL;
-          if(under_offset > 0 && under_offset < SPOOKY_TILES_MAX_TILES_DEPTH_LEN - 1) {
+          if(under_offset > 0 && under_offset <= SPOOKY_TILES_MAX_TILES_DEPTH_LEN - 1) {
             under = tiles_manager->get_tile(tiles_manager, i, j, under_offset);
             if(tile->meta->type == STT_EMPTY && under != NULL && under->meta->type != STT_EMPTY) {
               /* try to draw the tile under the current tile if it's not empty */
@@ -883,9 +883,9 @@ static void spooky_render_landscape(SDL_Renderer * renderer, const spooky_contex
               }
             }
           }
-          depth--;
+          depth++;
           under_offset = world_z + depth;
-        } while(under_offset > 0 && under_offset < SPOOKY_TILES_MAX_TILES_DEPTH_LEN - 1 && depth >= 1);
+        } while(under_offset > 0 && under_offset <= SPOOKY_TILES_MAX_TILES_DEPTH_LEN - 1 && depth <= 4);
 
         {
           SDL_Color black = { 0, 0, 0, 255 };
