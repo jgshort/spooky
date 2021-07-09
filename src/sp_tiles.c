@@ -534,6 +534,10 @@ static const spooky_tile * spooky_tiles_manager_get_tiles(const spooky_tiles_man
 }
 
 static const spooky_tile * spooky_tiles_manager_get_tile(const spooky_tiles_manager * self, uint32_t x, uint32_t y, uint32_t z) {
+  if(x > SPOOKY_TILES_MAX_TILES_ROW_LEN - 1) { return NULL; }
+  if(y > SPOOKY_TILES_MAX_TILES_COL_LEN - 1) { return NULL; }
+  if(z > SPOOKY_TILES_MAX_TILES_DEPTH_LEN - 1) { return NULL; }
+
   uint32_t offset = SP_OFFSET(x, y, z);
   return self->data->rotated_tiles[offset];
 }
