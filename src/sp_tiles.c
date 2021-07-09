@@ -87,75 +87,98 @@ static void spooky_tiles_set_active_tile(const spooky_tiles_manager * self, uint
 static void spooky_tiles_rotate_perspective(const spooky_tiles_manager * self, spooky_view_perspective new_perspective);
 static errno_t spooky_tiles_read_tiles(const spooky_tiles_manager * self);
 static errno_t spooky_tiles_write_tiles(const spooky_tiles_manager * self);
+static const spooky_vector_3df * spooky_tiles_get_world_pov(const spooky_tiles_manager * self);
+
+static const spooky_vector_3df * spooky_tiles_get_world_pov(const spooky_tiles_manager * self) {
+  return &(self->data->world_pov);
+}
 
 static spooky_view_perspective spooky_tiles_get_perspective(const spooky_tiles_manager * self) {
   return self->data->perspective;
 }
 
 static void spooky_tiles_move_left(const spooky_tiles_manager * self) {
+  spooky_vector_3df * pov = &(self->data->world_pov);
   switch(self->data->perspective) {
     case SPOOKY_SVP_X:
     case SPOOKY_SVP_Y:
     case SPOOKY_SVP_Z:
     case SPOOKY_SVP_EOE:
     default:
-      self->data->world_pov.x -= 1.0f;
+      pov->x -= 1.0f;
   }
+  if(pov->x < 0.f) { pov->x = 0.f; }
+  if(pov->x >= (double)(SPOOKY_TILES_MAX_TILES_ROW_LEN - 1)) { pov->x = (double)(SPOOKY_TILES_MAX_TILES_ROW_LEN - 1); }
 }
 
 static void spooky_tiles_move_right(const spooky_tiles_manager * self) {
+  spooky_vector_3df * pov = &(self->data->world_pov);
   switch(self->data->perspective) {
     case SPOOKY_SVP_X:
     case SPOOKY_SVP_Y:
     case SPOOKY_SVP_Z:
     case SPOOKY_SVP_EOE:
     default:
-      self->data->world_pov.x += 1.0f;
+      pov->x += 1.0f;
   }
+  if(pov->x < 0.f) { pov->x = 0.f; }
+  if(pov->x >= (double)(SPOOKY_TILES_MAX_TILES_ROW_LEN - 1)) { pov->x = (double)(SPOOKY_TILES_MAX_TILES_ROW_LEN - 1); }
 }
 
 static void spooky_tiles_move_up(const spooky_tiles_manager * self) {
+  spooky_vector_3df * pov = &(self->data->world_pov);
   switch(self->data->perspective) {
     case SPOOKY_SVP_X:
     case SPOOKY_SVP_Y:
     case SPOOKY_SVP_Z:
     case SPOOKY_SVP_EOE:
     default:
-      self->data->world_pov.y += 1.0f;
+      pov->y += 1.0f;
   }
+  if(pov->y < 0.f) { pov->y = 0.f; }
+  if(pov->y >= (double)(SPOOKY_TILES_MAX_TILES_COL_LEN - 1)) { pov->y = (double)(SPOOKY_TILES_MAX_TILES_COL_LEN - 1); }
 }
 
 static void spooky_tiles_move_down(const spooky_tiles_manager * self) {
+  spooky_vector_3df * pov = &(self->data->world_pov);
   switch(self->data->perspective) {
     case SPOOKY_SVP_X:
     case SPOOKY_SVP_Y:
     case SPOOKY_SVP_Z:
     case SPOOKY_SVP_EOE:
     default:
-      self->data->world_pov.y -= 1.0f;
+      pov->y -= 1.0f;
   }
+  if(pov->y < 0.f) { pov->y = 0.f; }
+  if(pov->y >= (double)(SPOOKY_TILES_MAX_TILES_COL_LEN - 1)) { pov->y = (double)(SPOOKY_TILES_MAX_TILES_COL_LEN - 1); }
 }
 
 static void spooky_tiles_move_forward(const spooky_tiles_manager * self) {
+  spooky_vector_3df * pov = &(self->data->world_pov);
   switch(self->data->perspective) {
     case SPOOKY_SVP_X:
     case SPOOKY_SVP_Y:
     case SPOOKY_SVP_Z:
     case SPOOKY_SVP_EOE:
     default:
-      self->data->world_pov.z += 1.0f;
+      pov->z -= 1.0f;
   }
+  if(pov->z < 0.f) { pov->z = 0.f; }
+  if(pov->z >= (double)(SPOOKY_TILES_MAX_TILES_DEPTH_LEN - 1)) { pov->z = (double)(SPOOKY_TILES_MAX_TILES_DEPTH_LEN - 1); }
 }
 
 static void spooky_tiles_move_backward(const spooky_tiles_manager * self) {
+  spooky_vector_3df * pov = &(self->data->world_pov);
   switch(self->data->perspective) {
     case SPOOKY_SVP_X:
     case SPOOKY_SVP_Y:
     case SPOOKY_SVP_Z:
     case SPOOKY_SVP_EOE:
     default:
-     self->data->world_pov.z -= 1.0f;
+      pov->z += 1.0f;
   }
+  if(pov->z < 0.f) { pov->z = 0.f; }
+  if(pov->z >= (double)(SPOOKY_TILES_MAX_TILES_DEPTH_LEN - 1)) { pov->z = (double)(SPOOKY_TILES_MAX_TILES_DEPTH_LEN - 1); }
 }
 
 static void spooky_tiles_set_perspective(const spooky_tiles_manager * self, spooky_view_perspective perspective) {
@@ -195,6 +218,8 @@ const spooky_tiles_manager * spooky_tiles_manager_init(spooky_tiles_manager * se
   self->move_forward = &spooky_tiles_move_forward;
   self->move_backward = &spooky_tiles_move_backward;
 
+  self->get_world_pov = &spooky_tiles_get_world_pov;
+
   self->data = NULL;
   return self;
 }
@@ -228,7 +253,7 @@ const spooky_tiles_manager * spooky_tiles_manager_ctor(const spooky_tiles_manage
 
   data->world_pov.x = 0.f;
   data->world_pov.y = 0.f;
-  data->world_pov.z = (double)SPOOKY_TILES_MAX_TILES_DEPTH_LEN;
+  data->world_pov.z = (double)(SPOOKY_TILES_MAX_TILES_DEPTH_LEN - 5);
 
   ((spooky_tiles_manager *)(uintptr_t)self)->data = data;
 

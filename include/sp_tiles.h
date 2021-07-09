@@ -106,6 +106,8 @@ typedef struct spooky_tiles_manager {
   void (*move_forward)(const spooky_tiles_manager * /* self */);
   void (*move_backward)(const spooky_tiles_manager * /* self */);
 
+  const spooky_vector_3df * (*get_world_pov)(const spooky_tiles_manager * /* self */);
+
   spooky_tiles_manager_data * data;
 } spooky_tiles_manager;
 

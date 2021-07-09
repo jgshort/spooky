@@ -410,74 +410,41 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
             goto end_of_running_loop;
           case SDL_KEYDOWN:
             {
-              /*
-                Perspective changes are right-handed orientation.
-                Key bindings are x, y, and z. = resets to default (z)
-
-                z
-                |  y
-                | /
-                |/___ x
-
-                Default orientation is Z:
-
-                z = 0, xy plane:
-                    y
-                    |
-                  --+-- x
-                    |
-
-                x = 0, yz plane:
-                    z
-                    |
-                  --+-- y
-                    |
-
-                y = 0, xz plane:
-                    x
-                    |
-                  --+-- z
-                    |
-              */
-
               SDL_Keycode sym = evt.key.keysym.sym;
-              switch(sym) {
-                case SDLK_COMMA:
-                case SDLK_PERIOD:
-                  update_landscape = true;
-                default:
-                  break;
-              }
               switch(sym) {
                 case SDLK_h: /* LEFT */
                   tiles_manager->move_left(tiles_manager);
+                  update_landscape = true;
                   break;
                 case SDLK_l: /* RIGHT */
                   tiles_manager->move_right(tiles_manager);
+                  update_landscape = true;
                   break;
                 case SDLK_k: /* UP */
                   tiles_manager->move_up(tiles_manager);
+                  update_landscape = true;
                   break;
                 case SDLK_j: /* DOWN */
                   tiles_manager->move_down(tiles_manager);
+                  update_landscape = true;
                   break;
                 case SDLK_COMMA: /* FOWARD */
-                  if((SDL_GetModState() & KMOD_SHIFT) == KMOD_SHIFT) {
+                  if((SDL_GetModState() & KMOD_SHIFT) != 0) {
                     tiles_manager->move_forward(tiles_manager);
+                    update_landscape = true;
                   }
                   break;
                 case SDLK_PERIOD: /* BACK */
-                  if((SDL_GetModState() & KMOD_SHIFT) == KMOD_SHIFT) {
+                  if((SDL_GetModState() & KMOD_SHIFT) != 0) {
                     tiles_manager->move_backward(tiles_manager);
+                    update_landscape = true;
                   }
                   break;
                 case SDLK_q:
-                  {
-                    /* ctrl-q to quit */
-                    if((SDL_GetModState() & KMOD_CTRL) != 0) {
-                      spooky_context_set_is_running(context, false);
-                      goto end_of_running_loop;
-                    }
+                  /* ctrl-q to quit */
+                  if((SDL_GetModState() & KMOD_CTRL) != 0) {
+                    spooky_context_set_is_running(context, false);
+                    goto end_of_running_loop;
                   }
                   break;
                 default:
@@ -492,7 +459,6 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
                 case SDLK_PERIOD:
                   if((SDL_GetModState() & KMOD_SHIFT) == 0) {
                     tiles_manager->set_active_tile(tiles_manager, screen_cursor.x, screen_cursor.y, screen_cursor.z);
-                    fprintf(stdout, "Selected tile at %i, %i, %i\n", screen_cursor.x, screen_cursor.y, screen_cursor.z);
                   }
                   update_landscape = true;
                   break;
@@ -865,6 +831,8 @@ static void spooky_render_landscape(SDL_Renderer * renderer, const spooky_contex
 
   SDL_RenderClear(renderer);
 
+  (void)cursor;
+
   box_base->set_w(box_base, (int)SPOOKY_TILES_VOXEL_WIDTH);
   box_base->set_h(box_base, (int)SPOOKY_TILES_VOXEL_HEIGHT);
   box_base->set_x(box_base, 0);
@@ -874,12 +842,15 @@ static void spooky_render_landscape(SDL_Renderer * renderer, const spooky_contex
   SDL_GetRenderDrawBlendMode(renderer, &old_blend_mode);
   SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
 
+  const spooky_vector_3df * world_pov = tiles_manager->get_world_pov(tiles_manager);
+  uint32_t world_z = (uint32_t)floor(world_pov->z);
+
   uint32_t i = SPOOKY_TILES_MAX_TILES_ROW_LEN;
   while(i--) {
     uint32_t j = SPOOKY_TILES_MAX_TILES_COL_LEN;
     while(j--) {
-      const spooky_tile * tile = tiles_manager->get_tile(tiles_manager, i, j, cursor->z);
-
+      const spooky_tile * tile = tiles_manager->get_tile(tiles_manager, i, j, world_z);
+      assert(tile && tile->meta);
       spooky_tiles_tile_type type = tile->meta->type;
       SDL_Color block_color = { 0 };
       spooky_tiles_get_tile_color(type, &block_color);
@@ -889,7 +860,7 @@ static void spooky_render_landscape(SDL_Renderer * renderer, const spooky_contex
         box_base->render(box_base, renderer);
 
         uint32_t depth = 4;
-        uint32_t under_offset = cursor->z + depth;
+        uint32_t under_offset = world_z + depth;
         do {
           const spooky_tile * under = NULL;
           if(under_offset > 0 && under_offset < SPOOKY_TILES_MAX_TILES_DEPTH_LEN - 1) {
@@ -899,10 +870,10 @@ static void spooky_render_landscape(SDL_Renderer * renderer, const spooky_contex
               SDL_Color under_color = { 0 };
               spooky_tiles_get_tile_color(under->meta->type, &under_color);
               switch(depth) {
-                case 1: spooky_gui_color_darken(&under_color, 25); break;
-                case 2: spooky_gui_color_darken(&under_color, 50); break;
-                case 3: spooky_gui_color_darken(&under_color, 75); break;
-                case 4: spooky_gui_color_darken(&under_color, 90); break;
+                case 1: spooky_gui_color_darken(&under_color, 20); break;
+                case 2: spooky_gui_color_darken(&under_color, 40); break;
+                case 3: spooky_gui_color_darken(&under_color, 60); break;
+                case 4: spooky_gui_color_darken(&under_color, 80); break;
                 default: break;
               }
               const spooky_gui_rgba_context * under_rgba = spooky_gui_push_draw_color(renderer, &under_color);
@@ -913,7 +884,7 @@ static void spooky_render_landscape(SDL_Renderer * renderer, const spooky_contex
             }
           }
           depth--;
-          under_offset = cursor->z + depth;
+          under_offset = world_z + depth;
         } while(under_offset > 0 && under_offset < SPOOKY_TILES_MAX_TILES_DEPTH_LEN - 1 && depth >= 1);
 
         {
