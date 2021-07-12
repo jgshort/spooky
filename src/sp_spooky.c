@@ -360,6 +360,8 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
       );
   if(!hud || spooky_is_sdl_error(SDL_GetError())) { abort(); }
   SDL_SetTextureBlendMode(hud, SDL_BLENDMODE_BLEND);
+  SDL_SetTextureAlphaMod(hud, 0);
+  SDL_SetTextureColorMod(hud, 255, 255, 255);
   bool update_hud = true;
 
   SDL_ClearError();
@@ -942,7 +944,7 @@ static void spooky_render_landscape(SDL_Renderer * renderer, const spooky_contex
 
 static void spooky_render_hud(SDL_Renderer * renderer, const spooky_context * context, const spooky_tiles_manager * tiles_manager) {
   static int w = -1, h, axis_height, axis_width;
-  const spooky_font * font = NULL;
+  static const spooky_font * font = NULL;
   if(!font && w < 0) {
     font = context->get_font(context);
     font->measure_text(font, "M", 1, &axis_width, &axis_height);
