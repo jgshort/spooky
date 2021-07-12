@@ -567,8 +567,8 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
     if(update_landscape) {
       SDL_SetRenderTarget(renderer, landscape);
       spooky_render_landscape(renderer, context, tiles_manager, &screen_cursor);
-      update_landscape = false;
       SDL_SetRenderTarget(renderer, context->get_canvas(context));
+      update_landscape = false;
     }
 
     SDL_Rect landscape_rect = {
@@ -578,7 +578,12 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
       .h = ((int)SPOOKY_TILES_VOXEL_HEIGHT * SPOOKY_TILES_VISIBLE_VOXELS_HEIGHT)
     };
 
-    SDL_RenderCopy(renderer, landscape, NULL, &landscape_rect);
+    if(tiles_manager->get_perspective(tiles_manager) == SPOOKY_SVP_X) {
+      /* rotate camera 180 degress */
+      SDL_RenderCopyEx(renderer, landscape, NULL, &landscape_rect, 0, NULL, SDL_FLIP_VERTICAL);
+    } else {
+      SDL_RenderCopy(renderer, landscape, NULL, &landscape_rect);
+    }
 
     {
       SDL_Color outline_color = { .r = 255, .g = 255, .b = 0, .a = 255 };
