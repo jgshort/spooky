@@ -49,13 +49,13 @@ typedef enum spooky_tiles_biom {
   SB_EOE
 } spooky_tiles_biom;
 
-const int SPOOKY_TILES_VISIBLE_VOXELS_WIDTH;
-const int SPOOKY_TILES_VISIBLE_VOXELS_HEIGHT;
-const uint32_t SPOOKY_TILES_MAX_TILES_ROW_LEN;
-const uint32_t SPOOKY_TILES_MAX_TILES_COL_LEN;
-const uint32_t SPOOKY_TILES_MAX_TILES_DEPTH_LEN;
-const uint32_t SPOOKY_TILES_VOXEL_WIDTH;
-const uint32_t SPOOKY_TILES_VOXEL_HEIGHT;
+extern const int SPOOKY_TILES_VISIBLE_VOXELS_WIDTH;
+extern const int SPOOKY_TILES_VISIBLE_VOXELS_HEIGHT;
+extern const uint32_t SPOOKY_TILES_MAX_TILES_ROW_LEN;
+extern const uint32_t SPOOKY_TILES_MAX_TILES_COL_LEN;
+extern const uint32_t SPOOKY_TILES_MAX_TILES_DEPTH_LEN;
+extern const uint32_t SPOOKY_TILES_VOXEL_WIDTH;
+extern const uint32_t SPOOKY_TILES_VOXEL_HEIGHT;
 
 typedef struct spooky_tiles_tile_meta spooky_tiles_tile_meta;
 typedef struct spooky_tiles_tile_meta {
@@ -72,7 +72,7 @@ typedef struct spooky_tile {
   char padding[3];
 } spooky_tile;
 
-const spooky_tiles_tile_meta spooky_tiles_global_tiles_meta[STT_EOE + 1];
+extern const spooky_tiles_tile_meta spooky_tiles_global_tiles_meta[STT_EOE + 1];
 
 typedef struct spooky_tiles_manager_data spooky_tiles_manager_data;
 typedef struct spooky_tiles_manager spooky_tiles_manager;

@@ -7,6 +7,8 @@
 extern "C" {
 #endif
 
+#include <fcntl.h>
+
 char * spooky_io_alloc_config_path();
 char * spooky_io_alloc_concat_path(char const * /* root_path */, char const * /* path */);
 void spooky_io_ensure_path(const char * /* path */, mode_t /* mode */);

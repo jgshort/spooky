@@ -616,7 +616,7 @@ static errno_t spooky_tiles_read_tiles(const spooky_tiles_manager * self) {
     if(success && ((type & STT_RLE_MARKER) == STT_RLE_MARKER)) {
       /* unpack RLE */
       uint32_t unpacked_type = (uint32_t)((int)type & ~STT_RLE_MARKER);
-      assert(unpacked_type >= STT_EMPTY && unpacked_type <= STT_TREE);
+      assert(unpacked_type <= STT_TREE);
       uint32_t rle_count = 0;
       success = spooky_read_uint32(fp, &rle_count);
       assert(success && rle_count >= 5);
@@ -625,7 +625,7 @@ static errno_t spooky_tiles_read_tiles(const spooky_tiles_manager * self) {
       }
       i += rle_count - 1;
     } else if(success) {
-      assert(type >= STT_EMPTY && type <= STT_TREE);
+      assert(type <= STT_TREE);
       spooky_tiles_manager_create_tile_by_offset(self, i, type);
     } else {
       goto err1;

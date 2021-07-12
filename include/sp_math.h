@@ -7,6 +7,7 @@ extern "C" {
 
 #include <stdlib.h>
 #include <stdbool.h>
+#include <stdint.h>
 
 typedef struct spooky_vector {
   uint32_t x;
