@@ -862,7 +862,6 @@ static void spooky_render_landscape(SDL_Renderer * renderer, const spooky_contex
     box_base = box->as_base(box);
   }
 
-  SDL_RenderClear(renderer);
 
   (void)cursor;
 
@@ -874,6 +873,8 @@ static void spooky_render_landscape(SDL_Renderer * renderer, const spooky_contex
   SDL_BlendMode old_blend_mode;
   SDL_GetRenderDrawBlendMode(renderer, &old_blend_mode);
   SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+
+  SDL_RenderClear(renderer);
 
   const spooky_vector_3df * world_pov = tiles_manager->get_world_pov(tiles_manager);
   uint32_t world_z = (uint32_t)floor(world_pov->z);
