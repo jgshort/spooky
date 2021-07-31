@@ -942,7 +942,7 @@ static void spooky_render_landscape(SDL_Renderer * renderer, const spooky_contex
 
 static void spooky_render_hud(SDL_Renderer * renderer, const spooky_context * context, const spooky_tiles_manager * tiles_manager) {
   static int w = -1, h, axis_height, axis_width;
-  const spooky_font * font = NULL;
+  static const spooky_font * font = NULL;
   if(!font && w < 0) {
     font = context->get_font(context);
     font->measure_text(font, "M", 1, &axis_width, &axis_height);
@@ -954,7 +954,7 @@ static void spooky_render_hud(SDL_Renderer * renderer, const spooky_context * co
   {
     SDL_RenderClear(renderer);
 
-    SDL_Point dest = { axis_width, (h - axis_height) - ((int)SPOOKY_TILES_VOXEL_HEIGHT / 2) };
+    SDL_Point dest = { axis_width - 4, (h - axis_height) - ((int)SPOOKY_TILES_VOXEL_HEIGHT / 2) + 1 };
     SDL_Color color = { 255, 255, 255, 255 };
 
     const char * axis = NULL;
