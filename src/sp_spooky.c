@@ -359,9 +359,7 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
       , ((int)SPOOKY_TILES_VOXEL_HEIGHT * SPOOKY_TILES_VISIBLE_VOXELS_HEIGHT)
       );
   if(!hud || spooky_is_sdl_error(SDL_GetError())) { abort(); }
-  SDL_SetTextureBlendMode(hud, SDL_BLENDMODE_BLEND);
-  SDL_SetTextureAlphaMod(hud, 0);
-  SDL_SetTextureColorMod(hud, 255, 255, 255);
+  SDL_SetTextureBlendMode(hud, SDL_BLENDMODE_ADD);
   bool update_hud = true;
 
   SDL_ClearError();
@@ -612,13 +610,6 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
       update_landscape = false;
     }
 
-    if(update_hud) {
-      SDL_SetRenderTarget(renderer, hud);
-      spooky_render_hud(renderer, context, tiles_manager);
-      SDL_SetRenderTarget(renderer, canvas);
-      update_hud = false;
-    }
-
     { /* Render the landscape */
       if(tiles_manager->get_perspective(tiles_manager) == SPOOKY_SVP_X) {
         /* rotate camera 180 degress */
@@ -628,9 +619,14 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
       }
     }
 
-    { /* Render the landscape overlay (hud): */
-      SDL_RenderCopy(renderer, hud, NULL, &landscape_rect);
+    if(update_hud) {
+      SDL_SetRenderTarget(renderer, hud);
+      spooky_render_hud(renderer, context, tiles_manager);
+      SDL_SetRenderTarget(renderer, canvas);
+      update_hud = false;
     }
+    /* Render the landscape overlay (hud): */
+    SDL_RenderCopy(renderer, hud, NULL, &landscape_rect);
 
     { /* Render the borders */
       SDL_Color outline_color = { .r = 255, .g = 255, .b = 0, .a = 255 };
@@ -871,6 +867,15 @@ static void spooky_render_landscape(SDL_Renderer * renderer, const spooky_contex
 
       const spooky_gui_rgba_context * tile_rgba = spooky_gui_push_draw_color(renderer, &block_color);
       {
+        /*
+        TODO: Implement 'hidden' blocks above current depth
+        if(world_z - 1 < world_z) {
+          uint32_t over_offset = world_z - 1;
+          if(tiles_manager->get_tile(tiles_manager, i, j, over_offset) != NULL) {
+            continue;
+          }
+        }
+        */
         box_base->render(box_base, renderer);
 
         uint32_t depth = 4;
@@ -943,38 +948,27 @@ static void spooky_render_landscape(SDL_Renderer * renderer, const spooky_contex
 }
 
 static void spooky_render_hud(SDL_Renderer * renderer, const spooky_context * context, const spooky_tiles_manager * tiles_manager) {
-  static int w = -1, h, axis_height, axis_width;
-  static const spooky_font * font = NULL;
-  if(!font && w < 0) {
-    font = context->get_font(context);
-    font->measure_text(font, "M", 1, &axis_width, &axis_height);
-    SDL_GetRendererOutputSize(renderer, &w, &h);
+  static const SDL_Color color = { 255, 255, 255, 255 };
+
+  int w = -1, h, axis_height, axis_width;
+  const spooky_font * font = context->get_font(context);
+  SDL_GetRendererOutputSize(renderer, &w, &h);
+
+  SDL_RenderClear(renderer);
+
+  const char * axis = NULL;
+  switch(tiles_manager->get_perspective(tiles_manager)) {
+    case SPOOKY_SVP_X: axis = "x"; break;
+    case SPOOKY_SVP_Y: axis = "y"; break;
+    case SPOOKY_SVP_Z:
+    case SPOOKY_SVP_EOE:
+    default: axis = "z"; break;
   }
+  font->measure_text(font, axis, 1, &axis_width, &axis_height);
+  SDL_Point dest = { axis_width - 4, (h - axis_height) - ((int)SPOOKY_TILES_VOXEL_HEIGHT / 2) + 1 };
 
-  SDL_Color empty = { 0, 0, 0, 0 };
-  const spooky_gui_rgba_context * rgb_context = spooky_gui_push_draw_color(renderer, &empty);
-  {
-    SDL_RenderClear(renderer);
-
-    SDL_Point dest = { axis_width - 4, (h - axis_height) - ((int)SPOOKY_TILES_VOXEL_HEIGHT / 2) + 1 };
-    SDL_Color color = { 255, 255, 255, 255 };
-
-    const char * axis = NULL;
-
-    switch(tiles_manager->get_perspective(tiles_manager)) {
-      case SPOOKY_SVP_X: axis = "x"; break;
-      case SPOOKY_SVP_Y: axis = "y"; break;
-      case SPOOKY_SVP_Z:
-      case SPOOKY_SVP_EOE:
-      default: axis = "z"; break;
-    }
-
-    bool is_drop_shadow = font->get_is_drop_shadow(font);
-
-    font->set_is_drop_shadow(font, true);
-    font->write_to_renderer(font, renderer, &dest, &color, axis, 1, NULL, NULL);
-    font->set_is_drop_shadow(font, is_drop_shadow);
-
-    spooky_gui_pop_draw_color(rgb_context);
-  }
+  bool is_drop_shadow = font->get_is_drop_shadow(font);
+  font->set_is_drop_shadow(font, true);
+  font->write_to_renderer(font, renderer, &dest, &color, axis, 1, NULL, NULL);
+  font->set_is_drop_shadow(font, is_drop_shadow);
 }
