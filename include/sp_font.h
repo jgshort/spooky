@@ -6,7 +6,7 @@
 
 #define SPOOKY_FONT_MAX_TYPES 3
 
-typedef char spooky_text;
+typedef char spooky_char;
 
 extern const int spooky_default_font_size;
 extern const char * spooky_default_font_names[SPOOKY_FONT_MAX_TYPES];
@@ -25,7 +25,7 @@ const char * spooky_font_line_adornment_to_string(spooky_font_line_adornment ado
 typedef struct spooky_font_line spooky_font_line;
 typedef struct spooky_font_line {
   spooky_font_line * next;
-  const spooky_text * line;
+  const spooky_char * line;
   size_t line_len;
   spooky_font_line_adornment adornment;
   bool has_newline;
@@ -33,7 +33,7 @@ typedef struct spooky_font_line {
 } spooky_font_line;
 
 typedef struct spooky_font_line_chunk {
-  spooky_text * source_buffer; /* to be freed */
+  spooky_char * source_buffer; /* to be freed */
   spooky_font_line * source_lines; /* to be freed */
 
   size_t lines_capacity;
@@ -41,7 +41,7 @@ typedef struct spooky_font_line_chunk {
   spooky_font_line * lines;
   size_t newline_count;
 
-  const spooky_text * text;
+  const spooky_char * text;
 
   size_t text_len;
   char padding[4];
@@ -56,8 +56,8 @@ typedef struct spooky_font {
   const spooky_font * (*dtor)(const spooky_font * self);
   void (*free)(const spooky_font * self);
   void (*release)(const spooky_font * self);
-  int (*putchar)(const spooky_font * self, const SDL_Point * destination, const SDL_Color * color, spooky_font_line_adornment adornment, const spooky_text * text, int * advance);
-  int (*putchar_renderer)(const spooky_font * self, SDL_Renderer * renderer, const SDL_Point * destination, const SDL_Color * color, spooky_font_line_adornment adornment, const spooky_text * text, int * advance);
+  int (*putchar)(const spooky_font * self, const SDL_Point * destination, const SDL_Color * color, spooky_font_line_adornment adornment, const spooky_char * text, int * advance);
+  int (*putchar_renderer)(const spooky_font * self, SDL_Renderer * renderer, const SDL_Point * destination, const SDL_Color * color, spooky_font_line_adornment adornment, const spooky_char * text, int * advance);
   void (*write)(const spooky_font * self, const SDL_Point * destination, const SDL_Color * color, const char * text, size_t text_len, int * w, int * h);
   void (*write_to_renderer)(const spooky_font * self, SDL_Renderer * renderer, const SDL_Point * destination, const SDL_Color * color, const char * text, size_t text_len, int * w, int * h);
   const char * (*get_name)(const spooky_font * self);
@@ -80,7 +80,7 @@ typedef struct spooky_font {
   void (*set_drop_y)(const spooky_font * self, int drop_y);
   int (*get_drop_y)(const spooky_font * self);
   int (*get_point_size)(const spooky_font * self);
-  int (*get_glyph_advance)(const spooky_font * self, const spooky_text * text);
+  int (*get_glyph_advance)(const spooky_font * self, const spooky_char * text);
 
   struct spooky_font_data * data;
 } spooky_font;
@@ -108,8 +108,8 @@ const spooky_font * spooky_font_load_from_memory(SDL_Renderer * renderer, int po
 TTF_Font * spooky_font_open_font(const char * file_path, int point_size);
 
 void spooky_font_read_file_to_buf(const char * file_path, void ** out_buf, size_t * out_buf_len);
-void spooky_font_parse_text(const spooky_text * text, size_t text_len, const spooky_font_line_chunk ** chunks, size_t * chunks_len);
-uint32_t spooky_font_get_code_point(const spooky_text * s, int * skip);
-size_t spooky_font_count_new_lines(const spooky_text * text, size_t text_len);
+void spooky_font_parse_text(const spooky_char * text, size_t text_len, const spooky_font_line_chunk ** chunks, size_t * chunks_len);
+uint32_t spooky_font_get_code_point(const spooky_char * s, int * skip);
+size_t spooky_font_count_new_lines(const spooky_char * text, size_t text_len);
 
 #endif /* SPOOKY_FONT__H */

@@ -33,10 +33,7 @@
 #include "sp_db.h"
 #include "sp_box.h"
 #include "sp_config.h"
-#include "sp_tiles.h"
 
-static void spooky_render_hud(SDL_Renderer * renderer, const spooky_context * context, const spooky_tiles_manager * tiles_manager);
-static void spooky_render_landscape(SDL_Renderer * renderer, const spooky_context * context, const spooky_tiles_manager * tiles_manager, const spooky_vector * cursor);
 static errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex);
 static errno_t spooky_command_parser(spooky_context * context, const spooky_console * console, const spooky_log * log, const char * command) ;
 
@@ -233,16 +230,6 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
   static const int MAX_UPDATES_BEFORE_RENDER = 5;
   static const int TARGET_TIME_BETWEEN_RENDERS = BILLION / TARGET_FPS;
 
-  const spooky_tiles_manager * tiles_manager = spooky_tiles_manager_acquire();
-  tiles_manager = tiles_manager->ctor(tiles_manager, context);
-
-  if(tiles_manager->read_tiles(tiles_manager) != SP_SUCCESS) {
-    tiles_manager->generate_tiles(tiles_manager);
-    if(tiles_manager->write_tiles(tiles_manager) != SP_SUCCESS) {
-      fprintf(stderr, "Unable to persist world :(\n");
-    }
-  }
-
   int64_t now = 0;
   int64_t last_render_time = sp_get_time_in_us();
   int64_t last_update_time = sp_get_time_in_us();
@@ -323,12 +310,6 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
 
   if(debug->as_base(debug)->add_child(debug->as_base(debug), help->as_base(help), ex) != SP_SUCCESS) { goto err1; }
 
-  // SDL_Texture * sprite_texture = NULL;
-  // spooky_gui_load_texture(renderer, "./res/dwarf.png", strlen("./res/dwarf.png"), &sprite_texture);
-
-  // const spooky_sprite * sprite = spooky_sprite_acquire();
-  // sprite = sprite->ctor(sprite, sprite_texture);
-
   int temp_w, temp_h;
   SDL_GetWindowSize(window, &temp_w, &temp_h);
   int sprite_w = 8 * 4;
@@ -339,71 +320,13 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
   const spooky_box * box0 = spooky_box_acquire();
   box0 = box0->ctor(box0, context, box0_rect);
 
-  const spooky_config * config = context->get_config(context);
-
-  SDL_ClearError();
-  SDL_Texture * landscape = SDL_CreateTexture(renderer
-      , SDL_GetWindowPixelFormat(window)
-      , SDL_TEXTUREACCESS_TARGET
-      , ((int)SPOOKY_TILES_VOXEL_WIDTH * SPOOKY_TILES_VISIBLE_VOXELS_WIDTH)
-      , ((int)SPOOKY_TILES_VOXEL_HEIGHT * SPOOKY_TILES_VISIBLE_VOXELS_HEIGHT)
-      );
-  if(!landscape || spooky_is_sdl_error(SDL_GetError())) { abort(); }
-  bool update_landscape = true;
-
-  SDL_ClearError();
-  SDL_Texture * hud = SDL_CreateTexture(renderer
-      , SDL_GetWindowPixelFormat(window)
-      , SDL_TEXTUREACCESS_TARGET
-      , ((int)SPOOKY_TILES_VOXEL_WIDTH * SPOOKY_TILES_VISIBLE_VOXELS_WIDTH)
-      , ((int)SPOOKY_TILES_VOXEL_HEIGHT * SPOOKY_TILES_VISIBLE_VOXELS_HEIGHT)
-      );
-  if(!hud || spooky_is_sdl_error(SDL_GetError())) { abort(); }
-  SDL_SetTextureBlendMode(hud, SDL_BLENDMODE_ADD);
-  bool update_hud = true;
-
-  SDL_ClearError();
-  SDL_Texture * info = SDL_CreateTexture(renderer
-      , SDL_GetWindowPixelFormat(window)
-      , SDL_TEXTUREACCESS_TARGET
-      , config->get_window_width(config)
-      , config->get_window_height(config) - ((int)SPOOKY_TILES_VOXEL_HEIGHT * SPOOKY_TILES_VISIBLE_VOXELS_HEIGHT)
-      );
-  if(!info || spooky_is_sdl_error(SDL_GetError())) { abort(); }
-
   log->prepend(log, "Logging enabled\n", SLS_INFO);
 
   int x_dir = 30, y_dir = 30;
   double interpolation = 0.0;
   int seconds_to_save = 0;
 
-  spooky_vector screen_cursor = { .x = 0, .y = 0, .z = SPOOKY_TILES_MAX_TILES_DEPTH_LEN - 6 };
-
   SDL_Texture * canvas = context->get_canvas(context);
-  /* center rect to center canvas */
-  /*
-  int canvas_width = config->get_canvas_width(config);
-  int canvas_height = config->get_canvas_height(config);
-  SDL_Rect center_rect = {
-    .x = 1,
-    .y = 1,
-    .w = canvas_width,
-    .h = canvas_height
-  };
-  */
-  SDL_Rect landscape_rect = {
-    .x = 1,
-    .y = 1,
-    .w = ((int)SPOOKY_TILES_VOXEL_WIDTH * SPOOKY_TILES_VISIBLE_VOXELS_WIDTH),
-    .h = ((int)SPOOKY_TILES_VOXEL_HEIGHT * SPOOKY_TILES_VISIBLE_VOXELS_HEIGHT)
-  };
-
-  SDL_Rect info_rect = {
-    .x = 1,
-    .y = landscape_rect.h,
-    .w = config->get_window_width(config) - 1,
-    .h = config->get_window_height(config) - landscape_rect.h
-  };
 
   const spooky_base * box = box0->as_base(box0);
   while(spooky_context_get_is_running(context)) {
@@ -450,34 +373,6 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
             {
               SDL_Keycode sym = evt.key.keysym.sym;
               switch(sym) {
-                case SDLK_h: /* LEFT */
-                  tiles_manager->move_left(tiles_manager);
-                  update_landscape = true;
-                  break;
-                case SDLK_l: /* RIGHT */
-                  tiles_manager->move_right(tiles_manager);
-                  update_landscape = true;
-                  break;
-                case SDLK_k: /* UP */
-                  tiles_manager->move_up(tiles_manager);
-                  update_landscape = true;
-                  break;
-                case SDLK_j: /* DOWN */
-                  tiles_manager->move_down(tiles_manager);
-                  update_landscape = true;
-                  break;
-                case SDLK_COMMA: /* FOWARD */
-                  if((SDL_GetModState() & KMOD_SHIFT) != 0) {
-                    tiles_manager->move_forward(tiles_manager);
-                    update_landscape = true;
-                  }
-                  break;
-                case SDLK_PERIOD: /* BACK */
-                  if((SDL_GetModState() & KMOD_SHIFT) != 0) {
-                    tiles_manager->move_backward(tiles_manager);
-                    update_landscape = true;
-                  }
-                  break;
                 case SDLK_q:
                   /* ctrl-q to quit */
                   if((SDL_GetModState() & KMOD_CTRL) != 0) {
@@ -494,27 +389,6 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
             {
               SDL_Keycode sym = evt.key.keysym.sym;
               switch(sym) {
-                case SDLK_PERIOD:
-                  if((SDL_GetModState() & KMOD_SHIFT) == 0) {
-                    tiles_manager->set_active_tile(tiles_manager, screen_cursor.x, screen_cursor.y, screen_cursor.z);
-                    update_landscape = true;
-                  }
-                  break;
-                case SDLK_x:
-                case SDLK_y:
-                case SDLK_z:
-                case SDLK_EQUALS:
-                  {
-                    spooky_view_perspective perspective =
-                      sym == SDLK_x ? SPOOKY_SVP_X
-                        : sym == SDLK_y ? SPOOKY_SVP_Y
-                        : SPOOKY_SVP_Z
-                        ;
-                    tiles_manager->rotate_perspective(tiles_manager, perspective);
-                    update_landscape = true;
-                    update_hud = true;
-                  }
-                  break;
                 case SDLK_F12: /* fullscreen window */
                   {
                     bool previous_is_fullscreen = context->get_is_fullscreen(context);
@@ -603,74 +477,6 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
       }
     }
 
-    if(update_landscape) {
-      SDL_SetRenderTarget(renderer, landscape);
-      spooky_render_landscape(renderer, context, tiles_manager, &screen_cursor);
-      SDL_SetRenderTarget(renderer, canvas);
-      update_landscape = false;
-    }
-
-    { /* Render the landscape */
-      if(tiles_manager->get_perspective(tiles_manager) == SPOOKY_SVP_X) {
-        /* rotate camera 180 degress */
-        SDL_RenderCopyEx(renderer, landscape, NULL, &landscape_rect, 0, NULL, SDL_FLIP_VERTICAL);
-      } else {
-        SDL_RenderCopy(renderer, landscape, NULL, &landscape_rect);
-      }
-    }
-
-    if(update_hud) {
-      SDL_SetRenderTarget(renderer, hud);
-      spooky_render_hud(renderer, context, tiles_manager);
-      SDL_SetRenderTarget(renderer, canvas);
-      update_hud = false;
-    }
-    /* Render the landscape overlay (hud): */
-    SDL_RenderCopy(renderer, hud, NULL, &landscape_rect);
-
-    { /* Render the borders */
-      SDL_Color outline_color = { .r = 255, .g = 255, .b = 0, .a = 255 };
-      const spooky_gui_rgba_context * outline_rgba = spooky_gui_push_draw_color(renderer, &outline_color);
-      {
-        SDL_RenderDrawRect(renderer, &landscape_rect);
-        spooky_gui_pop_draw_color(outline_rgba);
-      }
-    }
-
-    const SDL_Color cursor_color = { 255, 0, 255, 255};
-    const spooky_gui_rgba_context * cursor_rgba = spooky_gui_push_draw_color(renderer, &cursor_color);
-    {
-      SDL_Rect cursor_rect = {
-        .x = (int)(screen_cursor.x * SPOOKY_TILES_VOXEL_WIDTH),
-        .y = (int)(screen_cursor.y * SPOOKY_TILES_VOXEL_HEIGHT),
-        .w = (int)SPOOKY_TILES_VOXEL_WIDTH,
-        .h = (int)SPOOKY_TILES_VOXEL_HEIGHT
-      };
-
-      if(cursor_rect.x >= (int)(SPOOKY_TILES_VOXEL_WIDTH * SPOOKY_TILES_MAX_TILES_ROW_LEN)) { screen_cursor.x = (SPOOKY_TILES_VOXEL_WIDTH * SPOOKY_TILES_MAX_TILES_ROW_LEN); }
-      if(cursor_rect.x < 0) { cursor_rect.x = 0; }
-
-      if(cursor_rect.y >= (int)(SPOOKY_TILES_VOXEL_HEIGHT * SPOOKY_TILES_MAX_TILES_COL_LEN)) { screen_cursor.y = (SPOOKY_TILES_VOXEL_HEIGHT * SPOOKY_TILES_MAX_TILES_COL_LEN); }
-      if(cursor_rect.y < 0) { cursor_rect.y = 0; }
-
-      spooky_box_draw_style style = box0->get_draw_style(box0);
-      box0->set_draw_style(box0, SBDS_OUTLINE);
-      box->set_rect(box, &cursor_rect, NULL);
-      box->render(box, renderer);
-      box0->set_draw_style(box0, style);
-      spooky_gui_pop_draw_color(cursor_rgba);
-    }
-
-    SDL_RenderCopy(renderer, info, NULL, &info_rect);
-
-    {
-      SDL_Color outline_color = { .r = 255, .g = 255, .b = 0, .a = 255 };
-      const spooky_gui_rgba_context * outline_rgba = spooky_gui_push_draw_color(renderer, &outline_color);
-      {
-        SDL_RenderDrawRect(renderer, &info_rect);
-        spooky_gui_pop_draw_color(outline_rgba);
-      }
-    }
     /* render bases */
     const spooky_base ** render_iter = first;
     do {
@@ -717,7 +523,6 @@ end_of_running_loop: ;
   if(background != NULL) { SDL_DestroyTexture(background), background = NULL; }
   if(letterbox_background != NULL) { SDL_DestroyTexture(letterbox_background), letterbox_background = NULL; }
 
-  spooky_tiles_manager_release(tiles_manager);
   spooky_help_release(help);
   spooky_console_release(console);
   spooky_log_release(log);
@@ -822,153 +627,4 @@ static errno_t spooky_parse_args(int argc, char ** argv, spooky_options * option
 
 err0:
   return SP_FAILURE;
-}
-
-void Resize() {
-  // TODO: resize the world/window
-}
-
-static void spooky_render_landscape(SDL_Renderer * renderer, const spooky_context * context, const spooky_tiles_manager * tiles_manager, const spooky_vector * cursor) {
-  static const spooky_box * box = NULL;
-  static const spooky_base * box_base = NULL;
-  if(!box && !box_base) {
-    SDL_Rect box_rect = { 0 };
-    box = spooky_box_acquire();
-    box = box->ctor(box, context, box_rect);
-    box_base = box->as_base(box);
-  }
-
-  (void)cursor;
-
-  box_base->set_w(box_base, (int)SPOOKY_TILES_VOXEL_WIDTH);
-  box_base->set_h(box_base, (int)SPOOKY_TILES_VOXEL_HEIGHT);
-  box_base->set_x(box_base, 0);
-  box_base->set_y(box_base, 0);
-
-  SDL_BlendMode old_blend_mode;
-  SDL_GetRenderDrawBlendMode(renderer, &old_blend_mode);
-  SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-
-  SDL_RenderClear(renderer);
-
-  const spooky_vector_3df * world_pov = tiles_manager->get_world_pov(tiles_manager);
-  uint32_t world_z = (uint32_t)floor(world_pov->z);
-
-  uint32_t i = SPOOKY_TILES_MAX_TILES_ROW_LEN;
-  while(i--) {
-    uint32_t j = SPOOKY_TILES_MAX_TILES_COL_LEN;
-    while(j--) {
-      const spooky_tile * tile = tiles_manager->get_tile(tiles_manager, i, j, world_z);
-      assert(tile && tile->meta);
-      spooky_tiles_tile_type type = tile->meta->type;
-      SDL_Color block_color = { 0 };
-      spooky_tiles_get_tile_color(type, &block_color);
-
-      /*
-      TODO: Implement 'hidden' blocks above current depth
-      if(tiles_manager->get_perspective(tiles_manager) == SPOOKY_SVP_Z && world_z + 1 < world_z) {
-        uint32_t over_offset = world_z + 1;
-        if(tiles_manager->get_tile(tiles_manager, i, j, over_offset) != NULL) {
-          block_color = (SDL_Color){ 0 };
-        }
-      }
-      */
-
-      const spooky_gui_rgba_context * tile_rgba = spooky_gui_push_draw_color(renderer, &block_color);
-      {
-        box_base->render(box_base, renderer);
-
-        uint32_t depth = 4;
-        uint32_t under_offset = world_z + depth;
-        do {
-          const spooky_tile * under = NULL;
-          under = tiles_manager->get_tile(tiles_manager, i, j, under_offset);
-          if(tile->meta->type == STT_EMPTY && under != NULL && under->meta->type != STT_EMPTY) {
-            /* try to draw the tile under the current tile if it's not empty */
-            SDL_Color under_color = { 0 };
-            spooky_tiles_get_tile_color(under->meta->type, &under_color);
-            bool render_under = true;
-            switch(depth) {
-              case 1: spooky_gui_color_darken(&under_color, 20); break;
-              case 2: spooky_gui_color_darken(&under_color, 35); break;
-              case 3: spooky_gui_color_darken(&under_color, 50); break;
-              case 4: spooky_gui_color_darken(&under_color, 65); break;
-              default: render_under = false; break;
-            }
-            if(render_under) {
-              const spooky_gui_rgba_context * under_rgba = spooky_gui_push_draw_color(renderer, &under_color);
-              {
-                box_base->render(box_base, renderer);
-                spooky_gui_pop_draw_color(under_rgba);
-              }
-            }
-          }
-          depth--;
-          under_offset = world_z + depth;
-        } while(depth > 0);
-
-        {
-          SDL_Color black = { 0, 0, 0, 255 };
-          const spooky_gui_rgba_context * outline = spooky_gui_push_draw_color(renderer, &black);
-          {
-            spooky_box_draw_style style = box->get_draw_style(box);
-            box->set_draw_style(box, SBDS_OUTLINE);
-            box_base->render(box_base, renderer);
-            box->set_draw_style(box, style);
-            spooky_gui_pop_draw_color(outline);
-          }
-
-          const spooky_tile * active_tile = tiles_manager->get_active_tile(tiles_manager);
-          {
-            /* highlight active tile */
-            if(active_tile && tile == active_tile) {
-              SDL_Color highlight_color = { .r = 255, .g = 0, .b = 0, .a = 255 };
-              const spooky_gui_rgba_context * highlight = spooky_gui_push_draw_color(renderer, &highlight_color);
-              {
-                spooky_box_draw_style style = box->get_draw_style(box);
-                box->set_draw_style(box, SBDS_FILL);
-                box_base->render(box_base, renderer);
-                box->set_draw_style(box, style);
-                spooky_gui_pop_draw_color(highlight);
-              }
-            }
-          }
-        }
-        spooky_gui_pop_draw_color(tile_rgba);
-      }
-
-      box_base->set_y(box_base, box_base->get_y(box_base) + (int)SPOOKY_TILES_VOXEL_HEIGHT);
-    }
-
-    box_base->set_x(box_base, box_base->get_x(box_base) + (int)SPOOKY_TILES_VOXEL_WIDTH);
-    box_base->set_y(box_base, 0);
-  }
-
-  SDL_SetRenderDrawBlendMode(renderer, old_blend_mode);
-}
-
-static void spooky_render_hud(SDL_Renderer * renderer, const spooky_context * context, const spooky_tiles_manager * tiles_manager) {
-  static const SDL_Color color = { 255, 255, 255, 255 };
-
-  int w = -1, h, axis_height, axis_width;
-  const spooky_font * font = context->get_font(context);
-  SDL_GetRendererOutputSize(renderer, &w, &h);
-
-  SDL_RenderClear(renderer);
-
-  const char * axis = NULL;
-  switch(tiles_manager->get_perspective(tiles_manager)) {
-    case SPOOKY_SVP_X: axis = "x"; break;
-    case SPOOKY_SVP_Y: axis = "y"; break;
-    case SPOOKY_SVP_Z:
-    case SPOOKY_SVP_EOE:
-    default: axis = "z"; break;
-  }
-  font->measure_text(font, axis, 1, &axis_width, &axis_height);
-  SDL_Point dest = { axis_width - 4, (h - axis_height) - ((int)SPOOKY_TILES_VOXEL_HEIGHT / 2) + 1 };
-
-  bool is_drop_shadow = font->get_is_drop_shadow(font);
-  font->set_is_drop_shadow(font, true);
-  font->write_to_renderer(font, renderer, &dest, &color, axis, 1, NULL, NULL);
-  font->set_is_drop_shadow(font, is_drop_shadow);
 }

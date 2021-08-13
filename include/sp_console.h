@@ -1,3 +1,5 @@
+#pragma once
+
 #ifndef SP_CONSOLE__H
 #define SP_CONSOLE__H
 
