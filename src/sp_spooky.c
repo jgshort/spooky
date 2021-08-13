@@ -838,7 +838,6 @@ static void spooky_render_landscape(SDL_Renderer * renderer, const spooky_contex
     box_base = box->as_base(box);
   }
 
-
   (void)cursor;
 
   box_base->set_w(box_base, (int)SPOOKY_TILES_VOXEL_WIDTH);
@@ -865,17 +864,18 @@ static void spooky_render_landscape(SDL_Renderer * renderer, const spooky_contex
       SDL_Color block_color = { 0 };
       spooky_tiles_get_tile_color(type, &block_color);
 
+      /*
+      TODO: Implement 'hidden' blocks above current depth
+      if(tiles_manager->get_perspective(tiles_manager) == SPOOKY_SVP_Z && world_z + 1 < world_z) {
+        uint32_t over_offset = world_z + 1;
+        if(tiles_manager->get_tile(tiles_manager, i, j, over_offset) != NULL) {
+          block_color = (SDL_Color){ 0 };
+        }
+      }
+      */
+
       const spooky_gui_rgba_context * tile_rgba = spooky_gui_push_draw_color(renderer, &block_color);
       {
-        /*
-        TODO: Implement 'hidden' blocks above current depth
-        if(world_z - 1 < world_z) {
-          uint32_t over_offset = world_z - 1;
-          if(tiles_manager->get_tile(tiles_manager, i, j, over_offset) != NULL) {
-            continue;
-          }
-        }
-        */
         box_base->render(box_base, renderer);
 
         uint32_t depth = 4;
