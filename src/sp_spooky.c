@@ -360,6 +360,8 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
       );
   if(!hud || spooky_is_sdl_error(SDL_GetError())) { abort(); }
   SDL_SetTextureBlendMode(hud, SDL_BLENDMODE_BLEND);
+  SDL_SetTextureAlphaMod(hud, 0);
+  SDL_SetTextureColorMod(hud, 255, 255, 255);
   bool update_hud = true;
 
   SDL_ClearError();
