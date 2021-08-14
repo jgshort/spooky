@@ -33,6 +33,7 @@
 #include "sp_db.h"
 #include "sp_box.h"
 #include "sp_config.h"
+#include "sp_text.h"
 
 static errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex);
 static errno_t spooky_command_parser(spooky_context * context, const spooky_console * console, const spooky_log * log, const char * command) ;
@@ -281,7 +282,7 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
   const spooky_wm * wm = spooky_wm_acquire();
   wm = wm->ctor(wm, context);
 
-  const spooky_base * objects[3] = { 0 };
+  const spooky_base * objects[4] = { 0 };
   const spooky_base ** first = objects;
   const spooky_base ** last = objects + ((sizeof objects / sizeof * objects));
 
@@ -298,13 +299,18 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
   const spooky_help * help = spooky_help_acquire();
   help = help->ctor(help, context);
 
-  objects[0] = (const spooky_base *)console;
-  objects[1] = (const spooky_base *)debug;
-  objects[2] = (const spooky_base *)help;
+  const spooky_text * text = spooky_text_acquire();
+  text = text->ctor(text, context, renderer);
 
-  console->as_base(console)->set_z_order(console->as_base(console), 9999997);
-  help->as_base(help)->set_z_order(help->as_base(help), 9999998);
-  debug->as_base(debug)->set_z_order(debug->as_base(debug), 9999999);
+  objects[0] = console->as_base(console);
+  objects[1] = debug->as_base(debug);
+  objects[2] = help->as_base(help);
+  objects[3] = text->as_base(text);
+
+  console->as_base(console)->set_z_order(console->as_base(console), 9999996);
+  help->as_base(help)->set_z_order(help->as_base(help), 9999997);
+  debug->as_base(debug)->set_z_order(debug->as_base(debug), 9999998);
+  text->as_base(text)->set_z_order(text->as_base(text), 9999999);
 
   spooky_base_z_sort(objects, (sizeof objects / sizeof * objects));
 
@@ -523,6 +529,7 @@ end_of_running_loop: ;
   if(background != NULL) { SDL_DestroyTexture(background), background = NULL; }
   if(letterbox_background != NULL) { SDL_DestroyTexture(letterbox_background), letterbox_background = NULL; }
 
+  spooky_text_release(text);
   spooky_help_release(help);
   spooky_console_release(console);
   spooky_log_release(log);

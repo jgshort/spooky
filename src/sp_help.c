@@ -108,6 +108,17 @@ void spooky_help_release(const spooky_help * self) {
 bool spooky_help_handle_event(const spooky_base * self, SDL_Event * event) {
   spooky_help_impl * impl = ((const spooky_help *)self)->impl;
   switch(event->type) {
+    case SDL_KEYDOWN:
+      {
+        SDL_Keycode sym = event->key.keysym.sym;
+        switch(sym) {
+          case SDLK_ESCAPE: /* hide help */
+            impl->show_help = false;
+            return true;
+          default:
+            break;
+        }
+      }
     case SDL_KEYUP:
       {
         SDL_Keycode sym = event->key.keysym.sym;
@@ -115,15 +126,8 @@ bool spooky_help_handle_event(const spooky_base * self, SDL_Event * event) {
           case SDLK_F1: /* show help */
           case SDLK_SLASH:
           case SDLK_QUESTION:
-            {
-              impl->show_help = true;
-            }
-            break;
-          case SDLK_ESCAPE: /* hide help */
-            {
-              impl->show_help = false;
-            }
-            break;
+            impl->show_help = true;
+            return true;
           default:
             break;
         }
@@ -132,7 +136,7 @@ bool spooky_help_handle_event(const spooky_base * self, SDL_Event * event) {
     default:
       break;
   }
-  return impl->show_help;
+  return false;
 }
 
 void spooky_help_render(const spooky_base * self, SDL_Renderer * renderer) {
