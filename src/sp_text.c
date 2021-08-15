@@ -176,15 +176,14 @@ static bool spooky_text_handle_event(const spooky_base * self, SDL_Event * event
       }
     }
     return true;
+  } else if(data->capture_input && event->type == SDL_KEYDOWN && event->key.keysym.sym == SDLK_ESCAPE) {
+    data->capture_input = false;
+    return true;
   } else if(event->type == SDL_KEYUP) {
     SDL_Keycode sym = event->key.keysym.sym;
     switch(sym) {
       case SDLK_SPACE: /* show text capture */
         data->capture_input = true;
-        return true;
-        break;
-      case SDLK_ESCAPE: /* hide text capture */
-        data->capture_input = false;
         return true;
         break;
       default:

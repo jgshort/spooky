@@ -307,10 +307,10 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
   objects[2] = help->as_base(help);
   objects[3] = text->as_base(text);
 
-  console->as_base(console)->set_z_order(console->as_base(console), 9999996);
-  help->as_base(help)->set_z_order(help->as_base(help), 9999997);
-  debug->as_base(debug)->set_z_order(debug->as_base(debug), 9999998);
-  text->as_base(text)->set_z_order(text->as_base(text), 9999999);
+  text->as_base(text)->set_z_order(text->as_base(text), 9999996);
+  console->as_base(console)->set_z_order(console->as_base(console), 999997);
+  help->as_base(help)->set_z_order(help->as_base(help), 9999998);
+  debug->as_base(debug)->set_z_order(debug->as_base(debug), 9999999);
 
   spooky_base_z_sort(objects, (sizeof objects / sizeof * objects));
 
@@ -335,6 +335,8 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
   SDL_Texture * canvas = context->get_canvas(context);
 
   const spooky_base * box = box0->as_base(box0);
+
+  SDL_Event evt = { 0 };
   while(spooky_context_get_is_running(context)) {
     SDL_SetRenderTarget(renderer, context->get_canvas(context));
 
@@ -344,9 +346,8 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
     while((now - last_update_time > TIME_BETWEEN_UPDATES && update_loops < MAX_UPDATES_BEFORE_RENDER)) {
       if(spooky_is_sdl_error(SDL_GetError())) { log->prepend(log, SDL_GetError(), SLS_INFO); }
 
-      SDL_Event evt = { 0 };
       SDL_ClearError();
-      while(SDL_PollEvent(&evt)) {
+      while(SDL_PollEvent(&evt) > 0) {
         if(spooky_is_sdl_error(SDL_GetError())) { log->prepend(log, SDL_GetError(), SLS_INFO); }
 
         /* NOTE: SDL_PollEvent can set the Error message returned by SDL_GetError; so clear it, here: */
@@ -422,7 +423,7 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
           const spooky_base * obj = *event_iter;
           if(obj != NULL && obj->handle_event != NULL) {
             if(obj->handle_event(obj, &evt)) {
-              break;
+              goto break_events;
             }
           }
         } while(--event_iter >= first);
@@ -430,6 +431,7 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
         box->handle_event(box, &evt);
       } /* >> while(SDL_PollEvent(&evt)) */
 
+break_events:
       {
         /* check the console command; execute it if it exists */
         const char * command;
