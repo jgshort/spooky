@@ -206,8 +206,18 @@ static void spooky_text_render(const spooky_base * self, SDL_Renderer * renderer
 
   SDL_GetRendererOutputSize(renderer, &w, &h);
 
+  int x_center = w / 2;
+  int y_center = h / 2;
+  SDL_Rect rect = {
+    .x = x_center - (800 / 2),
+    .y = y_center - (100 / 2),
+    .w = 800,
+    .h = 100
+  };
+
+
   static const SDL_Color white = { 255, 255, 255, 255 };
-  SDL_Rect rect = { .x = (w / 2) - (200 * 2), .y = h - 175, .w = w - 200, .h = 100 };
+  // SDL_Rect rect = { .x = (w / 2) - (200 * 2), .y = h - 175, .w = w - 200, .h = 100 };
   const spooky_gui_rgba_context * rgba_context = spooky_gui_push_draw_color(renderer, &white);
   {
 

@@ -68,8 +68,8 @@ const spooky_help * spooky_help_ctor(const spooky_help * self, const spooky_cont
   int help_rect_w, help_rect_h;
   SDL_GetRendererOutputSize(context->get_renderer(context), &help_rect_w, &help_rect_h);
   SDL_Rect origin = {
-    .x = (help_rect_w / 2) - (help_text_w / 2) - 500,
-    .y = (help_rect_h / 2) - ((help_text_h * 24) / 2) - 350,
+    .x = (help_rect_w / 4) - (help_text_w / 2),
+    .y = (help_rect_h / 4) - ((help_text_h * 24) / 2),
     .w = help_text_w,
     .h = help_text_h * 24
   };
@@ -85,8 +85,8 @@ const spooky_help * spooky_help_ctor(const spooky_help * self, const spooky_cont
 
   ((spooky_help *)(uintptr_t)self)->impl = impl;
 
-  const spooky_ex * ex = NULL;
-  self->super.set_rect((const spooky_base *)self, &origin, &ex);
+  //const spooky_ex * ex = NULL;
+  //self->super.set_rect((const spooky_base *)self, &origin, &ex);
   return self;
 }
 
@@ -175,13 +175,25 @@ void spooky_help_render(const spooky_base * self, SDL_Renderer * renderer) {
 
   assert(help_out > 0 && (size_t)help_out < sizeof(help));
 
+  int help_text_w, help_text_h;
+  font->measure_text(font, "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm", strlen("mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm"), &help_text_w, &help_text_h);
+
   const SDL_Color help_fore_color = { .r = 255, .g = 255, .b = 255, .a = 255};
-  const SDL_Rect * rect = self->get_rect(self);
 
   int help_w = 0, help_h = 0;
-  int line_skip = font->get_line_skip(font);
   font->measure_text(font, help, (size_t)help_out, &help_w, &help_h);
-  const SDL_Point help_point = { .x = rect->x + (rect->w / 2), .y = rect->y + (line_skip * 3) };
+
+  int x_center = help_rect_w / 2;
+  int y_center = help_rect_h / 2;
+  SDL_Rect origin = {
+    .x = x_center - (help_text_w / 2),
+    .y = y_center - (help_h / 2),
+    .w = help_text_w,
+    .h = help_h
+  };
+
+  const SDL_Rect * rect = &origin;
+  const SDL_Point help_point = { .x = rect->x, .y = rect->y };
   const SDL_Color background_color = { .r = 199, .g = 78, .b = 157, .a = 150 };
   const spooky_gui_rgba_context * rgba = spooky_gui_push_draw_color(renderer, &background_color);
   {
@@ -190,7 +202,7 @@ void spooky_help_render(const spooky_base * self, SDL_Renderer * renderer) {
 
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
 
-    SDL_Rect rr = { .x = help_point.x - 10, .y = help_point.y - 10, .w = help_w + 20, .h = help_h + 20 };
+    SDL_Rect rr = { .x = help_point.x, .y = help_point.y, .w = help_w, .h = help_h };
     SDL_RenderFillRect(renderer, &rr);
     SDL_SetRenderDrawBlendMode(renderer, blend_mode);
 
