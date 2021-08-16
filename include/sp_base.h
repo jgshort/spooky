@@ -14,7 +14,7 @@ typedef struct spooky_base {
   void (*release)(const spooky_base * /* self */);
 
   bool (*handle_event)(const spooky_base * /* self */, SDL_Event * /* event */);
-  void (*handle_delta)(const spooky_base * /* self */, int64_t /* last_update_time */, double /* interpolation */);
+  void (*handle_delta)(const spooky_base * /* self */, const SDL_Event * /* event */, int64_t /* last_update_time */, double /* interpolation */);
   void (*render)(const spooky_base * /* self */, SDL_Renderer * /* renderer */);
 
   const SDL_Rect * (*get_rect)(const spooky_base * /* self */);

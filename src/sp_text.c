@@ -6,8 +6,9 @@
 #include "sp_font.h"
 #include "sp_text.h"
 
-static const size_t spooky_text_max_input_len = 128;
+static const size_t spooky_text_max_input_len = 37;
 
+static void spooky_text_handle_delta(const spooky_base * self, const SDL_Event * event, int64_t last_update_time, double interpolation);
 static bool spooky_text_handle_event(const spooky_base * self, SDL_Event * event);
 static void spooky_text_render(const spooky_base * self, SDL_Renderer * renderer);
 
@@ -21,8 +22,9 @@ typedef struct spooky_text_data {
   size_t text_capacity;
 
   char * current_command;
-  char padding[7]; /* not portable */
+  char padding[6]; /* not portable */
   bool capture_input;
+  bool hide_cursor;
 } spooky_text_data;
 
 static const spooky_text spooky_text_funcs = {
@@ -34,7 +36,7 @@ static const spooky_text spooky_text_funcs = {
 
   .super.handle_event = &spooky_text_handle_event,
   .super.render = &spooky_text_render,
-  .super.handle_delta = NULL
+  .super.handle_delta = &spooky_text_handle_delta
 };
 
 const spooky_base * spooky_text_as_base(const spooky_text * self) {
@@ -117,6 +119,7 @@ void spooky_text_release(const spooky_text * self) {
 }
 
 static void spooky_text_copy_text_to_buffer(const spooky_text * self, const char * text, size_t text_len) {
+  if(text_len < 1) { return; }
   spooky_text_data * data = self->data;
   if(!data->text) {
     data->text = calloc(spooky_text_max_input_len, sizeof *(data->text));
@@ -126,8 +129,7 @@ static void spooky_text_copy_text_to_buffer(const spooky_text * self, const char
   if(data->text_len + text_len < spooky_text_max_input_len) {
     char * dest = data->text + data->text_len;
     const char * src = text;
-    const char * src_end = src + text_len;
-    while (src < src_end && *src != '\0')
+    while (*src != '\0')
     {
       *dest = *src;
       dest++;
@@ -158,6 +160,7 @@ static bool spooky_text_handle_event(const spooky_base * self, SDL_Event * event
   else if(data->capture_input && event->type == SDL_KEYDOWN && event->key.keysym.sym == SDLK_RETURN) {
     /* push a new command */
     if(data->current_command) { free(data->current_command), data->current_command = NULL; }
+    if(!data->text) { return true; }
     data->current_command = strndup(data->text, spooky_text_max_input_len);
     free(data->text), data->text = NULL;
     data->text_len = 0;
@@ -176,7 +179,7 @@ static bool spooky_text_handle_event(const spooky_base * self, SDL_Event * event
       }
     }
     return true;
-  } else if(data->capture_input && event->type == SDL_KEYDOWN && event->key.keysym.sym == SDLK_ESCAPE) {
+  } else if(event->type == SDL_KEYDOWN && event->key.keysym.sym == SDLK_ESCAPE) {
     data->capture_input = false;
     return true;
   } else if(event->type == SDL_KEYUP) {
@@ -209,23 +212,42 @@ static void spooky_text_render(const spooky_base * self, SDL_Renderer * renderer
   {
 
     SDL_RenderFillRect(renderer, &rect);
-    if(data->capture_input) {
-      const spooky_font * font = data->context->get_font(data->context);
-      static const SDL_Color black = { 0, 0, 0, 255 };
-      SDL_Point base_point = { .x = rect.x + 20, .y = rect.y + 50 };
-      SDL_Rect text_rect = { .x = base_point.x, .y = base_point.y, .w = rect.w - 40, .h = font->get_height(font) + 6 };
-      const spooky_gui_rgba_context * text_context = spooky_gui_push_draw_color(renderer, &black);
-      {
-        SDL_Point instructions_point = { .x = rect.x + 20, .y = rect.y + 10 };
-        font->write_to_renderer(font, renderer, &instructions_point, &black, "WHAT SHALL I DO?", strlen("WHAT SHALL I DO?"), NULL, NULL);
-        SDL_RenderFillRect(renderer, &text_rect);
-        spooky_gui_pop_draw_color(text_context);
-      }
-      SDL_Point input_point = { .x = base_point.x + 7, .y = base_point.y };
-      font->write_to_renderer(font, renderer, &input_point, &white, data->text, data->text_len, NULL, NULL);
+    const spooky_font * font = data->context->get_font(data->context);
+    bool orthographic_ligatures = font->get_enable_orthographic_ligatures(font);
+    font->set_enable_orthographic_ligatures(font, false);
+
+    static const SDL_Color black = { 0, 0, 0, 255 };
+    SDL_Point base_point = { .x = rect.x + 20, .y = rect.y + 50 };
+    SDL_Rect text_rect = { .x = base_point.x, .y = base_point.y, .w = rect.w - 40, .h = font->get_height(font) + 6 };
+    const spooky_gui_rgba_context * text_context = spooky_gui_push_draw_color(renderer, &black);
+    {
+      SDL_Point instructions_point = { .x = rect.x + 20, .y = rect.y + 10 };
+      font->write_to_renderer(font, renderer, &instructions_point, &black, "WHAT SHALL I DO?", strlen("WHAT SHALL I DO?"), NULL, NULL);
+      SDL_RenderFillRect(renderer, &text_rect);
+      spooky_gui_pop_draw_color(text_context);
     }
+
+    SDL_Point input_point = { .x = base_point.x + 7, .y = base_point.y + 2 };
+    font->write_to_renderer(font, renderer, &input_point, &white, data->text, data->text_len, NULL, NULL);
+    if(!data->hide_cursor) {
+      int cursor_x = 0;
+      bool old_is_drop_shadow = font->get_is_drop_shadow(font);
+      font->set_is_drop_shadow(font, false);
+      font->measure_text(font, data->text, data->text_len, &cursor_x, NULL);
+      input_point.x += cursor_x;
+      font->write_to_renderer(font, renderer, &input_point, &white, "_", 1, NULL, NULL);
+      font->set_is_drop_shadow(font, old_is_drop_shadow);
+    }
+    font->set_enable_orthographic_ligatures(font, orthographic_ligatures);
     spooky_gui_pop_draw_color(rgba_context);
   }
 
   return;
+}
+
+static void spooky_text_handle_delta(const spooky_base * self, const SDL_Event * event, int64_t last_update_time, double interpolation) {
+  (void)event;
+  (void)interpolation;
+  spooky_text_data * data = ((const spooky_text *)self)->data;
+  data->hide_cursor = (last_update_time / 650000000) % 2 == 0;
 }

@@ -47,7 +47,7 @@ typedef struct spooky_console_impl {
 } spooky_console_impl;
 
 static bool spooky_console_handle_event(const spooky_base * self, SDL_Event * event);
-static void spooky_console_handle_delta(const spooky_base * self, int64_t last_update_time, double interpolation);
+static void spooky_console_handle_delta(const spooky_base * self, const SDL_Event * event, int64_t last_update_time, double interpolation);
 static void spooky_console_render(const spooky_base * self, SDL_Renderer * renderer);
 static void spooky_console_push_str(const spooky_console * self, const char * str);
 static void spooky_console_list_prepend(spooky_console_line * X, spooky_console_line * P);
@@ -250,7 +250,8 @@ bool spooky_console_handle_event(const spooky_base * self, SDL_Event * event) {
   return false;
 }
 
-void spooky_console_handle_delta(const spooky_base * self, int64_t last_update_time, double interpolation) {
+void spooky_console_handle_delta(const spooky_base * self, const SDL_Event * event, int64_t last_update_time, double interpolation) {
+  (void)event;
   spooky_console_impl * impl = ((const spooky_console *)self)->impl;
 
   if(impl->is_animating) {

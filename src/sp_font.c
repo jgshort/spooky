@@ -18,8 +18,8 @@
 static const size_t SPOOKY_MAX_STRING_LEN = 4096;
 
 const char * spooky_default_font_names[SPOOKY_FONT_MAX_TYPES] = {
-  "deja.sans",
   "print.char",
+  "deja.sans",
   "pr.number"
 };
 

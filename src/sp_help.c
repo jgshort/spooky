@@ -7,7 +7,8 @@
 typedef struct spooky_help_impl {
   const spooky_context * context;
   bool show_help;
-  char padding[7]; /* not portable */
+  bool is_active;
+  char padding[6]; /* not portable */
 } spooky_help_impl;
 
 static const spooky_help spooky_help_funcs = {
@@ -80,6 +81,7 @@ const spooky_help * spooky_help_ctor(const spooky_help * self, const spooky_cont
 
   impl->context = context;
   impl->show_help = false;
+  impl->is_active = false;
 
   ((spooky_help *)(uintptr_t)self)->impl = impl;
 
@@ -110,10 +112,12 @@ bool spooky_help_handle_event(const spooky_base * self, SDL_Event * event) {
   switch(event->type) {
     case SDL_KEYDOWN:
       {
+        if(!impl->show_help) { return false; }
         SDL_Keycode sym = event->key.keysym.sym;
         switch(sym) {
           case SDLK_ESCAPE: /* hide help */
             impl->show_help = false;
+            impl->is_active = false;
             return true;
           default:
             break;
@@ -127,6 +131,7 @@ bool spooky_help_handle_event(const spooky_base * self, SDL_Event * event) {
           case SDLK_SLASH:
           case SDLK_QUESTION:
             impl->show_help = true;
+            impl->is_active = true;
             return true;
           default:
             break;
@@ -136,7 +141,7 @@ bool spooky_help_handle_event(const spooky_base * self, SDL_Event * event) {
     default:
       break;
   }
-  return false;
+  return impl->is_active;
 }
 
 void spooky_help_render(const spooky_base * self, SDL_Renderer * renderer) {

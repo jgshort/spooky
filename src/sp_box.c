@@ -25,7 +25,7 @@ typedef struct spooky_box_data {
 } spooky_box_data;
 
 static bool spooky_box_handle_event(const spooky_base * self, SDL_Event * event);
-static void spooky_box_handle_delta(const spooky_base * self, int64_t last_update_time, double interpolation);
+static void spooky_box_handle_delta(const spooky_base * self, const SDL_Event * event, int64_t last_update_time, double interpolation);
 static void spooky_box_render(const spooky_base * self, SDL_Renderer * renderer);
 
 static void spooky_box_set_name(const spooky_box * self, const char * name);
@@ -163,21 +163,22 @@ static bool spooky_box_handle_event(const spooky_base * self, SDL_Event * event)
   return false;
 }
 
-static void spooky_box_handle_delta(const spooky_base * self, int64_t last_update_time, double interpolation) {
+static void spooky_box_handle_delta(const spooky_base * self, const SDL_Event * event, int64_t last_update_time, double interpolation) {
+  (void)event;
   if(self->get_children_count(self) > 0) {
     const spooky_iter * it = self->get_iterator(self);
     it->reset(it);
     while(it->next(it)) {
       const spooky_base * object = it->current(it);
       if(object && object->handle_delta) {
-        object->handle_delta(object, last_update_time,interpolation);
+        object->handle_delta(object, event, last_update_time,interpolation);
       }
     }
   }
 
   spooky_box_data * data = ((const spooky_box *)(uintptr_t)self)->data;
   if(data->sprite && data->sprite->handle_delta) {
-    data->sprite->handle_delta(data->sprite, last_update_time, interpolation);
+    data->sprite->handle_delta(data->sprite, event, last_update_time, interpolation);
   }
 }
 
@@ -411,11 +412,11 @@ static const spooky_box_scroll_box_item * spooky_box_attach_scroll_box_item_text
 static const spooky_box_scroll_box_item * spooky_box_attach_scroll_box_item_image(const spooky_box * self, const char * text, const char * description, const char * path);
 
 bool spooky_box_handle_event(const spooky_base * self, SDL_Event * event);
-void spooky_box_handle_delta(const spooky_base * self, int64_t last_update_time, double interpolation);
+void spooky_box_handle_delta(const spooky_base * self, const SDL_Event * event, int64_t last_update_time, double interpolation);
 void spooky_box_render(const spooky_base * self, SDL_Renderer * renderer);
 
 bool spooky_box_scroll_box_handle_event(const spooky_base * self, SDL_Event * event);
-void spooky_box_scroll_box_handle_delta(const spooky_base * self, int64_t last_update_time, double interpolation);
+void spooky_box_scroll_box_handle_delta(const spooky_base * self, const SDL_Event * event, int64_t last_update_time, double interpolation);
 void spooky_box_scroll_box_render(const spooky_base * self, SDL_Renderer * renderer);
 
 

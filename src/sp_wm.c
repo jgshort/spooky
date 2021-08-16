@@ -19,7 +19,7 @@ typedef struct spooky_wm_data {
 } spooky_wm_data;
 
 static bool spooky_wm_handle_event(const spooky_base * self, SDL_Event * event);
-static void spooky_wm_handle_delta(const spooky_base * self, int64_t last_update_time, double interpolation);
+static void spooky_wm_handle_delta(const spooky_base * self, const SDL_Event * event, int64_t last_update_time, double interpolation);
 static void spooky_wm_render(const spooky_base * self, SDL_Renderer * renderer);
 static void spooky_wm_register_window(spooky_wm const * self, const spooky_base * object);
 static void spooky_wm_activate_window(spooky_wm const * self, const spooky_base * object);
@@ -123,7 +123,8 @@ bool spooky_wm_handle_event(const spooky_base * self, SDL_Event * event) {
   return handled;
 }
 
-void spooky_wm_handle_delta(const spooky_base * self, int64_t last_update_time, double interpolation) {
+void spooky_wm_handle_delta(const spooky_base * self, const SDL_Event * event, int64_t last_update_time, double interpolation) {
+  (void)event;
   spooky_wm_data * data = ((const spooky_wm *)(uintptr_t)self)->data;
   const spooky_iter * it = data->it;
 
@@ -131,7 +132,7 @@ void spooky_wm_handle_delta(const spooky_base * self, int64_t last_update_time, 
   while(it->next(it)) {
     const spooky_base * object = it->current(it);
     if(object != NULL) {
-      object->handle_delta(object, last_update_time, interpolation);
+      object->handle_delta(object, event, last_update_time, interpolation);
     }
   }
 }

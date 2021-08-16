@@ -461,7 +461,7 @@ break_events:
       const spooky_base ** delta_iter = first;
       do {
         const spooky_base * obj = *delta_iter;
-        if(obj->handle_delta != NULL) { obj->handle_delta(obj, last_update_time, interpolation); }
+        if(obj->handle_delta != NULL) { obj->handle_delta(obj, &evt, last_update_time, interpolation); }
       } while(++delta_iter < last);
 
       last_update_time += TIME_BETWEEN_UPDATES;

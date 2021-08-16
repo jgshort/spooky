@@ -31,7 +31,7 @@ void spooky_debug_release(const spooky_debug * self);
 void spooky_debug_update(const spooky_debug * self, int64_t fps, int64_t seconds_since_start, double interpolation);
 
 bool spooky_debug_handle_event(const spooky_base * self, SDL_Event * event);
-void spooky_debug_handle_delta(const spooky_base * self, double interpolation);
+void spooky_debug_handle_delta(const spooky_base * self, const SDL_Event * event, double interpolation);
 void spooky_debug_render(const spooky_base * self, SDL_Renderer * renderer);
 
 #endif

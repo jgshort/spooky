@@ -129,11 +129,6 @@ bool spooky_debug_handle_event(const spooky_base * self, SDL_Event * event) {
   return false;
 }
 
-void spooky_debug_handle_delta(const spooky_base * self, double interpolation) {
-  (void)self;
-  (void)interpolation;
-}
-
 void spooky_debug_render(const spooky_base * self, SDL_Renderer * renderer) {
   static char debug[1920] = { 0 };
 

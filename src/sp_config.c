@@ -19,7 +19,7 @@ typedef struct spooky_config_data {
 } spooky_config_data;
 
 static spooky_config_data global_config_data = {
-  .font_name = "deja.sans",
+  .font_name = "print.char",
   .font_size = 18,
   .disable_high_dpi = "0",
   // 2048, 1536 retina: 2880 x 1800

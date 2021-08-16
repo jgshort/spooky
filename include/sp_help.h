@@ -29,7 +29,7 @@ void spooky_help_free(const spooky_help * self);
 void spooky_help_release(const spooky_help * self);
 
 bool spooky_help_handle_event(const spooky_base * self, SDL_Event * event);
-void spooky_help_handle_delta(const spooky_base * self, int64_t last_update_time, double interpolation);
+void spooky_help_handle_delta(const spooky_base * self, const SDL_Event * event, int64_t last_update_time, double interpolation);
 void spooky_help_render(const spooky_base * self, SDL_Renderer * renderer);
  
 #endif
