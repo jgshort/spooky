@@ -57,19 +57,19 @@ int main(int argc, char **argv) {
   long pak_offset = 0;
   uint64_t content_offset = 0, content_len = 0, index_entries = 0, index_offset = 0, index_len = 0;
 
+  const char * self_exec = argv[0];
   { /* check if we're a bundled exec + pak file */
-    int fd = open(argv[0], O_RDONLY | O_EXCL, S_IRUSR | S_IWUSR);
+    int fd = open(self_exec, O_RDONLY | O_EXCL, S_IRUSR | S_IWUSR);
     if(fd >= 0) {
       fp = fdopen(fd, "rb");
       if(fp) {
         errno_t is_valid = spooky_pack_is_valid_pak_file(fp, &pak_offset, &content_offset, &content_len, &index_entries, &index_offset, &index_len);
         if(is_valid != SP_SUCCESS) {
-          fclose(fp);
-          fp = NULL;
           /* not a valid bundle */
+          fclose(fp), fp = NULL;
         }
-      } else { fprintf(stderr, "Unable to open file %s\n", argv[0]); }
-    } else { fprintf(stderr, "Unable to open file %s\n", argv[0]); }
+      } else { fprintf(stderr, "Unable to open file %s\n", self_exec); }
+    } else { fprintf(stderr, "Unable to open file %s\n", self_exec); }
   }
 
   if(!fp) {

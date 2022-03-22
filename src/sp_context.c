@@ -54,7 +54,7 @@ typedef struct spooky_context_data {
   const spooky_config * config;
   SDL_Window * window;
   SDL_Renderer * renderer;
-  SDL_GLContext glContext;
+  //SDL_GLContext glContext;
   SDL_Texture * canvas;
   const spooky_console * console;
   const spooky_hash_table * hash;
@@ -344,10 +344,10 @@ errno_t spooky_init_context(spooky_context * context, FILE * fp) {
 
   SDL_RenderPresent(renderer);
 
-  SDL_ClearError();
-  SDL_GLContext glContext = SDL_GL_CreateContext(window);
-  if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
-  if(glContext == NULL || spooky_is_sdl_error(SDL_GetError())) { goto err6; }
+  //SDL_ClearError();
+  //SDL_GLContext glContext = SDL_GL_CreateContext(window);
+  //if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
+  //if(glContext == NULL || spooky_is_sdl_error(SDL_GetError())) { goto err6; }
 
   SDL_ClearError();
   SDL_Texture * canvas = SDL_CreateTexture(renderer
@@ -356,7 +356,7 @@ errno_t spooky_init_context(spooky_context * context, FILE * fp) {
       , config->get_canvas_width(config)
       , config->get_canvas_height(config)
       );
-  if(!canvas || spooky_is_sdl_error(SDL_GetError())) { goto err7; }
+  if(!canvas || spooky_is_sdl_error(SDL_GetError())) { goto err6; }
 
   fprintf(stdout, "Window: (%i, %i), Renderer: (%i, %i), Scaled: (%i, %i), Canvas: (%i, %i)\n",
       config->get_window_width(config)
@@ -370,7 +370,7 @@ errno_t spooky_init_context(spooky_context * context, FILE * fp) {
 
   global_data.window = window;
   global_data.renderer = renderer;
-  global_data.glContext = glContext;
+  //global_data.glContext = glContext;
   global_data.canvas = canvas;
 
   global_data.turns = 0;
@@ -416,13 +416,13 @@ errno_t spooky_init_context(spooky_context * context, FILE * fp) {
 
   return SP_SUCCESS;
 
-err7:
+err6:
   if(!error_message) { error_message = "Unable to create canvas."; }
 
-err6:
+//err6:
   /* unable to create GL context */
-  if(!error_message) { error_message = "Unable to create GL context."; }
-  SDL_DestroyRenderer(renderer), renderer = NULL;
+//  if(!error_message) { error_message = "Unable to create GL context."; }
+//  SDL_DestroyRenderer(renderer), renderer = NULL;
 
 err5:
   /* unable to create SDL renderer */
@@ -460,7 +460,7 @@ void spooky_release_context(spooky_context * context) {
     spooky_context_data * data = context->data;
 
     spooky_hash_table_release(data->hash, &spooky_index_item_free_item);
- 
+
     if(data->canvas) {
       SDL_ClearError();
       SDL_DestroyTexture(data->canvas), data->canvas = NULL;
@@ -471,7 +471,7 @@ void spooky_release_context(spooky_context * context) {
       }
     }
 
-    if(data->glContext) {
+  /*  if(data->glContext) {
       SDL_ClearError();
       SDL_GL_DeleteContext(data->glContext), data->glContext = NULL;
       if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
@@ -479,7 +479,7 @@ void spooky_release_context(spooky_context * context) {
       if(spooky_is_sdl_error(error)) {
         fprintf(stderr, "Non-fatal error: Unable to release GL context, '%s'.\n", error);
       }
-    }
+    }*/
 
     if(data->renderer) {
       SDL_ClearError();

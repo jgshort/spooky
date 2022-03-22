@@ -9,7 +9,6 @@
 #include <sodium.h>
 #include <assert.h>
 #include <memory.h>
-#include <sodium.h>
 
 #include "sp_z.h"
 #include "sp_limits.h"
@@ -1593,7 +1592,7 @@ static void spooky_write_fixed_width_string_tests() {
   size_t len;
   memcpy(&len, buf, sizeof len);
   assert(len == strlen(hello_world));
- 
+
   char * p = buf + sizeof(size_t);
   char * result = malloc(sizeof(char) * len + 1);
   memcpy(result, p, sizeof(char) * len + 1);

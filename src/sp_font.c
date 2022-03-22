@@ -259,7 +259,7 @@ const spooky_font * spooky_font_ctor(const spooky_font * self, SDL_Renderer * re
   assert(ttf_font_outline);
   TTF_SetFontOutline(ttf_font_outline, spooky_font_outline);
 
-  const spooky_font * font = spooky_font_cctor(self, renderer, point_size, mem, mem_len, stream, ttf_font, ttf_font_outline); 
+  const spooky_font * font = spooky_font_cctor(self, renderer, point_size, mem, mem_len, stream, ttf_font, ttf_font_outline);
 
   return font;
 }
@@ -764,7 +764,6 @@ void spooky_font_set_font_attributes(const spooky_font * self) {
   data->height = TTF_FontHeight(ttf_font);
   data->line_skip = TTF_FontLineSkip(ttf_font);
 
-  size_t w = 0;
   /* create glyphs from table */
   for(size_t i = 0; i < data->glyphs_capacity; ++i) {
     spooky_glyph * glyph = data->glyphs + i;
@@ -789,7 +788,6 @@ void spooky_font_set_font_attributes(const spooky_font * self) {
     TTF_SizeUTF8(data->font, glyph->c, &(glyph->advance), &glyph_h);
 
     assert(glyph_w >= 0);
-    w += (size_t)glyph->advance;
     data->glyphs_count++;
   }
 
@@ -1222,7 +1220,7 @@ size_t spooky_font_count_new_lines(const spooky_char * text, size_t text_len) {
 }
 
 /* WARNING: Everything below is garbage */
-/* From https://stackoverflow.com/questions/395832/how-to-get-code-point-number-for-a-given-character-in-a-utf-8-string 
+/* From https://stackoverflow.com/questions/395832/how-to-get-code-point-number-for-a-given-character-in-a-utf-8-string
     U+0000 — U+007F:    1 byte:  0xxxxxxx
     U+0080 — U+07FF:    2 bytes: 110xxxxx 10xxxxxx
     U+0800 — U+FFFF:    3 bytes: 1110xxxx 10xxxxxx 10xxxxxx
