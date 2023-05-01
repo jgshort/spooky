@@ -18,6 +18,7 @@
 
 #include "../include/sp_io.h"
 #include "../include/sp_z.h"
+#include "../include/sp_error.h"
 
 static const size_t SPOOKY_IO_MAX_PATH_LEN = 65536;
 
@@ -42,7 +43,7 @@ static const char * spooky_io_get_user_home(size_t * path_len) {
 	return home;
 }
 
-char * spooky_io_alloc_config_path() {
+char * spooky_io_alloc_config_path(void) {
   static const char * default_path = "/.config/pkin";
 
   size_t home_len = 0;
@@ -116,6 +117,7 @@ FILE * spooky_io_open_binary_file_for_reading(const char * path, int * fd_out) {
 
   return fp;
 }
+
 /*
 int spooky_io_context_exists(char const * context_name) {
 	char const * config_path = get_config_path();
@@ -129,3 +131,92 @@ int spooky_io_context_exists(char const * context_name) {
 	return exists;
 }
 */
+
+static const char * spooky_io_gen_io_ex_msg(const char * start, const char * path, const char * end) {
+  static const size_t max_block_len = 256;
+  static char buf[1024] = { 0 };
+
+  assert(start && path);
+
+  size_t start_len = strnlen(start, max_block_len);
+  size_t path_len = strnlen(path, max_block_len);
+  size_t end_len = strnlen(end, max_block_len);
+
+  assert((start_len + path_len + end_len + 1) < (sizeof buf / sizeof buf[0]));
+  memcpy(buf, start, strnlen(start, max_block_len));
+
+  size_t buf_len = strnlen(start, max_block_len);
+  memcpy(buf + buf_len, path, path_len);
+
+  if(end) {
+    memcpy(buf + buf_len + path_len, end, strlen(end));
+  }
+
+  buf[start_len + path_len + end_len] = '\0';
+
+  return buf;
+}
+
+errno_t spooky_io_read_buffer_from_file(const char * path, char ** buffer, const spooky_ex ** ex) {
+	FILE *fp = fopen(path, "r");
+	if(errno || !fp) { goto err1; }
+
+	fseek(fp, 0L, SEEK_END);
+	if(errno) { goto err2; }
+
+	const long temp_file_size = ftell(fp);
+	if(errno || temp_file_size < 0) { goto err3; }
+
+	const unsigned long file_size = (unsigned long)temp_file_size;
+	rewind(fp);
+	if(errno) { goto err4; }
+
+	char * temp = (char*)malloc((sizeof * temp) * (file_size + 1));
+	if (!temp) { goto err5; }
+
+	size_t bytesRead = fread(temp, sizeof * temp, file_size, fp);
+	if (bytesRead != file_size) { goto err6; }
+	temp[bytesRead] = '\0';
+
+	int ret = fclose(fp);
+	if(ret || ret == EOF || errno) { goto err7; }
+
+  *buffer = temp;
+  return SP_SUCCESS;
+
+err7: /* Failure to close the file. */
+  goto err_free;
+
+err6: /* Failure to read to end (bytesRead != file_size). */
+  goto err_free;
+
+err_free: /* Ensure freed buffer on post-allocation failures. */
+  free(temp), temp = NULL;
+  goto err;
+
+err5: /* malloc failure. */
+  spooky_ex_new(__LINE__, __FILE__, -1, "Out-of-memory exception reading file contents to buffer.", NULL, ex);
+  goto err;
+
+err4: ;/* Rewind failure (I/O failure)*/
+err3: /* ftell failure (I/O failure) */
+  goto err2;
+
+err2: /* fseek failure */
+  {
+    const char * buf = spooky_io_gen_io_ex_msg("I/O exception reading file path '", path, "'.");
+    spooky_ex_new(__LINE__, __FILE__, -1, buf, NULL, ex);
+  }
+  goto err;
+
+err1: /* Unable to open file. */
+  {
+    const char * buf = spooky_io_gen_io_ex_msg("Error reading file path '", path, "'.");
+    spooky_ex_new(__LINE__, __FILE__, -1, buf, NULL, ex);
+  }
+  goto err;
+
+err:
+  return SP_FAILURE;
+}
+

@@ -158,7 +158,7 @@ const spooky_base * spooky_base_ctor(const spooky_base * self, const char * name
 
 err1:
   free(data), data = NULL;
-  ex = &spooky_null_ref_ex;
+  spooky_ex_new(__LINE__, __FILE__, -1, "Out-of-memory exception.", NULL, &ex);
   goto err0;
 
 err0:
@@ -210,7 +210,7 @@ err2: /* set_rect_relative failure  */
 
 err1: /* realloc failure */
 err0: /* calloc failure */
-  *ex = &spooky_alloc_ex;
+  spooky_ex_new(__LINE__, __FILE__, -1, "Out-of-memory exception.", NULL, ex);
   return SP_FAILURE;
 }
 
@@ -239,7 +239,7 @@ errno_t spooky_base_get_rect_relative(const spooky_base * self, const SDL_Rect *
   return SP_SUCCESS;
 
 err0:
-  if(ex) { *ex = &spooky_null_ref_ex; }
+  spooky_ex_new(__LINE__, __FILE__, -1, "Out-of-memory exception.", NULL, ex);
   return SP_FAILURE;
 }
 
@@ -258,7 +258,7 @@ errno_t spooky_base_set_rect_relative(const spooky_base * self, const SDL_Rect *
   return SP_SUCCESS;
 
 err0:
-  *ex = &spooky_null_ref_ex;
+  spooky_ex_new(__LINE__, __FILE__, -1, "Out-of-memory exception.", NULL, ex);
   return SP_FAILURE;
 }
 
@@ -288,7 +288,7 @@ errno_t spooky_base_get_bounds(const spooky_base * self, SDL_Rect * out_bounds, 
   return SP_SUCCESS;
 
 err0:
-  if(ex) { *ex = &spooky_null_ref_ex; }
+  spooky_ex_new(__LINE__, __FILE__, -1, "Out-of-memory exception.", NULL, ex);
   return SP_FAILURE;
 }
 
@@ -348,7 +348,7 @@ err1:
   return res;
 
 err0:
-  if(ex) { *ex = &spooky_null_ref_ex; }
+  spooky_ex_new(__LINE__, __FILE__, -1, "Out-of-memory exception.", NULL, ex);
   return SP_FAILURE;
 }
 
@@ -501,7 +501,7 @@ static errno_t spooky_base_children_iter(const spooky_base * self, const spooky_
   return SP_SUCCESS;
 
 err0:
-  if(ex) { *ex = &spooky_null_ref_ex; }
+  spooky_ex_new(__LINE__, __FILE__, -1, "Out-of-memory exception.", NULL, ex);
   return SP_FAILURE;
 }
 

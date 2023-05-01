@@ -75,5 +75,7 @@ void spooky_menu_free(const spooky_menu * self);
 /* Destruct and free interface */
 void spooky_menu_release(const spooky_menu * self);
 
+const spooky_menu * spooky_menu_load_from_file(const spooky_context * /* context */, SDL_Rect /* rect */, const char * /* path */);
+
 #endif /* SPOOKY_MENU__H */
 

@@ -3,12 +3,14 @@
 #include <memory.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <errno.h>
 
 #include "../config.h"
 #include "../include/sp_context.h"
 #include "../include/sp_base.h"
 #include "../include/sp_menu.h"
 #include "../include/sp_math.h"
+#include "../include/sp_io.h"
 
 static const int SPOOKY_MENU_MARGIN_TOP_BOTTOM = 5;
 
@@ -52,6 +54,24 @@ typedef struct spooky_menu_data {
 
 	/* DEBUG: SDL_Rect hover_rect; */
 } spooky_menu_data;
+
+
+/* Menu configuration (main menu, menu items, etc. */
+typedef void (*event_handler)(void);
+
+typedef struct menu_selection {
+	const char * name;
+	event_handler on_click;
+
+	const spooky_menu * menu_action;
+} menu_selection;
+
+typedef struct menu_items {
+	const char * name;
+	const spooky_menu * menu_item;
+	size_t selections_count;
+	menu_selection * selections;
+} menu_items;
 
 static const spooky_menu * spooky_menu_get_active_menu(const spooky_menu * self);
 static void spooky_menu_set_active_menu(const spooky_menu * self, const spooky_menu * active_menu);
@@ -211,6 +231,90 @@ void spooky_menu_free(const spooky_menu * self) {
 
 void spooky_menu_release(const spooky_menu * self) {
 	self->free(self->dtor(self));
+}
+
+static inline void sp_eat_ws(const char **s) {
+	if(isspace(**s)) { (*s)++; }
+}
+
+const spooky_menu * spooky_menu_load_from_file(const spooky_context * context, SDL_Rect rect, const char * path) {
+	(void)path;
+	const spooky_menu * main_menu = spooky_menu_acquire();
+  main_menu = main_menu->ctor(main_menu, context->get_font(context), context, "Main Menu", rect, SMT_MAIN_MENU);
+
+	static const spooky_ex _ex = { 0 };
+	static const spooky_ex *ex = &_ex;
+	char * buffer = NULL;
+	errno_t res = spooky_io_read_buffer_from_file(path, &buffer, &ex);
+	if(res || !buffer) {
+		spooky_ex_print(ex);
+		abort();
+	}
+
+	/* WIP */
+	const char * s = buffer;
+	while(s && *s != '\0') {
+		sp_eat_ws(&s);
+		if(*s == '[') { /* read group */ }
+		if(*s == ']') { /* close group */ }
+		if(*s == '"') { /* read string */ }
+		sp_eat_ws(&s);
+		s++;
+	}
+	free(buffer), buffer = NULL;
+
+	/* WIP: Load these from the configuration file... */
+
+  static menu_selection info[] = {
+    { .name = "About", .on_click = NULL, .menu_action = NULL },
+    { .name = "Help", .on_click = NULL, .menu_action = NULL }
+  };
+
+  static menu_selection file[] = {
+    { .name = "Save Game", .on_click = NULL, .menu_action = NULL },
+    { .name = "Load Game", .on_click = NULL, .menu_action = NULL },
+    { .name = "-", .on_click = NULL, .menu_action = NULL},
+    { .name = "Quit", .on_click = NULL, .menu_action = NULL },
+  };
+
+  static menu_selection game[] = {
+    { .name = "What?", .on_click = NULL, .menu_action = NULL },
+    { .name = "Do I", .on_click = NULL, .menu_action = NULL },
+    { .name = "Put In This", .on_click = NULL, .menu_action = NULL },
+    { .name = "Space?", .on_click = NULL, .menu_action = NULL },
+    { .name = "Space?", .on_click = NULL, .menu_action = NULL },
+    { .name = "Space?", .on_click = NULL, .menu_action = NULL },
+    { .name = "Space?", .on_click = NULL, .menu_action = NULL },
+  };
+
+  static menu_selection action[] = {
+    { .name = "Look", .on_click = NULL, .menu_action = NULL },
+  };
+
+  static menu_items items[] = {
+    { .name = "Info", .menu_item = NULL, .selections = &info[0], .selections_count = sizeof info / sizeof info[0] },
+    { .name = "File", .menu_item = NULL, .selections = &file[0], .selections_count = sizeof file / sizeof file[0] },
+    { .name = "Game", .menu_item = NULL, .selections = &game[0], .selections_count = sizeof game / sizeof game[0] },
+    { .name = "Action", .menu_item = NULL, .selections = &action[0], .selections_count = sizeof action / sizeof action[0] }
+  };
+
+  for(size_t i = 0; i < sizeof items / sizeof items[0]; i++) {
+    SDL_Rect r = { .x = 0, .y = 0, .w = 0, .h = 0 };
+    const spooky_menu * menu_item = spooky_menu_acquire();
+    menu_item = menu_item->ctor(menu_item, context->get_font(context), context, items[i].name, r, SMT_MAIN_MENU_ITEM);
+
+    for(size_t j = 0; j < items[i].selections_count; j++) {
+      const spooky_menu * menu_action = spooky_menu_acquire();
+      menu_action = menu_action->ctor(menu_action, context->get_font(context), context, items[i].selections[j].name, r, SMT_MAIN_MENU_ACTION);
+      items[i].selections[j].menu_action = menu_action;
+      menu_item->attach_item(menu_item, menu_action);
+    }
+
+    items[i].menu_item = menu_item;
+    main_menu->attach_item(main_menu, menu_item);
+  }
+
+	return main_menu;
 }
 
 static const spooky_menu * spooky_menu_attach_item(const spooky_menu * self, const spooky_menu * item) {
