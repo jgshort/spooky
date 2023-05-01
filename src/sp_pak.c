@@ -10,12 +10,12 @@
 #include <assert.h>
 #include <memory.h>
 
-#include "sp_z.h"
-#include "sp_limits.h"
-#include "sp_error.h"
-#include "sp_pak.h"
-#include "sp_math.h"
-#include "sp_hash.h"
+#include "../include/sp_z.h"
+#include "../include/sp_limits.h"
+#include "../include/sp_error.h"
+#include "../include/sp_pak.h"
+#include "../include/sp_math.h"
+#include "../include/sp_hash.h"
 
 const unsigned long SPOOKY_CONTENT_OFFSET = 0x100;
 

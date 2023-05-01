@@ -17,7 +17,7 @@ typedef enum spooky_box_draw_style {
 
 typedef struct spooky_box {
   spooky_base super;
-  const spooky_box * (*ctor)(const spooky_box * /* self */, const spooky_context * /* context */, SDL_Rect /* origin */);
+  const spooky_box * (*ctor)(const spooky_box * /* self */, const char * /* name */, const spooky_context * /* context */, SDL_Rect /* origin */);
   const spooky_box * (*dtor)(const spooky_box * /* self */);
   void (*free)(const spooky_box * /* self */);
   void (*release)(const spooky_box * /* self */);
@@ -38,13 +38,13 @@ typedef struct spooky_box {
 const spooky_base * spooky_box_as_base(const spooky_box * /* self */);
 
 /* Allocate (malloc) interface */
-const spooky_box * spooky_box_alloc();
+const spooky_box * spooky_box_alloc(void);
 /* Initialize interface methods */
 const spooky_box * spooky_box_init(spooky_box * /* self */);
 /* Allocate and initialize interface methods */
-const spooky_box * spooky_box_acquire();
+const spooky_box * spooky_box_acquire(void);
 /* Construct data */
-const spooky_box * spooky_box_ctor(const spooky_box * /* self */, const spooky_context * /* context */, SDL_Rect /* origin */);
+const spooky_box * spooky_box_ctor(const spooky_box * /* self */, const char * /* name */, const spooky_context * /* context */, SDL_Rect /* origin */);
 /* Destruct (dtor) data */
 const spooky_box * spooky_box_dtor(const spooky_box * /* self */);
 /* Free interface */

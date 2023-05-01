@@ -2,8 +2,8 @@
 #include <stdio.h>
 #include <stdint.h>
 
-#include "sp_config.h"
-#include "sp_io.h"
+#include "../include/sp_config.h"
+#include "../include/sp_io.h"
 
 typedef struct spooky_config_data {
   const char * font_name;
@@ -136,3 +136,4 @@ static const char * spooky_config_get_data_path(const spooky_config * self) {
 
   return self->data->data_path;
 }
+

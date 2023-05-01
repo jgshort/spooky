@@ -1,8 +1,9 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <stdbool.h>
-#include "sp_font.h"
-#include "sp_help.h"
+
+#include "../include/sp_font.h"
+#include "../include/sp_help.h"
 
 typedef struct spooky_help_impl {
   const spooky_context * context;
@@ -46,7 +47,7 @@ const spooky_help * spooky_help_init(spooky_help * self) {
   return self;
 }
 
-const spooky_help * spooky_help_alloc() {
+const spooky_help * spooky_help_alloc(void) {
   spooky_help * self = calloc(1, sizeof * self);
   if(self == NULL) {
     fprintf(stderr, "Unable to allocate memory.");
@@ -55,11 +56,11 @@ const spooky_help * spooky_help_alloc() {
   return self;
 }
 
-const spooky_help * spooky_help_acquire() {
+const spooky_help * spooky_help_acquire(void) {
   return spooky_help_init((spooky_help *)(uintptr_t)spooky_help_alloc());
 }
 
-const spooky_help * spooky_help_ctor(const spooky_help * self, const spooky_context * context) {
+const spooky_help * spooky_help_ctor(const spooky_help * self, const char * name, const spooky_context * context) {
   assert(self != NULL);
 
   int help_text_w, help_text_h;
@@ -74,7 +75,7 @@ const spooky_help * spooky_help_ctor(const spooky_help * self, const spooky_cont
     .h = help_text_h * 24
   };
 
-  self->super.ctor((const spooky_base *)self, origin);
+  self->super.ctor((const spooky_base *)self, name, origin);
 
   spooky_help_impl * impl = calloc(1, sizeof * impl);
   if(!impl) { abort(); }
@@ -146,7 +147,6 @@ bool spooky_help_handle_event(const spooky_base * self, SDL_Event * event) {
 
 void spooky_help_render(const spooky_base * self, SDL_Renderer * renderer) {
   spooky_help_impl * impl = ((const spooky_help *)self)->impl;
-
   if(!impl->show_help) { return; }
 
   static char help[1920] = { 0 };
@@ -173,12 +173,18 @@ void spooky_help_render(const spooky_base * self, SDL_Renderer * renderer) {
     "                          [Esc to Close]\n"
   );
 
+  int out_w = 0, out_h = 0;
+  static const SDL_Color help_fore_color = { .r = 255, .g = 255, .b = 255, .a = 255};
+  const SDL_Point help_point = { .x = help_rect_w / 4, .y = help_rect_h / 4 };
+  font->write_to_renderer(font, renderer, &help_point, &help_fore_color, help, (size_t)help_out, &out_w, &out_h);
+
+  /*
   assert(help_out > 0 && (size_t)help_out < sizeof(help));
 
   int help_text_w, help_text_h;
+                         //"               > HELP <                 \n"
   font->measure_text(font, "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm", strlen("mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm"), &help_text_w, &help_text_h);
 
-  const SDL_Color help_fore_color = { .r = 255, .g = 255, .b = 255, .a = 255};
 
   int help_w = 0, help_h = 0;
   font->measure_text(font, help, (size_t)help_out, &help_w, &help_h);
@@ -186,8 +192,8 @@ void spooky_help_render(const spooky_base * self, SDL_Renderer * renderer) {
   int x_center = help_rect_w / 2;
   int y_center = help_rect_h / 2;
   SDL_Rect origin = {
-    .x = x_center - (help_text_w / 2),
-    .y = y_center - (help_h / 2),
+    .x = x_center - (help_text_w / 2),// - (help_text_w / 2),
+    .y = y_center - (help_text_h / 2), //- (help_h / 2),
     .w = help_text_w,
     .h = help_h
   };
@@ -208,7 +214,5 @@ void spooky_help_render(const spooky_base * self, SDL_Renderer * renderer) {
 
     spooky_gui_pop_draw_color(rgba);
   }
-
-  int out_w = 0, out_h = 0;
-  font->write_to_renderer(font, renderer, &help_point, &help_fore_color, help, (size_t)help_out, &out_w, &out_h);
+  */
 }

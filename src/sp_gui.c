@@ -2,8 +2,8 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
-#include "sp_gui.h"
-#include "sp_math.h"
+#include "../include/sp_gui.h"
+#include "../include/sp_math.h"
 
 const bool spooky_gui_is_fullscreen = false;
 const float spooky_gui_canvas_scale_factor = 1.2f;
@@ -67,7 +67,6 @@ errno_t spooky_gui_load_texture(SDL_Renderer * renderer, const char * file_path,
 
   if(*out_texture != NULL || renderer == NULL || file_path == NULL || file_path_len <= 0) { goto err0; }
 
-
   SDL_Surface * surface = NULL;
   errno_t surface_error = spooky_gui_load_image(file_path, file_path_len, &surface);
   if(surface_error != SP_SUCCESS || surface == NULL) { goto err1; }
@@ -98,7 +97,7 @@ err0:
   abort();
 }
 
-float get_ui_scale_factor() { return 1.f; }
+float get_ui_scale_factor(void) { return 1.f; }
 
 const spooky_gui_rgba_context * spooky_gui_push_draw_color(SDL_Renderer * renderer, const SDL_Color * new_color) {
   if(spooky_gui_next_draw_context + 1 >= SPOOKY_GUI_MAX_DRAW_CONTEXTS) {
@@ -142,3 +141,4 @@ void spooky_gui_color_darken(SDL_Color * color, int percent) {
   color->g = (uint8_t)(color->g - (int)((color->g * percent) / 100));
   color->b = (uint8_t)(color->b - (int)((color->b * percent) / 100));
 }
+

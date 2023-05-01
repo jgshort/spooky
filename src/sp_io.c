@@ -16,8 +16,8 @@
 #include <unistd.h>
 #include <string.h>
 
-#include "sp_io.h"
-#include "sp_z.h"
+#include "../include/sp_io.h"
+#include "../include/sp_z.h"
 
 static const size_t SPOOKY_IO_MAX_PATH_LEN = 65536;
 

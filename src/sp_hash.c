@@ -10,9 +10,9 @@
 #include <stddef.h>
 #include <math.h>
 
-#include "sp_limits.h"
-#include "sp_error.h"
-#include "sp_hash.h"
+#include "../include/sp_limits.h"
+#include "../include/sp_error.h"
+#include "../include/sp_hash.h"
 
 static const double spooky_hash_default_load_factor = 0.75;
 
@@ -543,7 +543,7 @@ errno_t spooky_hash_find_internal(const spooky_hash_bucket * bucket, const char 
       while(start < end) {
         item = *start;
         spooky_str * key = &(item->key);
-        if(spooky_str_compare(key, &needle) == 0) 
+        if(spooky_str_compare(key, &needle) == 0)
           if(out_value) { *out_value = item->value; }
         return SP_SUCCESS;
       }
@@ -560,7 +560,7 @@ errno_t spooky_hash_find(const spooky_hash_table * self, const char * s, size_t 
   uint64_t index = spooky_hash_get_index(self, hash);
   assert(index < impl->prime);
   spooky_hash_bucket * bucket = &impl->buckets[index];
-  return spooky_hash_find_internal(bucket, s, s_len, hash, out_value); 
+  return spooky_hash_find_internal(bucket, s, s_len, hash, out_value);
 }
 
 const char * spooky_hash_move_string_to_strings(const spooky_hash_table * self, const char * s, size_t s_len, size_t * out_len) {
@@ -679,3 +679,4 @@ char * spooky_hash_print_stats(const spooky_hash_table * self) {
 
   return result;
 }
+

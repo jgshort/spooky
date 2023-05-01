@@ -7,65 +7,39 @@
 #include <inttypes.h>
 #include <math.h>
 
-#include "config.h"
-#include "sp_pak.h"
-#include "sp_limits.h"
-#include "sp_hash.h"
-#include "sp_context.h"
-#include "sp_error.h"
-#include "sp_math.h"
-#include "sp_gui.h"
-#include "sp_font.h"
-#include "sp_base.h"
-#include "sp_console.h"
-#include "sp_debug.h"
-#include "sp_help.h"
-#include "sp_time.h"
-#include "sp_config.h"
+#include "../config.h"
+#include "../include/sp_log.h"
+#include "../include/sp_pak.h"
+#include "../include/sp_limits.h"
+#include "../include/sp_hash.h"
+#include "../include/sp_context.h"
+#include "../include/sp_error.h"
+#include "../include/sp_math.h"
+#include "../include/sp_gui.h"
+#include "../include/sp_font.h"
+#include "../include/sp_base.h"
+#include "../include/sp_console.h"
+#include "../include/sp_debug.h"
+#include "../include/sp_help.h"
+#include "../include/sp_time.h"
+#include "../include/sp_config.h"
 
-#define MAX_FONT_LEN 20
-static const size_t spooky_font_sizes_len = MAX_FONT_LEN;
-static size_t spooky_font_sizes[MAX_FONT_LEN] = {
-  4,
-  8,
-  9,
-  10,
-  11,
-  12,
-  14,
-  18,
-  24,
-  30,
-  36,
-  48,
-  60,
-  72,
-  84,
-  98,
-  114,
-  133,
-  155,
-  180
-};
-static const size_t SPOOKY_FONT_MIN_SIZE = 4;
-static const size_t SPOOKY_FONT_MAX_SIZE = 180;
+static const size_t spooky_context_min_font_size = 4;
+static const size_t spooky_context_max_font_size = 128;
 
 typedef struct spooky_context_data {
   const spooky_config * config;
   SDL_Window * window;
   SDL_Renderer * renderer;
-  //SDL_GLContext glContext;
   SDL_Texture * canvas;
+
   const spooky_console * console;
   const spooky_hash_table * hash;
-
-  size_t font_type_index;
-  size_t fonts_index;
+  const spooky_font * font_current;
+  const spooky_base * modal;
 
   size_t turns;
-
-  const spooky_font * font_current;
-  const spooky_font fonts[SPOOKY_FONT_MAX_TYPES][MAX_FONT_LEN];
+  size_t font_size;
 
   float window_scale_factor;
   float renderer_to_window_scale_factor;
@@ -75,6 +49,9 @@ typedef struct spooky_context_data {
 
   SDL_Rect scaled_window_size;
 
+  int current_score;
+  int max_score;
+
   int display_index;
   spooky_view_perspective perspective;
 
@@ -82,12 +59,16 @@ typedef struct spooky_context_data {
   bool is_paused;
   bool is_running;
   char padding[1]; /* not portable */
-
-  size_t fonts_len[SPOOKY_FONT_MAX_TYPES];
 } spooky_context_data;
-#undef MAX_FONT_LEN
 
 static spooky_context_data global_data = { 0 };
+
+const spooky_font * spooky_context_init_font(void);
+
+static const spooky_base * spooky_context_get_modal(const spooky_context * context);
+static void spooky_context_set_modal(const spooky_context * context, const spooky_base * modal);
+static int spooky_context_get_current_score(const spooky_context * context);
+static int spooky_context_get_max_score(const spooky_context * context);
 
 static void spooky_context_translate_point(const spooky_context * context, SDL_Point * point) {
   float scale_factor = context->data->renderer_to_window_scale_factor;
@@ -154,6 +135,29 @@ static const spooky_font * spooky_context_get_font(const spooky_context * contex
   return context->data->font_current;
 }
 
+static size_t spooky_context_set_font_size(size_t new_size) {
+  if(new_size <= spooky_context_min_font_size) { new_size = spooky_context_min_font_size; }
+  if(new_size >= spooky_context_max_font_size) { new_size = spooky_context_max_font_size; }
+  if(new_size == global_data.font_size) { return global_data.font_size; }
+  return new_size;
+}
+
+static void spooky_context_scale_font_up(void) {
+  size_t new_size = global_data.font_size + 1;
+  if(spooky_context_set_font_size(new_size) != global_data.font_size) {
+    global_data.font_size = new_size;
+    global_data.font_current = spooky_context_init_font();
+  }
+}
+
+static void spooky_context_scale_font_down(void) {
+  size_t new_size = global_data.font_size - 1;
+  if(spooky_context_set_font_size(new_size) != global_data.font_size) {
+    global_data.font_size = new_size;
+    global_data.font_current = spooky_context_init_font();
+  }
+}
+
 static bool spooky_context_get_is_fullscreen(const spooky_context * context) {
   return context->data->is_fullscreen;
 }
@@ -214,6 +218,32 @@ static void spooky_index_item_free_item(void * item) {
   }
 }
 
+const spooky_font * spooky_context_init_font(void) {
+  const spooky_config * config = global_data.config;
+  const char * font_name = config->get_font_name(config);
+
+  if(global_data.font_current) {
+    SP_LOG(SLS_INFO, "Releasing font...\n");
+    global_data.font_current->free(global_data.font_current);
+  }
+
+  const spooky_hash_table * hash = global_data.hash;
+
+  spooky_pack_item_file * ttf = NULL;
+  void * temp = NULL;
+  hash->find(hash, font_name, strnlen(font_name, SPOOKY_MAX_STRING_LEN), &temp);
+  ttf = temp;
+
+  const spooky_font * font = spooky_font_acquire();
+  SDL_Renderer * renderer = global_data.renderer;
+  font = spooky_font_init((spooky_font *)(uintptr_t)font);
+  font = font->ctor(font, renderer, ttf->data, ttf->data_len, (int)global_data.font_size);
+
+  SP_LOG(SLS_INFO, "Font '%s' set to %ipt\n", font->get_name(font), font->get_point_size(font));
+
+  return font;
+}
+
 errno_t spooky_init_context(spooky_context * context, FILE * fp) {
   assert(!(context == NULL));
 
@@ -224,6 +254,8 @@ errno_t spooky_init_context(spooky_context * context, FILE * fp) {
   context->get_canvas = &spooky_context_get_canvas;
   context->set_canvas = &spooky_context_set_canvas;
   context->get_font = &spooky_context_get_font;
+  context->scale_font_up = &spooky_context_scale_font_up;
+  context->scale_font_down = &spooky_context_scale_font_down;
   context->get_is_fullscreen = &spooky_context_get_is_fullscreen;
   context->set_is_fullscreen = &spooky_context_set_is_fullscreen;
   context->get_is_paused = &spooky_context_get_is_paused;
@@ -244,6 +276,10 @@ errno_t spooky_init_context(spooky_context * context, FILE * fp) {
   context->translate_point = &spooky_context_translate_point;
   context->translate_rect = &spooky_context_translate_rect;
   context->get_config = &spooky_context_get_config;
+  context->get_modal = &spooky_context_get_modal;
+  context->set_modal = &spooky_context_set_modal;
+  context->get_current_score = &spooky_context_get_current_score;
+  context->get_max_score = &spooky_context_get_max_score;
   context->data = &global_data;
 
   const spooky_config * config = spooky_config_acquire();
@@ -251,11 +287,16 @@ errno_t spooky_init_context(spooky_context * context, FILE * fp) {
   context->data->perspective = SPOOKY_SVP_DEFAULT;
   context->data->is_running = true;
   context->data->config = config;
+  context->data->modal = NULL;
+
+  context->data->max_score = 255;
+  context->data->current_score = 0;
 
   fprintf(stdout, "Initializing...\n");
   fflush(stdout);
   const char * error_message = NULL;
 
+  context->data->font_size = (size_t)config->get_font_size(config);
   const spooky_hash_table * hash = NULL;
   context->data->hash = spooky_hash_table_acquire();
   context->data->hash = context->data->hash->ctor(context->data->hash);
@@ -263,46 +304,73 @@ errno_t spooky_init_context(spooky_context * context, FILE * fp) {
 
   errno_t res = spooky_pack_verify(fp, hash);
   if(res != SP_SUCCESS) {
+    SP_LOG(SLS_ERROR, "The resource pack is invalid.\n");
     fprintf(stderr, "The resource pack is invalid.\n");
     fclose(fp);
     return EXIT_FAILURE;
+  } else {
+    SP_LOG(SLS_INFO, "Resource pack valid!\n");
   }
+
+  SDL_ClearError();
+  SDL_version compiled = { 0 };
+  SDL_version linked = { 0 };
+
+  SDL_VERSION(&compiled);
+  SDL_GetVersion(&linked);
+  SP_LOG(SLS_INFO, "SDL Compiled: %u.%u.%u, Linked: %u.%u.%u.\n", compiled.major, compiled.minor, compiled.patch, linked.major, linked.minor, linked.patch);
+  SDL_ClearError();
+  const SDL_version * ttf_version = TTF_Linked_Version();
+  SP_LOG(SLS_INFO, "TTF linked: %u.%u.%u.\n", ttf_version->major, ttf_version->minor, ttf_version->patch);
+
+  SDL_ClearError();
+  const SDL_version * img_version = IMG_Linked_Version();
+  SP_LOG(SLS_INFO, "Image linked: %u.%u.%u.\n", img_version->major, img_version->minor, img_version->patch);
 
   SDL_ClearError();
   /* allow high-DPI windows */
   if(!SDL_SetHint(SDL_HINT_VIDEO_HIGHDPI_DISABLED, config->get_disable_high_dpi(config))) { goto err0; }
-  if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
+  if(spooky_is_sdl_error(SDL_GetError())) { SP_LOG(SLS_WARN, "> %s\n", SDL_GetError()); }
+  else { SP_LOG(SLS_INFO, "SDL hint video high DPI disabled '%s'.\n", config->get_disable_high_dpi(config)); }
 
   if(!SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0")) { goto err0; }
-  if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
+  if(spooky_is_sdl_error(SDL_GetError())) { SP_LOG(SLS_WARN, "> %s\n", SDL_GetError()); }
+  else { SP_LOG(SLS_INFO, "SDL hint render scale quality 0.\n"); }
 
   SDL_ClearError();
   if(SDL_Init(SDL_INIT_EVERYTHING) != 0) { goto err1; }
-  if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
+  if(spooky_is_sdl_error(SDL_GetError())) { SP_LOG(SLS_WARN, "> %s\n", SDL_GetError()); }
+  else { SP_LOG(SLS_INFO, "SDL initialized.\n"); }
 
   SDL_ClearError();
   if(TTF_Init() != 0) { goto err2; };
-  if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
+  if(spooky_is_sdl_error(SDL_GetError())) { SP_LOG(SLS_WARN, "> %s\n", SDL_GetError()); }
+  else { SP_LOG(SLS_INFO, "TrueType enabled.\n"); }
 
   SDL_ClearError();
   if(SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1) != 0) { goto err3; }
-  if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
+  if(spooky_is_sdl_error(SDL_GetError())) { SP_LOG(SLS_WARN, "> %s\n", SDL_GetError()); }
+  else { SP_LOG(SLS_INFO, "GL double buffer enabled.\n"); }
 
   SDL_ClearError();
   if(SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24) != 0) { goto err3; }
-  if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
+  if(spooky_is_sdl_error(SDL_GetError())) { SP_LOG(SLS_WARN, "> %s\n", SDL_GetError()); }
+  else { SP_LOG(SLS_INFO, "GL depth size 24.\n"); }
 
   SDL_ClearError();
   if(SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8) != 0) { goto err3; }
-  if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
+  if(spooky_is_sdl_error(SDL_GetError())) { SP_LOG(SLS_WARN, "> %s\n", SDL_GetError()); }
+  else { SP_LOG(SLS_INFO, "GL stencil size 8.\n"); }
 
   SDL_ClearError();
   if(SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2) != 0) { goto err3; }
-  if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
+  if(spooky_is_sdl_error(SDL_GetError())) { SP_LOG(SLS_WARN, "> %s\n", SDL_GetError()); }
+  else { SP_LOG(SLS_INFO, "GL major version 2.\n"); }
 
   SDL_ClearError();
   if(SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2) != 0) { goto err3; }
-  if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
+  if(spooky_is_sdl_error(SDL_GetError())) { SP_LOG(SLS_WARN, "> %s\n", SDL_GetError()); }
+  else { SP_LOG(SLS_INFO, "GL minor version 2.\n"); }
 
   global_data.scaled_window_size.x = 0;
   global_data.scaled_window_size.y = 0;
@@ -313,7 +381,7 @@ errno_t spooky_init_context(spooky_context * context, FILE * fp) {
 
   SDL_ClearError();
   SDL_Window * window = SDL_CreateWindow(PACKAGE_STRING, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, config->get_window_width(config), config->get_window_height(config), spooky_gui_window_flags);
-  if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
+  if(spooky_is_sdl_error(SDL_GetError())) { SP_LOG(SLS_WARN, "> %s\n", SDL_GetError()); }
   if(window == NULL || spooky_is_sdl_error(SDL_GetError())) { goto err4; }
 
   global_data.display_index = SDL_GetWindowDisplayIndex(window);
@@ -330,7 +398,7 @@ errno_t spooky_init_context(spooky_context * context, FILE * fp) {
 
   int renderer_w, renderer_h;
   SDL_GetRendererOutputSize(renderer, &renderer_w, &renderer_h);
-  global_data.renderer_to_window_scale_factor = (float)(renderer_w / config->get_window_width(config));
+  global_data.renderer_to_window_scale_factor = (float)((float)renderer_w / (float)config->get_window_width(config));
   global_data.scaled_window_size.w = renderer_w;
   global_data.scaled_window_size.h = renderer_h;
 
@@ -344,11 +412,6 @@ errno_t spooky_init_context(spooky_context * context, FILE * fp) {
 
   SDL_RenderPresent(renderer);
 
-  //SDL_ClearError();
-  //SDL_GLContext glContext = SDL_GL_CreateContext(window);
-  //if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
-  //if(glContext == NULL || spooky_is_sdl_error(SDL_GetError())) { goto err6; }
-
   SDL_ClearError();
   SDL_Texture * canvas = SDL_CreateTexture(renderer
       , SDL_GetWindowPixelFormat(window)
@@ -358,7 +421,7 @@ errno_t spooky_init_context(spooky_context * context, FILE * fp) {
       );
   if(!canvas || spooky_is_sdl_error(SDL_GetError())) { goto err6; }
 
-  fprintf(stdout, "Window: (%i, %i), Renderer: (%i, %i), Scaled: (%i, %i), Canvas: (%i, %i)\n",
+  SP_LOG(SLS_INFO, "Window: (%i, %i), Renderer: (%i, %i), Scaled: (%i, %i), Canvas: (%i, %i)\n",
       config->get_window_width(config)
     , config->get_window_height(config)
     , renderer_w
@@ -375,54 +438,13 @@ errno_t spooky_init_context(spooky_context * context, FILE * fp) {
 
   global_data.turns = 0;
 
-  /* This is a strange defect I can't figure out:
-   * Fonts don't render until a call to SDL_ShowWindow. So calling ShowWindow here,
-   * before the font ctor fixes the issue. I don't know why :(
-   */
-  SDL_ShowWindow(window);
-
-  const char * font_name = config->get_font_name(config);
-
-  // 16
-  // 4 -> 6 -> 8 -> 10 -> 11 -> 14 -> 18
-  size_t closest_font_size = 4;
-  size_t requested_font_size = (size_t)config->get_font_size(config);
-  for(size_t i = 0; i < spooky_font_sizes_len; i++) {
-    size_t point_size = spooky_font_sizes[i];
-    if(point_size > requested_font_size) {
-      global_data.fonts_index = i;
-      closest_font_size = spooky_font_sizes[i];
-      break;
-    }
-  }
-  if(closest_font_size < SPOOKY_FONT_MIN_SIZE) { closest_font_size = SPOOKY_FONT_MIN_SIZE; }
-  if(closest_font_size > SPOOKY_FONT_MAX_SIZE) { closest_font_size = SPOOKY_FONT_MAX_SIZE; }
-  global_data.font_type_index = 0;
-
-  spooky_pack_item_file * ttf = NULL;
-  void * temp = NULL;
-  hash->find(hash, font_name, strnlen(font_name, SPOOKY_MAX_STRING_LEN), &temp);
-  ttf = temp;
-
-  const spooky_font * font = spooky_font_acquire();
-  font = spooky_font_init((spooky_font *)(uintptr_t)font);
-  font = font->ctor(font, renderer, ttf->data, ttf->data_len, (int)closest_font_size);
-
-  fprintf(stdout, "Font '%s' set to %ipt\n", font->get_name(font), font->get_point_size(font));
-  global_data.font_current = font;
-
-  fprintf(stdout, "Done!\n");
-  fflush(stdout);
+  //size_t font_size = (size_t)config->get_font_size(config);
+  global_data.font_current = spooky_context_init_font();
 
   return SP_SUCCESS;
 
 err6:
   if(!error_message) { error_message = "Unable to create canvas."; }
-
-//err6:
-  /* unable to create GL context */
-//  if(!error_message) { error_message = "Unable to create GL context."; }
-//  SDL_DestroyRenderer(renderer), renderer = NULL;
 
 err5:
   /* unable to create SDL renderer */
@@ -455,9 +477,22 @@ err0:
   return SP_FAILURE;
 }
 
+static int spooky_context_get_current_score(const spooky_context * context) {
+  return context->data->current_score;
+}
+
+static int spooky_context_get_max_score(const spooky_context * context) {
+  return context->data->max_score;
+}
+
 void spooky_release_context(spooky_context * context) {
   if(context) {
     spooky_context_data * data = context->data;
+
+    if(data->font_current) {
+      SP_LOG(SLS_INFO, "Releasing font...\n");
+      data->font_current->free(data->font_current);
+    }
 
     spooky_hash_table_release(data->hash, &spooky_index_item_free_item);
 
@@ -470,16 +505,6 @@ void spooky_release_context(spooky_context * context) {
         fprintf(stderr, "Non-fatal error: Unable to destroy canvas, '%s'.\n", error);
       }
     }
-
-  /*  if(data->glContext) {
-      SDL_ClearError();
-      SDL_GL_DeleteContext(data->glContext), data->glContext = NULL;
-      if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
-      const char * error = SDL_GetError();
-      if(spooky_is_sdl_error(error)) {
-        fprintf(stderr, "Non-fatal error: Unable to release GL context, '%s'.\n", error);
-      }
-    }*/
 
     if(data->renderer) {
       SDL_ClearError();
@@ -511,7 +536,7 @@ errno_t spooky_quit_context(spooky_context * context) {
   assert(!(context == NULL));
   if(context == NULL) { return SP_FAILURE; }
 
-  fprintf(stdout, "Shutting down...");
+  SP_LOG(SLS_INFO, "Shutting down...");
   fflush(stdout);
 
   spooky_release_context(context);
@@ -519,7 +544,6 @@ errno_t spooky_quit_context(spooky_context * context) {
   TTF_Quit();
   SDL_Quit();
 
-  fprintf(stdout, " Done!\n");
   fflush(stdout);
 
   return SP_SUCCESS;
@@ -533,8 +557,7 @@ errno_t spooky_test_resources(const spooky_context * context) {
   assert(!(data->renderer == NULL));
   if(data->renderer == NULL) { goto err0; }
 
-  fprintf(stdout, "Testing resources...");
-  fflush(stdout);
+  SP_LOG(SLS_INFO, "Testing resources...");
 
   SDL_Renderer * renderer = data->renderer;
 
@@ -554,7 +577,6 @@ errno_t spooky_test_resources(const spooky_context * context) {
   SDL_DestroyTexture(test_texture), test_texture = NULL;
   if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
 
-  fprintf(stdout, " Done!\n");
   fflush(stdout);
   return SP_SUCCESS;
 
@@ -569,3 +591,12 @@ bool spooky_context_get_is_running(const spooky_context * context) {
 void spooky_context_set_is_running(const spooky_context * context, bool value) {
   context->data->is_running = value;
 }
+
+static const spooky_base * spooky_context_get_modal(const spooky_context * context) {
+  return context->data->modal;
+}
+
+static void spooky_context_set_modal(const spooky_context * context, const spooky_base * modal) {
+  context->data->modal = modal;
+}
+

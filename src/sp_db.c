@@ -13,8 +13,8 @@
 #include <unistd.h>
 #include <sqlite3.h>
 
-#include "sp_db.h"
-#include "sp_types.h"
+#include "../include/sp_db.h"
+#include "../include/sp_types.h"
 
 static const size_t spooky_db_max_path_len = 65536;
 

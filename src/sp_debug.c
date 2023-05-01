@@ -2,11 +2,11 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-#include "sp_gui.h"
-#include "sp_base.h"
-#include "sp_font.h"
-#include "sp_context.h"
-#include "sp_debug.h"
+#include "../include/sp_gui.h"
+#include "../include/sp_base.h"
+#include "../include/sp_font.h"
+#include "../include/sp_context.h"
+#include "../include/sp_debug.h"
 
 typedef struct spooky_debug_data {
   const spooky_context * context;
@@ -47,7 +47,7 @@ const spooky_debug * spooky_debug_init(spooky_debug * self) {
   return self;
 }
 
-const spooky_debug * spooky_debug_alloc() {
+const spooky_debug * spooky_debug_alloc(void) {
   spooky_debug * self = calloc(1, sizeof * self);
   if(self == NULL) {
     fprintf(stderr, "Unable to allocate memory.");
@@ -56,15 +56,15 @@ const spooky_debug * spooky_debug_alloc() {
   return self;
 }
 
-const spooky_debug * spooky_debug_acquire() {
+const spooky_debug * spooky_debug_acquire(void) {
   return spooky_debug_init((spooky_debug *)(uintptr_t)spooky_debug_alloc());
 }
 
-const spooky_debug * spooky_debug_ctor(const spooky_debug * self, const spooky_context * context) {
+const spooky_debug * spooky_debug_ctor(const spooky_debug * self, const char * name, const spooky_context * context) {
   assert(self != NULL);
 
   SDL_Rect rect = { .x = 5, .y = 5, .w = 0, .h = 0 };
-  self = (spooky_debug *)(uintptr_t)spooky_base_ctor((spooky_base *)(uintptr_t)self, rect);
+  self = (spooky_debug *)(uintptr_t)spooky_base_ctor((spooky_base *)(uintptr_t)self, name, rect);
 
   spooky_debug_data * data = calloc(1, sizeof * data);
   if(!data) { abort(); }
@@ -116,6 +116,7 @@ bool spooky_debug_handle_event(const spooky_base * self, SDL_Event * event) {
             {
               spooky_debug_data * data = ((const spooky_debug *)self)->data;
               data->show_debug = !data->show_debug;
+              return true;
             }
             break;
           default:

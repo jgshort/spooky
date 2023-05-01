@@ -26,11 +26,11 @@ typedef struct spooky_config {
 } spooky_config;
 
 /* Allocate (malloc) interface */
-const spooky_config * spooky_config_alloc();
+const spooky_config * spooky_config_alloc(void);
 /* Initialize interface methods */
 const spooky_config * spooky_config_init(spooky_config * /* self */);
 /* Allocate and initialize interface methods */
-const spooky_config * spooky_config_acquire();
+const spooky_config * spooky_config_acquire(void);
 /* Construct data */
 const spooky_config * spooky_config_ctor(const spooky_config * /* self */);
 /* Destruct (dtor) data */

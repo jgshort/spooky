@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 
+#include "sp_base.h"
 #include "sp_config.h"
 #include "sp_error.h"
 #include "sp_hash.h"
@@ -49,7 +50,14 @@ typedef struct spooky_context {
   void (*translate_point)(const spooky_context * context, SDL_Point * point);
   void (*translate_rect)(const spooky_context * context, SDL_Rect * rect);
 
+  void (*scale_font_up)(void);
+  void (*scale_font_down)(void);
 
+  const spooky_base * (*get_modal)(const spooky_context * context);
+  void (*set_modal)(const spooky_context * context, const spooky_base * modal);
+
+  int (*get_current_score)(const spooky_context * context);
+  int (*get_max_score)(const spooky_context * context);
 
   struct spooky_context_data * data;
 } spooky_context;

@@ -8,13 +8,15 @@
 struct spooky_base_data;
 typedef struct spooky_base spooky_base;
 typedef struct spooky_base {
-  const spooky_base * (*ctor)(const spooky_base * /* self */, SDL_Rect /* origin */);
+  const spooky_base * (*ctor)(const spooky_base * /* self */, const char * /* name */, SDL_Rect /* origin */);
   const spooky_base * (*dtor)(const spooky_base * /* self */);
   void (*free)(const spooky_base * /* self */);
   void (*release)(const spooky_base * /* self */);
 
+  const char * (*get_name)(const spooky_base * /* self */);
+
   bool (*handle_event)(const spooky_base * /* self */, SDL_Event * /* event */);
-  void (*handle_delta)(const spooky_base * /* self */, const SDL_Event * /* event */, int64_t /* last_update_time */, double /* interpolation */);
+  void (*handle_delta)(const spooky_base * /* self */, const SDL_Event * /* event */, uint64_t /* last_update_time */, double /* interpolation */);
   void (*render)(const spooky_base * /* self */, SDL_Renderer * /* renderer */);
 
   const SDL_Rect * (*get_rect)(const spooky_base * /* self */);
@@ -46,13 +48,16 @@ typedef struct spooky_base {
   bool (*get_focus)(const spooky_base * /* self */);
   void (*set_focus)(const spooky_base * /* self */, bool /* is_focus */);
 
+  bool (*get_is_modal)(const spooky_base * /* self */);
+  void (*set_is_modal)(const spooky_base * /* self */, bool /* is_modal */);
+
   struct spooky_base_data * data;
 } spooky_base;
 
 const spooky_base * spooky_base_init(spooky_base * /* self */);
-const spooky_base * spooky_base_alloc();
-const spooky_base * spooky_base_acquire();
-const spooky_base * spooky_base_ctor(const spooky_base * /* self */, SDL_Rect /* origin */);
+const spooky_base * spooky_base_alloc(void);
+const spooky_base * spooky_base_acquire(void);
+const spooky_base * spooky_base_ctor(const spooky_base * /* self */, const char * /* name */, SDL_Rect /* origin */);
 const spooky_base * spooky_base_dtor(const spooky_base * /* self */);
 void spooky_base_free(const spooky_base * /* self */);
 void spooky_base_release(const spooky_base * /* self */);

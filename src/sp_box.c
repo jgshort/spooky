@@ -8,12 +8,12 @@
 #include <stdio.h>
 #include <math.h>
 
-#include "sp_math.h"
-#include "sp_gui.h"
-#include "sp_wm.h"
-#include "sp_box.h"
-#include "sp_limits.h"
-#include "sp_sprite.h"
+#include "../include/sp_math.h"
+#include "../include/sp_gui.h"
+#include "../include/sp_wm.h"
+#include "../include/sp_box.h"
+#include "../include/sp_limits.h"
+#include "../include/sp_sprite.h"
 
 typedef struct spooky_box_data {
   const spooky_context * context;
@@ -25,7 +25,7 @@ typedef struct spooky_box_data {
 } spooky_box_data;
 
 static bool spooky_box_handle_event(const spooky_base * self, SDL_Event * event);
-static void spooky_box_handle_delta(const spooky_base * self, const SDL_Event * event, int64_t last_update_time, double interpolation);
+static void spooky_box_handle_delta(const spooky_base * self, const SDL_Event * event, uint64_t last_update_time, double interpolation);
 static void spooky_box_render(const spooky_base * self, SDL_Renderer * renderer);
 
 static void spooky_box_set_name(const spooky_box * self, const char * name);
@@ -40,7 +40,7 @@ const spooky_base * spooky_box_as_base(const spooky_box * self) {
   return (const spooky_base *)self;
 }
 
-const spooky_box * spooky_box_alloc() {
+const spooky_box * spooky_box_alloc(void) {
   spooky_box * self = calloc(1, sizeof * self);
   return self;
 }
@@ -72,15 +72,15 @@ const spooky_box * spooky_box_init(spooky_box * self) {
   return self;
 }
 
-const spooky_box * spooky_box_acquire() {
+const spooky_box * spooky_box_acquire(void) {
   return spooky_box_init((spooky_box *)(uintptr_t)spooky_box_alloc());
 }
 
-const spooky_box * spooky_box_ctor(const spooky_box * self, const spooky_context * context, SDL_Rect origin) {
+const spooky_box * spooky_box_ctor(const spooky_box * self, const char * name, const spooky_context * context, SDL_Rect origin) {
   assert(self);
   if(!self) { abort(); }
 
-  self = (spooky_box *)(uintptr_t)spooky_base_ctor((spooky_base *)(uintptr_t)self, origin);
+  self = (spooky_box *)(uintptr_t)spooky_base_ctor((spooky_base *)(uintptr_t)self, name, origin);
 
   spooky_box_data * data = calloc(1, sizeof * data);
 
@@ -163,7 +163,7 @@ static bool spooky_box_handle_event(const spooky_base * self, SDL_Event * event)
   return false;
 }
 
-static void spooky_box_handle_delta(const spooky_base * self, const SDL_Event * event, int64_t last_update_time, double interpolation) {
+static void spooky_box_handle_delta(const spooky_base * self, const SDL_Event * event, uint64_t last_update_time, double interpolation) {
   (void)event;
   if(self->get_children_count(self) > 0) {
     const spooky_iter * it = self->get_iterator(self);
@@ -193,6 +193,7 @@ static void spooky_box_render(const spooky_base * self, SDL_Renderer * renderer)
       }
     }
   }
+
   spooky_box_data * data = ((const spooky_box *)(uintptr_t)self)->data;
   const spooky_context * context = data->context;
   SDL_Rect translated = *self->get_rect(self);
@@ -412,11 +413,11 @@ static const spooky_box_scroll_box_item * spooky_box_attach_scroll_box_item_text
 static const spooky_box_scroll_box_item * spooky_box_attach_scroll_box_item_image(const spooky_box * self, const char * text, const char * description, const char * path);
 
 bool spooky_box_handle_event(const spooky_base * self, SDL_Event * event);
-void spooky_box_handle_delta(const spooky_base * self, const SDL_Event * event, int64_t last_update_time, double interpolation);
+void spooky_box_handle_delta(const spooky_base * self, const SDL_Event * event, uint64_t last_update_time, double interpolation);
 void spooky_box_render(const spooky_base * self, SDL_Renderer * renderer);
 
 bool spooky_box_scroll_box_handle_event(const spooky_base * self, SDL_Event * event);
-void spooky_box_scroll_box_handle_delta(const spooky_base * self, const SDL_Event * event, int64_t last_update_time, double interpolation);
+void spooky_box_scroll_box_handle_delta(const spooky_base * self, const SDL_Event * event, uint64_t last_update_time, double interpolation);
 void spooky_box_scroll_box_render(const spooky_base * self, SDL_Renderer * renderer);
 
 
@@ -733,7 +734,7 @@ const spooky_box * spooky_box_scroll_box_dtor(const spooky_box * self) {
     }
 
     if(data->scroll_bar_items) {
-      for(int i = 0; i < data->scroll_bar_items_count; i++) { 
+      for(int i = 0; i < data->scroll_bar_items_count; i++) {
         const spooky_box_scroll_box_item * item = &(data->scroll_bar_items[i]);
         if(item) {
           if(item->is_text_alloc) {
@@ -775,7 +776,9 @@ static spooky_box_scroll_box_item * spooky_box_get_next_available_scroll_box_ite
   if(data->scroll_bar_items_count + 1 > data->scroll_bar_items_capacity) {
     assert(data->scroll_bar_items_capacity > 0);
     data->scroll_bar_items_capacity += 8;
-    data->scroll_bar_items = realloc((void*)(uintptr_t)data->scroll_bar_items, sizeof data->scroll_bar_items[0] * (size_t)data->scroll_bar_items_capacity);
+    spooky_box_scroll_box_item * temp = realloc((void*)(uintptr_t)data->scroll_bar_items, sizeof data->scroll_bar_items[0] * (size_t)data->scroll_bar_items_capacity);
+    if(!temp) { abort(); }
+    data->scroll_bar_items = temp;
   }
 
   spooky_box_scroll_box_item * temp = &(data->scroll_bar_items[data->scroll_bar_items_count]);
@@ -1231,7 +1234,7 @@ bool spooky_box_handle_scroll_box(const spooky_box * self, SDL_Event * event) {
       spooky_box_scroll_box_mouse_move_delta(length, delta, data->up_rect.h, &(data->scroll_vertical_rect.y), &(data->percent_vertically_scrolled));
     } else {
       /* during horizontal drag */
-      int length = data->scroll_box_horizontal_rect.w - data->right_rect.w - data->left_rect.w - data->scroll_horizontal_rect.w; 
+      int length = data->scroll_box_horizontal_rect.w - data->right_rect.w - data->left_rect.w - data->scroll_horizontal_rect.w;
       int delta = event->motion.x - data->scroll_horizontal_offset_x;
       spooky_box_scroll_box_mouse_move_delta(length, delta, data->left_rect.w, &(data->scroll_horizontal_rect.x), &(data->percent_horizontally_scrolled));
     }
@@ -1239,8 +1242,8 @@ bool spooky_box_handle_scroll_box(const spooky_box * self, SDL_Event * event) {
     /* oh crap, mouse wheel */
     /* adjust offsets based on scroll wheel up/down */
     if((intersected = spooky_box_intersect(&r, data->last_mouse_x, data->last_mouse_y))) {
-      int height = data->scroll_box_vertical_rect.h - data->down_rect.h - data->up_rect.h - data->scroll_vertical_rect.h - 1; 
-      int width =  data->scroll_box_horizontal_rect.w - data->right_rect.w - data->left_rect.w - data->scroll_horizontal_rect.w - 1; 
+      int height = data->scroll_box_vertical_rect.h - data->down_rect.h - data->up_rect.h - data->scroll_vertical_rect.h - 1;
+      int width =  data->scroll_box_horizontal_rect.w - data->right_rect.w - data->left_rect.w - data->scroll_horizontal_rect.w - 1;
 
       /* calculate wheel vertical offset */
       float y_delta = ((float)event->wheel.y / (float)height);
@@ -1852,7 +1855,7 @@ static void spooky_box_draw_main_menu(const spooky_box * self, const SDL_Rect * 
         if(i > 0) {
           /* draw menu separators */
           SDL_SetRenderDrawColor(data->renderer, 100, 100, 100, 255);
-          SDL_RenderDrawLine(data->renderer, r.x + (spacing + width_accum) - 1, r.y + 2, r.x + (spacing + width_accum) - 1, r.y + r.h - spooky_gui_y_padding); 
+          SDL_RenderDrawLine(data->renderer, r.x + (spacing + width_accum) - 1, r.y + 2, r.x + (spacing + width_accum) - 1, r.y + r.h - spooky_gui_y_padding);
         }
 
         width_accum += w + spacing;

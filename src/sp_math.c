@@ -2,7 +2,7 @@
 #include <float.h>
 #include <stdbool.h>
 
-#include "sp_math.h"
+#include "../include/sp_math.h"
 
 const float SMATH_FLT_EPSILON = FLT_EPSILON;
 

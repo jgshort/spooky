@@ -15,9 +15,9 @@
 #include <stddef.h>
 #include <errno.h>
 
-#include "sp_error.h"
-#include "sp_str.h"
-#include "sp_limits.h"
+#include "../include/sp_error.h"
+#include "../include/sp_str.h"
+#include "../include/sp_limits.h"
 
 #define SPOOKY_STR_BUFFER_CAPACITY_DEFAULT 32768
 
@@ -288,7 +288,6 @@ const char * spooky_strcpy(const char * start, const char * end, size_t * text_l
     memmove(temp, start, *text_len);
 
     temp[*text_len] = '\0';
-
   } else if(end_start_diff == 0) {
     /* start and end are equal; what do? */
     abort();
@@ -300,3 +299,4 @@ const char * spooky_strcpy(const char * start, const char * end, size_t * text_l
 
   return temp;
 }
+

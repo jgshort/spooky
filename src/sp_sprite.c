@@ -4,8 +4,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "sp_gui.h"
-#include "sp_sprite.h"
+#include "../include/sp_gui.h"
+#include "../include/sp_sprite.h"
 
 typedef struct spooky_sprite_data {
   SDL_Texture * texture;
@@ -24,7 +24,7 @@ typedef struct spooky_sprite_data {
 } spooky_sprite_data;
 
 // Not utilized yet: static bool spooky_sprite_handle_event(const spooky_base * self, SDL_Event * event);
-static void spooky_sprite_handle_delta(const spooky_sprite * self, const SDL_Event * event, int64_t last_update_time, double interpolation);
+static void spooky_sprite_handle_delta(const spooky_sprite * self, const SDL_Event * event, uint64_t last_update_time, double interpolation);
 static void spooky_sprite_render(const spooky_sprite * self, SDL_Renderer * renderer, const SDL_Rect * src, const SDL_Rect * dest);
 
 static bool spooky_sprite_get_is_visible(const spooky_sprite * self);
@@ -115,7 +115,7 @@ static bool spooky_sprite_handle_event(const spooky_sprite * self, SDL_Event * e
 }
 */
 
-static void spooky_sprite_handle_delta(const spooky_sprite * self, const SDL_Event * event, int64_t last_update_time, double interpolation) {
+static void spooky_sprite_handle_delta(const spooky_sprite * self, const SDL_Event * event, uint64_t last_update_time, double interpolation) {
   (void)event;
   spooky_sprite_data * data = self->data;
 

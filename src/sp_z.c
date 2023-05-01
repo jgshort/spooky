@@ -4,7 +4,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <zlib.h>
-#include "sp_z.h"
+
+#include "../include/sp_z.h"
 
 #define SPOOKY_Z_CHUNK 16384
 
@@ -131,7 +132,7 @@ errno_t spooky_deflate_file(FILE * source, FILE * dest, size_t * dest_len) {
       ret = deflate(&strm, flush);
       assert(ret != Z_STREAM_ERROR);
       have = SPOOKY_Z_CHUNK - strm.avail_out;
-      if(fwrite(out, 1, have, dest) != have || ferror(dest)) { 
+      if(fwrite(out, 1, have, dest) != have || ferror(dest)) {
         fprintf(stderr, "Deflate file write error.\n");
         goto err0;
       }

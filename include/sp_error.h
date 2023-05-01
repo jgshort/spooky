@@ -1,3 +1,5 @@
+#pragma once
+
 #ifndef SP_ERROR__H
 #define SP_ERROR__H
 
@@ -16,7 +18,7 @@ extern "C" {
 #ifndef __STDC_LIB_EXT1__
 /** typedef for int.
  *
- * A typedef for the type int, used to self-document functions that return 
+ * A typedef for the type int, used to self-document functions that return
  * errno values in the C standard library. Defined here if @a __STDC_LIB_EXT1__
  * is not defined, otherwise we use the definition included in errno.h.
  */
@@ -39,15 +41,8 @@ typedef struct spooky_ex {
   const spooky_ex * inner;
 } spooky_ex;
 
-static const spooky_ex spooky_null_ref_ex = {
-  .msg = "NULL reference exception.",
-  .inner = NULL
-};
-
-static const spooky_ex spooky_alloc_ex = {
-  .msg = "Memory allocation exception.",
-  .inner = NULL
-};
+extern const spooky_ex spooky_null_ref_ex;
+extern const spooky_ex spooky_alloc_ex;
 
 #ifdef __cplusplus
 }

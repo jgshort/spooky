@@ -4,12 +4,12 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <stdbool.h>
-#include "config.h"
-#include "sp_limits.h"
-#include "sp_gui.h"
-#include "sp_base.h"
-#include "sp_context.h"
-#include "sp_console.h"
+#include "../config.h"
+#include "../include/sp_limits.h"
+#include "../include/sp_gui.h"
+#include "../include/sp_base.h"
+#include "../include/sp_context.h"
+#include "../include/sp_console.h"
 
 static const int spooky_console_max_display_lines = 1024;
 static const int spooky_console_animation_speed = 128;
@@ -35,9 +35,10 @@ typedef struct spooky_console_impl {
   spooky_console_lines * lines;
   int direction;
   bool show_console;
-  bool is_animating;
+  bool is_animating_up;
+  bool is_animating_down;
   bool hide_cursor;
-  char padding[1]; /* not portable */
+  //char padding[2]; /* not portable */
 
   char * text;
   size_t text_len;
@@ -47,7 +48,7 @@ typedef struct spooky_console_impl {
 } spooky_console_impl;
 
 static bool spooky_console_handle_event(const spooky_base * self, SDL_Event * event);
-static void spooky_console_handle_delta(const spooky_base * self, const SDL_Event * event, int64_t last_update_time, double interpolation);
+static void spooky_console_handle_delta(const spooky_base * self, const SDL_Event * event, uint64_t last_update_time, double interpolation);
 static void spooky_console_render(const spooky_base * self, SDL_Renderer * renderer);
 static void spooky_console_push_str(const spooky_console * self, const char * str);
 static void spooky_console_list_prepend(spooky_console_line * X, spooky_console_line * P);
@@ -78,7 +79,7 @@ const spooky_base * spooky_console_as_base(const spooky_console * self) {
   return (const spooky_base *)self;
 }
 
-const spooky_console * spooky_console_alloc() {
+const spooky_console * spooky_console_alloc(void) {
   spooky_console * self = calloc(1, sizeof * self);
   if(self == NULL) {
     fprintf(stderr, "Unable to allocate memory.");
@@ -108,16 +109,16 @@ const spooky_console * spooky_console_init(spooky_console * self) {
   return self;
 }
 
-const spooky_console * spooky_console_acquire() {
+const spooky_console * spooky_console_acquire(void) {
   return spooky_console_init((spooky_console *)(uintptr_t)spooky_console_alloc());
 }
 
-const spooky_console * spooky_console_ctor(const spooky_console * self, const spooky_context * context, SDL_Renderer * renderer) {
+const spooky_console * spooky_console_ctor(const spooky_console * self, const char * name, const spooky_context * context, SDL_Renderer * renderer) {
   assert(self != NULL);
   assert(context != NULL && renderer != NULL);
 
   SDL_Rect origin = { .x = 0, .y = 0, .w = 0, .h = 0 };
-  self = (spooky_console *)(uintptr_t)spooky_base_ctor((spooky_base *)(uintptr_t)self, origin);
+  self = (spooky_console *)(uintptr_t)spooky_base_ctor((spooky_base *)(uintptr_t)self, name, origin);
 
   spooky_console_impl * impl = calloc(1, sizeof * impl);
   if(!impl) { abort(); }
@@ -125,7 +126,8 @@ const spooky_console * spooky_console_ctor(const spooky_console * self, const sp
   impl->context = context;
   impl->direction = -spooky_console_animation_speed;
   impl->show_console = false;
-  impl->is_animating = false;
+  impl->is_animating_up = false;
+  impl->is_animating_down = false;
   impl->hide_cursor = true;
 
   impl->lines = calloc(1, sizeof * impl->lines);
@@ -137,18 +139,15 @@ const spooky_console * spooky_console_ctor(const spooky_console * self, const sp
   impl->text_capacity = 0; //SPOOKY_MAX_STRING_LEN;
   impl->text = NULL;// calloc(impl->text_capacity, sizeof * impl->text);;
 
-  const spooky_ex * ex = NULL;
-  ((const spooky_base *)self)->set_rect((const spooky_base *)self, &origin, &ex);
-  ((spooky_console *)(uintptr_t)self)->impl = impl;
-
-  int w, h;
-  if(SDL_GetRendererOutputSize(self->impl->context->get_renderer(self->impl->context), &w, &h) == 0) {
-    self->as_base(self)->set_w(self->as_base(self), (int)(floor((float)w * .75)));
-    self->as_base(self)->set_x(self->as_base(self), (w / 2) - (self->as_base(self)->get_w(self->as_base(self)) / 2));
-    self->as_base(self)->set_h(self->as_base(self), (int)(floor((float)h * .75)));
-    self->as_base(self)->set_y(self->as_base(self), -((int)(floor((float)h * .75))));
+  int w = 0, h = 0;
+  if(SDL_GetRendererOutputSize(impl->context->get_renderer(impl->context), &w, &h) == 0) {
+    const spooky_base * base = (const spooky_base *)self;
+    base->set_x(base, (w / 2) - (base->get_w(base) / 2));
+    base->set_w(base, (int)(floor((float)w * .75)));
+    base->set_h(base, (int)(floor((float)h * .75)));
+    base->set_y(base, 0-(base->get_h(base)));
   }
-
+  ((spooky_console *)(uintptr_t)self)->impl = impl;
   return self;
 }
 
@@ -195,97 +194,148 @@ static void spooky_console_copy_text_to_buffer(const spooky_console * self, cons
 }
 
 bool spooky_console_handle_event(const spooky_base * self, SDL_Event * event) {
+  static bool ctrl = false;
+
   spooky_console_impl * impl = ((const spooky_console *)self)->impl;
 
-  bool toggled = false;
-  if(event->type == SDL_KEYDOWN && SDL_GetModState() & KMOD_CTRL && event->key.keysym.sym == SDLK_BACKQUOTE) {
-    impl->show_console = !impl->show_console;
-    toggled = true;
+  switch(event->type) {
+    case SDL_KEYDOWN:
+      if(event->key.keysym.sym == SDLK_LCTRL || event->key.keysym.sym == SDLK_RCTRL) {
+        ctrl = true;
+      }
+      break;
+    case SDL_KEYUP:
+      if(event->key.keysym.sym == SDLK_LCTRL || event->key.keysym.sym == SDLK_RCTRL) {
+        ctrl = false;
+      }
+      break;
+    default:
+      break;
   }
-  else if(impl->show_console && !impl->is_animating) {
-    if(event->type == SDL_TEXTINPUT) {
-      /* accumulate command text */
+
+  switch(event->type) {
+    case SDL_TEXTINPUT: ;
       size_t input_len = strnlen(event->text.text, spooky_console_max_input_len);
       spooky_console_copy_text_to_buffer((const spooky_console *)self, event->text.text, input_len);
-    }
-    else if(event->type == SDL_KEYDOWN && event->key.keysym.sym == SDLK_BACKSPACE) {
-      /* delete command text */
-      if(impl->text_len > 0) {
-        impl->text[impl->text_len - 1] = '\0';
-        impl->text_len--;
-        if(impl->text_len - 1 < impl->text_len) { impl->text_len = 0; }
+      return true;
+      break;
+    case SDL_KEYDOWN: ;
+      switch(event->key.keysym.sym) {
+        case SDLK_BACKQUOTE: ;
+          if(ctrl) {
+            if(!impl->is_animating_up && !impl->is_animating_down && !impl->show_console) {
+              if(!impl->show_console) {
+                impl->is_animating_down = true;
+              }
+            } else if(impl->show_console && !impl->is_animating_down) {
+              impl->is_animating_up = true;
+            }
+            return true;
+          }
+          break;
+        case SDLK_BACKSPACE: ;
+          if(impl->text_len > 0) {
+            if(impl->text && impl->text_len > 0) {
+              impl->text[impl->text_len - 1] = '\0';
+              impl->text_len--;
+            }
+            if(impl->text_len < 0) { impl->text_len = 0; }
+          }
+          return true;
+          break;
+        default:
+          break;
       }
-    }
-    else if(event->type == SDL_KEYDOWN && event->key.keysym.sym == SDLK_RETURN) {
-      /* push a new command */
-      if(impl->current_command) { free(impl->current_command), impl->current_command = NULL; }
-      impl->current_command = strndup(impl->text, spooky_console_max_input_len);
-      spooky_console_push_str_impl((const spooky_console *)self, impl->text, true);
-      free(impl->text), impl->text = NULL;
-      impl->text_len = 0;
-      impl->text_capacity = spooky_console_max_input_len;
-      impl->text = calloc(impl->text_capacity, sizeof * impl->text);
-    }
-    else if(event->type == SDL_KEYDOWN && event->key.keysym.sym == SDLK_v && (SDL_GetModState() & KMOD_CTRL || SDL_GetModState() & KMOD_GUI)) {
-      if(SDL_HasClipboardText()) {
-        /* handle paste */
-        const char * clipboard = SDL_GetClipboardText();
-        if(clipboard) {
-          size_t clipboard_len = strnlen(clipboard, spooky_console_max_input_len);
-          spooky_console_copy_text_to_buffer((const spooky_console *)self, clipboard, clipboard_len);
-        }
+      break;
+    case SDL_KEYUP:
+      switch(event->key.keysym.sym) {
+        case SDLK_RETURN: ;
+          if(impl->current_command) {
+            free(impl->current_command), impl->current_command = NULL;
+          }
+          impl->current_command = strndup(impl->text, spooky_console_max_input_len);
+          spooky_console_push_str_impl((const spooky_console *)self, impl->text, true);
+          free(impl->text), impl->text = NULL;
+          impl->text_len = 0;
+          impl->text_capacity = spooky_console_max_input_len;
+          impl->text = calloc(impl->text_capacity, sizeof * impl->text);
+          if(!impl->text) { abort(); }
+          return true;
+          break;
+        case SDLK_v: ;
+          if(ctrl && (event->key.keysym.sym == SDLK_v && (SDL_GetModState() & KMOD_GUI))) {
+            if(SDL_HasClipboardText()) {
+              /* handle paste */
+              const char * clipboard = SDL_GetClipboardText();
+              if(clipboard) {
+                size_t clipboard_len = strnlen(clipboard, spooky_console_max_input_len);
+                spooky_console_copy_text_to_buffer((const spooky_console *)self, clipboard, clipboard_len);
+                return true;
+              }
+            }
+          }
+          break;
+        default:
+          break;
       }
-    }
-
-    return true;
-  }
-
-  if(toggled) {
-    impl->direction = impl->direction < 0 ? spooky_console_animation_speed : -spooky_console_animation_speed;
-    impl->is_animating = true;
-    self->set_focus(self, !impl->is_animating && impl->show_console);
-    return true;
+    default:
+      break;
   }
 
   return false;
 }
 
-void spooky_console_handle_delta(const spooky_base * self, const SDL_Event * event, int64_t last_update_time, double interpolation) {
-  (void)event;
+void spooky_console_handle_delta(const spooky_base * self, const SDL_Event * event, uint64_t last_update_time, double interpolation) {
+  (void)event; (void)interpolation;
   spooky_console_impl * impl = ((const spooky_console *)self)->impl;
-
-  if(impl->is_animating) {
-    const SDL_Rect * rect = self->get_rect(self);
-    SDL_Rect r = { .x = rect->x, .y = rect->y, .w = rect->w, .h = rect->h };
-    r.y += (int)floor((double)impl->direction * interpolation);
-
-    if(r.y < -r.h) {
-      r.y = -r.h;
-      impl->is_animating = false;
+  if(impl->is_animating_up || impl->is_animating_down || impl->show_console) {
+    int w = 0, h = 0;
+    if(SDL_GetRendererOutputSize(impl->context->get_renderer(impl->context), &w, &h) == 0) {
+      self->set_x(self, (w / 2) - (self->get_w(self) / 2));
+      self->set_w(self, (int)(floor((float)w * .75)));
+      self->set_h(self, (int)(floor((float)h * .75)));
     }
-    if(r.y > 0) {
-      r.y = 0;
-      impl->is_animating = false;
-    }
+    impl->hide_cursor = (last_update_time / 375) % 2 == 0;
 
     const spooky_ex * ex = NULL;
+    const SDL_Rect * rect = self->get_rect(self);
+    SDL_Rect r = { .x = rect->x, .y = rect->y, .w = rect->w, .h = rect->h };
+
+    if(impl->is_animating_up) {
+      r.y -= (int)floor((double)spooky_console_animation_speed * interpolation);
+      if(r.y <= -r.h) {
+        r.y = -r.h;
+        impl->is_animating_up = false;
+        impl->is_animating_down = false;
+        impl->show_console = false;
+      }
+    } else if(impl->is_animating_down) {
+      impl->show_console = true;
+      r.y += (int)floor((double)spooky_console_animation_speed * interpolation);
+      if(r.y >= 0) {
+        r.y = 0;
+        impl->is_animating_up = false;
+        impl->is_animating_down = false;
+      }
+    } else if(!impl->is_animating_down && !impl->is_animating_up && impl->show_console) {
+      r.y = 0;
+    }
+
+    if(impl->is_animating_down || impl->show_console) {
+      self->set_focus(self, true);
+      impl->context->set_modal(impl->context, self);
+    } else {
+      self->set_focus(self, false);
+      impl->context->set_modal(impl->context, NULL);
+    }
     self->set_rect(self, &r, &ex);
   }
-
-  int w, h;
-  if(SDL_GetRendererOutputSize(impl->context->get_renderer(impl->context), &w, &h) == 0) {
-    self->set_w(self, (int)(floor((float)w * .75)));
-    self->set_x(self, (w / 2) - (self->get_w(self) / 2));
-    self->set_h(self, (int)(floor((float)h * .75)));
-  }
-
-  impl->hide_cursor = (last_update_time / 650000000) % 2 == 0;
 }
 
 void spooky_console_render(const spooky_base * self, SDL_Renderer * renderer) {
   spooky_console_impl * impl = ((const spooky_console *)self)->impl;
 
-  if(impl->show_console || impl->is_animating) {
+  if(impl->show_console) {
     const SDL_Rect * rect = self->get_rect(self);
     SDL_Color transparent_black = { .r = 0, .g = 0, .b = 0, .a = 173 };
     const spooky_gui_rgba_context * rgba = spooky_gui_push_draw_color(renderer, &transparent_black);
@@ -509,3 +559,4 @@ void spooky_console_clear_console(const spooky_console * self) {
   impl->text_capacity = spooky_console_max_input_len;
   impl->text_len = 0;
 }
+

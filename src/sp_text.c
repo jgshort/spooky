@@ -2,13 +2,13 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-#include "sp_context.h"
-#include "sp_font.h"
-#include "sp_text.h"
+#include "../include/sp_context.h"
+#include "../include/sp_font.h"
+#include "../include/sp_text.h"
 
 static const size_t spooky_text_max_input_len = 37;
 
-static void spooky_text_handle_delta(const spooky_base * self, const SDL_Event * event, int64_t last_update_time, double interpolation);
+static void spooky_text_handle_delta(const spooky_base * self, const SDL_Event * event, uint64_t last_update_time, double interpolation);
 static bool spooky_text_handle_event(const spooky_base * self, SDL_Event * event);
 static void spooky_text_render(const spooky_base * self, SDL_Renderer * renderer);
 
@@ -62,17 +62,17 @@ const spooky_text * spooky_text_init(spooky_text * self) {
   return self;
 }
 
-const spooky_text * spooky_text_alloc() {
+const spooky_text * spooky_text_alloc(void) {
   spooky_text * self = calloc(1, sizeof * self);
   if(!self) { abort(); }
   return self;
 }
 
-const spooky_text * spooky_text_acquire() {
+const spooky_text * spooky_text_acquire(void) {
   return spooky_text_init((spooky_text * )(uintptr_t)spooky_text_alloc());
 }
 
-const spooky_text * spooky_text_ctor(const spooky_text * self, const spooky_context * context, SDL_Renderer * renderer) {
+const spooky_text * spooky_text_ctor(const spooky_text * self, const char * name, const spooky_context * context, SDL_Renderer * renderer) {
   spooky_text_data * data = calloc(1, sizeof * data);
   if(!data) abort();
 
@@ -82,7 +82,7 @@ const spooky_text * spooky_text_ctor(const spooky_text * self, const spooky_cont
     .w = 10,
     .h = 10
   };
-  self->super.ctor((const spooky_base *)self, origin);
+  self->super.ctor((const spooky_base *)self, name, origin);
 
   data->context = context;
   (void)renderer;
@@ -92,6 +92,7 @@ const spooky_text * spooky_text_ctor(const spooky_text * self, const spooky_cont
   data->text_capacity = 0;
   data->text_len = 0;
   data->current_command = NULL;
+  data->hide_cursor = true;
 
   ((spooky_text *)(uintptr_t)self)->data = data;
 
@@ -215,12 +216,10 @@ static void spooky_text_render(const spooky_base * self, SDL_Renderer * renderer
     .h = 100
   };
 
-
   static const SDL_Color white = { 255, 255, 255, 255 };
   // SDL_Rect rect = { .x = (w / 2) - (200 * 2), .y = h - 175, .w = w - 200, .h = 100 };
   const spooky_gui_rgba_context * rgba_context = spooky_gui_push_draw_color(renderer, &white);
   {
-
     SDL_RenderFillRect(renderer, &rect);
     const spooky_font * font = data->context->get_font(data->context);
     bool orthographic_ligatures = font->get_enable_orthographic_ligatures(font);
@@ -238,26 +237,24 @@ static void spooky_text_render(const spooky_base * self, SDL_Renderer * renderer
     }
 
     SDL_Point input_point = { .x = base_point.x + 7, .y = base_point.y + 2 };
-    font->write_to_renderer(font, renderer, &input_point, &white, data->text, data->text_len, NULL, NULL);
+    int cursor_x = 0;
+    font->write_to_renderer(font, renderer, &input_point, &white, data->text, data->text_len, &cursor_x, NULL);
+
+    /* Draw blinking cursor */
     if(!data->hide_cursor) {
-      int cursor_x = 0;
-      bool old_is_drop_shadow = font->get_is_drop_shadow(font);
-      font->set_is_drop_shadow(font, false);
-      font->measure_text(font, data->text, data->text_len, &cursor_x, NULL);
-      input_point.x += cursor_x;
-      font->write_to_renderer(font, renderer, &input_point, &white, "_", 1, NULL, NULL);
-      font->set_is_drop_shadow(font, old_is_drop_shadow);
+      input_point.x = cursor_x;
+      font->write_to_renderer(font, renderer, &input_point, &white, "_", strlen("_"), NULL, NULL);
     }
+
     font->set_enable_orthographic_ligatures(font, orthographic_ligatures);
     spooky_gui_pop_draw_color(rgba_context);
   }
-
-  return;
 }
 
-static void spooky_text_handle_delta(const spooky_base * self, const SDL_Event * event, int64_t last_update_time, double interpolation) {
+static void spooky_text_handle_delta(const spooky_base * self, const SDL_Event * event, uint64_t last_update_time, double interpolation) {
   (void)event;
   (void)interpolation;
   spooky_text_data * data = ((const spooky_text *)self)->data;
-  data->hide_cursor = (last_update_time / 650000000) % 2 == 0;
+  data->hide_cursor = (last_update_time / 375) % 2 == 0;
 }
+

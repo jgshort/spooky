@@ -16,8 +16,7 @@ typedef struct spooky_str {
   const char * str;
 } spooky_str;
 
-void spooky_str_init();
-void spooky_str_quit();
+const char * spooky_strcpy(const char * /* start */, const char * /* end */, size_t * /* text_len */);
 
 void spooky_str_copy(spooky_str ** /* dest */, const spooky_str * /* src */);
 void spooky_str_swap(spooky_str ** /* left */, spooky_str ** /* right */);
