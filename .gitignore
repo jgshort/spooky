@@ -60,3 +60,5 @@ src/spooky.exe
 .Tpo
 *.spdb
 .ccls-cache
+src/res
+src/res/**
