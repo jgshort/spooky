@@ -1,22 +1,19 @@
 [
-  "Info": [
-    { "About": [ click: "", action: "" ]},
-    { "Help": [ click: "", action: "" ]}
+  "Info" [
+    "About" [ click "", action "" ],
+    "Help" [ click "", action "" ]
   ],
-
-  "File": [
-    { "Save Game": [ click: "", action: "" ]},
-    { "Load Game": [ click: "", action: "" ]},
-    { "-" },
-    { "Quit": [ click: "", action: "" ]}
+  "File" [
+    "Save Game" [ click "", action "" ],
+    "Load Game" [ click "", action "" ],
+    "-" [],
+    "Quit" [ click "", action "" ],
   ],
-
-  "Game": [
-    { "What?": [ click: "" ]}
+  "Game" [
+    "What?" [ click "" ]
   ],
-
-  "Action": [
-    { "Look": [] }
+  "Action" [
+    "Look" []
   ]
 ]
 

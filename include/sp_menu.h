@@ -30,7 +30,7 @@ typedef struct spooky_menu {
 
   const char * (*get_name)(const spooky_menu * self);
 
-  const spooky_menu * (*attach_item)(const spooky_menu * self, const spooky_menu * menu);
+  const spooky_menu * (*attach_item)(const spooky_menu * self, const spooky_menu * menu, const spooky_menu ** out_copy);
   spooky_menu_types (*get_menu_type)(const spooky_menu * self);
 
   void (*set_x)(const spooky_menu * self, int x);
