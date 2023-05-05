@@ -1,9 +1,11 @@
+#define _POSIX_C_SOURCE 200809
 #include <stdlib.h>
 #include <assert.h>
 #include <memory.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <errno.h>
+#include <string.h>
 
 #include "../config.h"
 #include "../include/sp_context.h"

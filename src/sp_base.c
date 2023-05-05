@@ -456,7 +456,6 @@ static void spooky_iter_reset(const spooky_iter * it) {
   if(*children_count == 0) {
     this_it->index = -1;
   } else {
-    assert(*children_count >= 0);
     this_it->index = 0;
   }
 }
@@ -469,7 +468,6 @@ static void spooky_iter_reverse(const spooky_iter * it) {
   if(*children_count == 0) {
     this_it->index = -1;
   } else {
-    assert(*children_count >= 0);
     this_it->index = (int64_t)*children_count;
     assert(this_it->index >= 0);
   }

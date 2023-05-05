@@ -124,6 +124,7 @@ bool spooky_help_handle_event(const spooky_base * self, SDL_Event * event) {
             break;
         }
       }
+      break;
     case SDL_KEYUP:
       {
         SDL_Keycode sym = event->key.keysym.sym;

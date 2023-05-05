@@ -132,8 +132,8 @@ err:
 
 errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
   static const double SP_HERTZ = 30.0;
-  static const int SP_TARGET_FPS = 60;
-  static const int SP_MILLI = 1000;
+  static const unsigned int SP_TARGET_FPS = 60;
+  static const unsigned int SP_MILLI = 1000;
 
   const int64_t SP_TIME_BETWEEN_UPDATES = (int64_t) (SP_MILLI / SP_HERTZ);
   static const int SP_MAX_UPDATES_BEFORE_RENDER = 5;
@@ -254,7 +254,7 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
 
       SDL_ClearError();
       while(SDL_PollEvent(&evt) > 0) {
-        if(spooky_is_sdl_error(SDL_GetError())) { SP_LOG(SLS_INFO, SDL_GetError()); }
+        if(spooky_is_sdl_error(SDL_GetError())) { SP_LOG(SLS_INFO, "%s", SDL_GetError()); }
 
         /* NOTE: SDL_PollEvent can set the Error message returned by SDL_GetError; so clear it, here: */
         SDL_ClearError();
@@ -416,14 +416,14 @@ break_events:
       /* handle main menu deltas... */
       // menu_base->handle_delta(menu_base, &evt, last_update_time, interpolation);
 
-      last_update_time += SP_TIME_BETWEEN_UPDATES;
+      last_update_time += (unsigned long int)SP_TIME_BETWEEN_UPDATES;
       update_loops++;
 
     } /* >> while ((now - last_update_time ... */
 
     interpolation = fmin(1.0f, (double)(now - last_update_time) / (double)(SP_TIME_BETWEEN_UPDATES));
     if (now - last_update_time > SP_TIME_BETWEEN_UPDATES) {
-      last_update_time = now - SP_TIME_BETWEEN_UPDATES;
+      last_update_time = now - (unsigned long int)SP_TIME_BETWEEN_UPDATES;
     }
 
     uint64_t this_second = (uint64_t)(last_update_time / SP_MILLI);

@@ -810,7 +810,7 @@ void spooky_font_measure_text(const spooky_font * self, const spooky_char * text
     assert((size_t)max_line_len <= text_len);
     max_line_copy = calloc((size_t)max_line_len, sizeof * max_line_copy);
     if(!max_line_copy) { abort(); }
-    memmove(max_line_copy, max_line, max_line_len);
+    memmove(max_line_copy, max_line, (size_t)max_line_len);
     max_line_copy[max_line_len - 1] = '\0';
     max_line = max_line_copy;
   } else {

@@ -31,7 +31,13 @@ void spooky_log_free(const spooky_log * self);
 void spooky_log_release(const spooky_log * self);
 
 void spooky_log_startup(void);
-void spooky_log_prepend_formatted(spooky_log_severity severity, const char * format, ...);
+
+void spooky_log_prepend_formatted(spooky_log_severity severity, const char * format, ...)
+#ifdef __linux__
+  __attribute__ ((format (printf, 2, 3)))
+#endif
+  ;
+
 void spooky_log_shutdown(void);
 void spooky_log_dump_to_console(const spooky_console * console);
 size_t spooky_log_get_global_entries_count(void);

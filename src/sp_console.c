@@ -239,7 +239,6 @@ bool spooky_console_handle_event(const spooky_base * self, SDL_Event * event) {
               impl->text[impl->text_len - 1] = '\0';
               impl->text_len--;
             }
-            if(impl->text_len < 0) { impl->text_len = 0; }
           }
           return true;
           break;
