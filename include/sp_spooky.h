@@ -1,7 +1,7 @@
 #pragma once
 
-#ifndef SP_sp__H
-#define SP_sp__H
+#ifndef SP_SPOOKY__H
+#define SP_SPOOKY__H
 
 #ifdef __cplusplus
 extern "C" {
@@ -35,5 +35,5 @@ extern "C" {
 }
 #endif
 
-#endif /* SP_sp__H */
+#endif /* SP_SPOOKY__H */
 
