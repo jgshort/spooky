@@ -1,12 +1,12 @@
 #ifndef SPOOKY_FONT__H
 #define SPOOKY_FONT__H
 
-#include <stdbool.h>
-#include "sp_gui.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#include <stdbool.h>
+#include "sp_gui.h"
 
 #define SPOOKY_FONT_MAX_TYPES 3
 

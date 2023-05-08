@@ -1,13 +1,13 @@
 #ifndef SPOOKY_WM__H
 #define SPOOKY_WM__H
 
-#include "sp_base.h"
-#include "sp_context.h"
-#include "sp_iter.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#include "sp_base.h"
+#include "sp_context.h"
+#include "sp_iter.h"
 
   typedef struct spooky_wm spooky_wm;
   typedef struct spooky_wm {

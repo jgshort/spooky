@@ -1,11 +1,11 @@
 #ifndef SP_ITER__H
 #define SP_ITER__H
 
-#include <stdbool.h>
-
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#include <stdbool.h>
 
   typedef struct spooky_iter spooky_iter;
 

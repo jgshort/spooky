@@ -1,6 +1,10 @@
 #ifndef SP_CONTEXT__H
 #define SP_CONTEXT__H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdbool.h>
 
 #include "sp_base.h"
@@ -9,10 +13,6 @@
 #include "sp_hash.h"
 #include "sp_gui.h"
 #include "sp_font.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
   struct spooky_context_data;
   typedef struct spooky_context spooky_context;

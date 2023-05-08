@@ -3,13 +3,13 @@
 #ifndef SPOOKY_MENU__H
 #define SPOOKY_MENU__H
 
-#include "sp_gui.h"
-#include "sp_context.h"
-#include "sp_font.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#include "sp_gui.h"
+#include "sp_context.h"
+#include "sp_font.h"
 
   typedef enum spooky_menu_types {
     SMT_NULL,

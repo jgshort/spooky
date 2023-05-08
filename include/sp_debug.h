@@ -1,12 +1,12 @@
 #ifndef SP_DEBUG__H
 #define SP_DEBUG__H
 
-#include "sp_base.h"
-#include "sp_context.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#include "sp_base.h"
+#include "sp_context.h"
 
   struct spooky_debug_data;
   typedef struct spooky_debug spooky_debug;

@@ -3,11 +3,11 @@
 #ifndef SP_ERROR__H
 #define SP_ERROR__H
 
+#include <stdlib.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include <stdlib.h>
 
   /*! @file sp_error.h
    * @brief spooky error handling types and variables.

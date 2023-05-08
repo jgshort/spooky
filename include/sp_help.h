@@ -1,12 +1,12 @@
 #ifndef SP_HELP__H
 #define SP_HELP__H
 
-#include "sp_base.h"
-#include "sp_context.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#include "sp_base.h"
+#include "sp_context.h"
 
   struct spooky_help_impl;
   typedef struct spooky_help spooky_help;

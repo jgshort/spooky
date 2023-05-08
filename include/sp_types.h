@@ -3,11 +3,11 @@
 #ifndef SPOOKY_TYPES__H
 #define SPOOKY_TYPES__H
 
-#include <stdint.h>
-
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#include <stdint.h>
 
   typedef struct spooky_save_game {
     const char * name;

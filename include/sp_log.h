@@ -1,11 +1,11 @@
 #ifndef SP_LOG__H
 #define SP_LOG__H
 
-#include "sp_console.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#include "sp_console.h"
 
   typedef enum spooky_log_severity {
     SLS_INFO,

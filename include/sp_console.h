@@ -3,12 +3,12 @@
 #ifndef SP_CONSOLE__H
 #define SP_CONSOLE__H
 
-#include "sp_base.h"
-#include "sp_context.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#include "sp_base.h"
+#include "sp_context.h"
 
   struct spooky_console_impl;
   typedef struct spooky_console spooky_console;

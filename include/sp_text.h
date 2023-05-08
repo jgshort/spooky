@@ -3,12 +3,12 @@
 #ifndef SP_TEXT__H
 #define SP_TEXT__H
 
-#include "sp_base.h"
-#include "sp_context.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#include "sp_base.h"
+#include "sp_context.h"
 
   struct spooky_text_data;
   typedef struct spooky_text spooky_text;

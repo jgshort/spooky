@@ -1,12 +1,12 @@
 #ifndef SPOOKY_BOX__H
 #define SPOOKY_BOX__H
 
-#include "sp_context.h"
-#include "sp_sprite.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#include "sp_context.h"
+#include "sp_sprite.h"
 
   typedef struct spooky_box spooky_box;
   typedef struct spooky_box_data spooky_box_data;

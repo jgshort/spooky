@@ -1,13 +1,14 @@
 #ifndef SP_BASE__H
 #define SP_BASE__H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdbool.h>
 #include "sp_iter.h"
 #include "sp_gui.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
   struct spooky_base_data;
   typedef struct spooky_base spooky_base;

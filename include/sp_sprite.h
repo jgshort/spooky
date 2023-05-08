@@ -3,12 +3,12 @@
 #ifndef SPOOKY_SPRITE__H
 #define SPOOKY_SPRITE__H
 
-#include <stdbool.h>
-#include "sp_base.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#include <stdbool.h>
+#include "sp_base.h"
 
   typedef struct spooky_sprite spooky_sprite;
   typedef struct spooky_sprite_data spooky_sprite_data;

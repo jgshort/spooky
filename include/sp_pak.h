@@ -1,15 +1,15 @@
 #ifndef SPOOKY_PACK__H
 #define SPOOKY_PACK__H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdint.h>
 
 #include "sp_hash.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
   typedef struct spooky_pack_version spooky_pack_version;
 
