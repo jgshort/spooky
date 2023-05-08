@@ -423,13 +423,13 @@ errno_t spooky_init_context(spooky_context * context, FILE * fp) {
 
   SP_LOG(SLS_INFO, "Window: (%i, %i), Renderer: (%i, %i), Scaled: (%i, %i), Canvas: (%i, %i)\n",
       config->get_window_width(config)
-    , config->get_window_height(config)
-    , renderer_w
-    , renderer_h
-    , global_data.scaled_window_size.w
-    , global_data.scaled_window_size.h
-    , config->get_canvas_width(config)
-    , config->get_canvas_height(config));
+      , config->get_window_height(config)
+      , renderer_w
+      , renderer_h
+      , global_data.scaled_window_size.w
+      , global_data.scaled_window_size.h
+      , config->get_canvas_width(config)
+      , config->get_canvas_height(config));
 
   global_data.window = window;
   global_data.renderer = renderer;

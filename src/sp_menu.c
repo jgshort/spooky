@@ -153,11 +153,10 @@ const spooky_menu * spooky_menu_init(spooky_menu * self) {
 
 	self->get_name = &spooky_menu_get_name;
 
-	self->super.handle_event = &spooky_menu_handle_event,
-  // self->super.handle_delta = &spooky_menu_handle_delta,
-  self->super.render = &spooky_menu_render,
-
+	self->super.handle_event = &spooky_menu_handle_event;
+	self->super.render = &spooky_menu_render;
 	self->get_menu_type = &spooky_menu_get_menu_type;
+
 	self->get_x = &spooky_menu_get_x;
 	self->set_x = &spooky_menu_set_x;
 
@@ -797,7 +796,7 @@ static const spooky_menu * spooky_menu_push_item(const spooky_context * context,
 	}
 
 	const spooky_menu * menu = spooky_menu_acquire();
-  menu = menu->ctor(menu, context->get_font(context), context, text, rect, type);
+	menu = menu->ctor(menu, context->get_font(context), context, text, rect, type);
 
 	menu_stack[menu_stack_len] = menu;
 	menu_stack_len++;

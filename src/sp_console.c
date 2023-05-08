@@ -214,62 +214,74 @@ bool spooky_console_handle_event(const spooky_base * self, SDL_Event * event) {
   }
 
   switch(event->type) {
-    case SDL_TEXTINPUT: ;
-      size_t input_len = strnlen(event->text.text, spooky_console_max_input_len);
-      spooky_console_copy_text_to_buffer((const spooky_console *)self, event->text.text, input_len);
-      return true;
+    case SDL_TEXTINPUT:
+      {
+        size_t input_len = strnlen(event->text.text, spooky_console_max_input_len);
+        spooky_console_copy_text_to_buffer((const spooky_console *)self, event->text.text, input_len);
+        return true;
+      }
       break;
-    case SDL_KEYDOWN: ;
-      switch(event->key.keysym.sym) {
-        case SDLK_BACKQUOTE: ;
-          if(ctrl) {
-            if(!impl->is_animating_up && !impl->is_animating_down && !impl->show_console) {
-              if(!impl->show_console) {
-                impl->is_animating_down = true;
+    case SDL_KEYDOWN:
+      {
+        switch(event->key.keysym.sym) {
+          case SDLK_BACKQUOTE:
+            {
+              if(ctrl) {
+                if(!impl->is_animating_up && !impl->is_animating_down && !impl->show_console) {
+                  if(!impl->show_console) {
+                    impl->is_animating_down = true;
+                  }
+                } else if(impl->show_console && !impl->is_animating_down) {
+                  impl->is_animating_up = true;
+                }
+                return true;
               }
-            } else if(impl->show_console && !impl->is_animating_down) {
-              impl->is_animating_up = true;
             }
-            return true;
-          }
-          break;
-        case SDLK_BACKSPACE: ;
-          if(impl->text_len > 0) {
-            if(impl->text && impl->text_len > 0) {
-              impl->text[impl->text_len - 1] = '\0';
-              impl->text_len--;
+            break;
+          case SDLK_BACKSPACE:
+            {
+              if(impl->text_len > 0) {
+                if(impl->text && impl->text_len > 0) {
+                  impl->text[impl->text_len - 1] = '\0';
+                  impl->text_len--;
+                }
+              }
+              return true;
             }
-          }
-          return true;
-          break;
-        default:
-          break;
+            break;
+          default:
+            break;
+        }
       }
       break;
     case SDL_KEYUP:
       switch(event->key.keysym.sym) {
-        case SDLK_RETURN: ;
-          if(impl->current_command) {
-            free(impl->current_command), impl->current_command = NULL;
+        case SDLK_RETURN:
+          {
+            if(impl->current_command) {
+              free(impl->current_command), impl->current_command = NULL;
+            }
+            impl->current_command = strndup(impl->text, spooky_console_max_input_len);
+            spooky_console_push_str_impl((const spooky_console *)self, impl->text, true);
+            free(impl->text), impl->text = NULL;
+            impl->text_len = 0;
+            impl->text_capacity = spooky_console_max_input_len;
+            impl->text = calloc(impl->text_capacity, sizeof * impl->text);
+            if(!impl->text) { abort(); }
+            return true;
           }
-          impl->current_command = strndup(impl->text, spooky_console_max_input_len);
-          spooky_console_push_str_impl((const spooky_console *)self, impl->text, true);
-          free(impl->text), impl->text = NULL;
-          impl->text_len = 0;
-          impl->text_capacity = spooky_console_max_input_len;
-          impl->text = calloc(impl->text_capacity, sizeof * impl->text);
-          if(!impl->text) { abort(); }
-          return true;
           break;
-        case SDLK_v: ;
-          if(ctrl && (event->key.keysym.sym == SDLK_v && (SDL_GetModState() & KMOD_GUI))) {
-            if(SDL_HasClipboardText()) {
-              /* handle paste */
-              const char * clipboard = SDL_GetClipboardText();
-              if(clipboard) {
-                size_t clipboard_len = strnlen(clipboard, spooky_console_max_input_len);
-                spooky_console_copy_text_to_buffer((const spooky_console *)self, clipboard, clipboard_len);
-                return true;
+        case SDLK_v:
+          {
+            if(ctrl && (event->key.keysym.sym == SDLK_v && (SDL_GetModState() & KMOD_GUI))) {
+              if(SDL_HasClipboardText()) {
+                /* handle paste */
+                const char * clipboard = SDL_GetClipboardText();
+                if(clipboard) {
+                  size_t clipboard_len = strnlen(clipboard, spooky_console_max_input_len);
+                  spooky_console_copy_text_to_buffer((const spooky_console *)self, clipboard, clipboard_len);
+                  return true;
+                }
               }
             }
           }

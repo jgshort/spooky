@@ -14,12 +14,12 @@ errno_t spooky_inflate_file(FILE * source, FILE * dest, size_t * dest_len) {
   assert(SP_SUCCESS == Z_OK);
 
   /* From: http://www.zlib.net/zlib_how.html */
-/* Decompress from file source to file dest until stream ends or EOF.
-   inf() returns Z_OK on success, Z_MEM_ERROR if memory could not be
-   allocated for processing, Z_DATA_ERROR if the deflate data is
-   invalid or incomplete, Z_VERSION_ERROR if the version of zlib.h and
-   the version of the library linked do not match, or Z_ERRNO if there
-   is an error reading or writing the files. */
+  /* Decompress from file source to file dest until stream ends or EOF.
+     inf() returns Z_OK on success, Z_MEM_ERROR if memory could not be
+     allocated for processing, Z_DATA_ERROR if the deflate data is
+     invalid or incomplete, Z_VERSION_ERROR if the version of zlib.h and
+     the version of the library linked do not match, or Z_ERRNO if there
+     is an error reading or writing the files. */
 
   int ret = 0;
   unsigned long have = 0;

@@ -52,27 +52,27 @@ inline static uint64_t spooky_hash_str_internal(const char * restrict s, size_t 
 # define HASH_DEF hash = (((uint64_t)*(s++)) + /* good: 65599; better: */ 65587 * hash)
   hash = 0;
   if (s_len > 0) {
-		register uint64_t loop = (s_len + 8 - 1) >> 3;
+    register uint64_t loop = (s_len + 8 - 1) >> 3;
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wswitch-default"
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
-		switch(s_len & (8 - 1)) {
-		case 0:
-      do {
-			  HASH_DEF;
-        case 7: HASH_DEF;
-        case 6: HASH_DEF;
-        case 5: HASH_DEF;
-        case 4: HASH_DEF;
-        case 3: HASH_DEF;
-        case 2: HASH_DEF;
-        case 1: HASH_DEF;
-			} while (--loop);
-		}
+    switch(s_len & (8 - 1)) {
+      case 0:
+        do {
+          HASH_DEF;
+          case 7: HASH_DEF;
+          case 6: HASH_DEF;
+          case 5: HASH_DEF;
+          case 4: HASH_DEF;
+          case 3: HASH_DEF;
+          case 2: HASH_DEF;
+          case 1: HASH_DEF;
+        } while (--loop);
+    }
 #pragma GCC diagnostic pop
 #pragma GCC diagnostic pop
-	}
+  }
 # undef HASH_DEF
 
 #else

@@ -8,12 +8,12 @@
 const bool spooky_gui_is_fullscreen = false;
 const float spooky_gui_canvas_scale_factor = 1.2f;
 
-const uint32_t spooky_gui_window_flags =
-  spooky_gui_is_fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0
-    | SDL_WINDOW_OPENGL
-    | SDL_WINDOW_HIDDEN
-    | SDL_WINDOW_ALLOW_HIGHDPI
-    ;
+const uint32_t spooky_gui_window_flags
+  = spooky_gui_is_fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0
+  | SDL_WINDOW_OPENGL
+  | SDL_WINDOW_HIDDEN
+  | SDL_WINDOW_ALLOW_HIGHDPI
+  ;
 const uint32_t spooky_gui_renderer_flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC;
 
 const int spooky_gui_ratcliff_factor = 7;
@@ -51,15 +51,18 @@ errno_t spooky_gui_load_image(const char * file_path, size_t file_path_len, SDL_
 
   return SP_SUCCESS;
 
-err1: ;
-  const char * error = SDL_GetError();
-  fprintf(stderr, "> %s\n", error);
-
+err1:
+  {
+    const char * error = SDL_GetError();
+    fprintf(stderr, "> %s\n", error);
+  }
 err0:
-  *out_surface = NULL;
-  fprintf(stderr, "Could not load surface from path '%s'.\n", file_path);
-  fprintf(stderr, "This is a fatal error. Check the resources path and restart.\n");
-  abort();
+  {
+    *out_surface = NULL;
+    fprintf(stderr, "Could not load surface from path '%s'.\n", file_path);
+    fprintf(stderr, "This is a fatal error. Check the resources path and restart.\n");
+    abort();
+  }
 }
 
 errno_t spooky_gui_load_texture(SDL_Renderer * renderer, const char * file_path, size_t file_path_len, SDL_Texture ** out_texture) {
@@ -81,20 +84,25 @@ errno_t spooky_gui_load_texture(SDL_Renderer * renderer, const char * file_path,
 
   return SP_SUCCESS;
 
-err2: ;
-  const char * error = SDL_GetError();
-  if(surface != NULL) {
-    SDL_FreeSurface(surface), surface = NULL;
+err2:
+  {
+    const char * error = SDL_GetError();
+    if(surface != NULL) {
+      SDL_FreeSurface(surface), surface = NULL;
+    }
+    fprintf(stderr, "> %s\n", error);
   }
-  fprintf(stderr, "> %s\n", error);
 
 err1:
-  fprintf(stderr, "Could not load texture from surface from path '%s'.\n", file_path);
-
+  {
+    fprintf(stderr, "Could not load texture from surface from path '%s'.\n", file_path);
+  }
 err0:
-  *out_texture = NULL;
-  fprintf(stderr, "This is a fatal error. Check the resources path and restart.\n");
-  abort();
+  {
+    *out_texture = NULL;
+    fprintf(stderr, "This is a fatal error. Check the resources path and restart.\n");
+    abort();
+  }
 }
 
 float get_ui_scale_factor(void) { return 1.f; }
@@ -132,8 +140,8 @@ void spooky_gui_pop_draw_color(const spooky_gui_rgba_context * context) {
 
 void spooky_gui_color_lighten(SDL_Color * color, float luminosity) {
   color->r = (uint8_t)(spooky_int_min(spooky_int_max(0, (int)((float)color->r + (luminosity * 255.f))), 255));
-	color->g = (uint8_t)(spooky_int_min(spooky_int_max(0, (int)((float)color->g + (luminosity * 255.f))), 255));
-	color->b = (uint8_t)(spooky_int_min(spooky_int_max(0, (int)((float)color->b + (luminosity * 255.f))), 255));
+  color->g = (uint8_t)(spooky_int_min(spooky_int_max(0, (int)((float)color->g + (luminosity * 255.f))), 255));
+  color->b = (uint8_t)(spooky_int_min(spooky_int_max(0, (int)((float)color->b + (luminosity * 255.f))), 255));
 }
 
 void spooky_gui_color_darken(SDL_Color * color, int percent) {

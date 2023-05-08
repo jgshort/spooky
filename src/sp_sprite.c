@@ -108,12 +108,12 @@ void spooky_sprite_release(const spooky_sprite * self) {
 }
 
 /* Not utilized yet:
-static bool spooky_sprite_handle_event(const spooky_sprite * self, SDL_Event * event) {
-  (void)self;
-  (void)event;
-  return false;
-}
-*/
+   static bool spooky_sprite_handle_event(const spooky_sprite * self, SDL_Event * event) {
+   (void)self;
+   (void)event;
+   return false;
+   }
+   */
 
 static void spooky_sprite_handle_delta(const spooky_sprite * self, const SDL_Event * event, uint64_t last_update_time, double interpolation) {
   (void)event;

@@ -153,21 +153,21 @@ void spooky_debug_render(const spooky_base * self, SDL_Renderer * renderer) {
       "    Y: %i"
       "\n"
       /*
-      " FONT: Name   : '%s'\n"
-      "       Shadow : %i\n"
-      "       Height : %i\n"
-      "       Ascent : %i\n"
-      "       Descent: %i\n"
-      "       M-Dash : %i\n" */
+         " FONT: Name   : '%s'\n"
+         "       Shadow : %i\n"
+         "       Height : %i\n"
+         "       Ascent : %i\n"
+         "       Descent: %i\n"
+         "       M-Dash : %i\n" */
       , data->seconds_since_start, FPS, data->interpolation, mouse_x, mouse_y
       /*, font->get_name(font)
-      , font->get_is_drop_shadow(font)
-      , font->get_height(font)
-      , font->get_ascent(font)
-      , font->get_descent(font)
-      , font->get_m_dash(font)
-      */
-    );
+        , font->get_is_drop_shadow(font)
+        , font->get_height(font)
+        , font->get_ascent(font)
+        , font->get_descent(font)
+        , font->get_m_dash(font)
+        */
+      );
 
   assert(debug_out > 0 && (size_t)debug_out < sizeof(debug));
 

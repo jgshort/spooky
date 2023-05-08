@@ -23,10 +23,10 @@
 static const size_t SPOOKY_IO_MAX_PATH_LEN = 65536;
 
 static const char * spooky_io_get_user_home(size_t * path_len) {
-	static const char * home = NULL;
+  static const char * home = NULL;
   static size_t home_len = 0;
 
-	if(!home) {
+  if(!home) {
     home = getenv("HOME");
     if(!home) {
       struct passwd * pw = getpwuid(getuid());
@@ -37,10 +37,10 @@ static const char * spooky_io_get_user_home(size_t * path_len) {
     }
 
     home_len = strnlen(home, SPOOKY_IO_MAX_PATH_LEN);
-	}
+  }
 
   *path_len = home_len;
-	return home;
+  return home;
 }
 
 char * spooky_io_alloc_config_path(void) {
@@ -59,21 +59,21 @@ char * spooky_io_alloc_config_path(void) {
 }
 
 void spooky_io_ensure_path(const char * path, mode_t mode) {
-	struct stat st = { 0 };
-	if (stat(path, &st) == -1) {
-		mkdir(path, mode);
-	}
+  struct stat st = { 0 };
+  if (stat(path, &st) == -1) {
+    mkdir(path, mode);
+  }
 }
 
 char * spooky_io_alloc_concat_path(char const * root_path, char const * path) {
-	char * full_path = calloc(strnlen(root_path, SPOOKY_IO_MAX_PATH_LEN) + strnlen(path, SPOOKY_IO_MAX_PATH_LEN) + sizeof('\0'), sizeof * full_path);
-	if (!full_path) { abort(); }
+  char * full_path = calloc(strnlen(root_path, SPOOKY_IO_MAX_PATH_LEN) + strnlen(path, SPOOKY_IO_MAX_PATH_LEN) + sizeof('\0'), sizeof * full_path);
+  if (!full_path) { abort(); }
 
   int allocated = snprintf(full_path, SPOOKY_IO_MAX_PATH_LEN, "%s%s", root_path, path);
   assert(allocated >= 0);
   full_path[allocated] = '\0';
 
-	return full_path;
+  return full_path;
 }
 
 FILE * spooky_io_open_or_create_binary_file_for_writing(const char * path, int * fd_out) {
@@ -119,18 +119,18 @@ FILE * spooky_io_open_binary_file_for_reading(const char * path, int * fd_out) {
 }
 
 /*
-int spooky_io_context_exists(char const * context_name) {
-	char const * config_path = get_config_path();
-	char * full_path = alloc_concat_path(config_path, context_name);
+   int spooky_io_context_exists(char const * context_name) {
+   char const * config_path = get_config_path();
+   char * full_path = alloc_concat_path(config_path, context_name);
 
-	struct stat st = {0};
-	int exists = stat(full_path, &st) == 0;
+   struct stat st = {0};
+   int exists = stat(full_path, &st) == 0;
 
-	free(full_path), full_path = NULL;
+   free(full_path), full_path = NULL;
 
-	return exists;
-}
-*/
+   return exists;
+   }
+   */
 
 static const char * spooky_io_gen_io_ex_msg(const char * start, const char * path, const char * end) {
   static const size_t max_block_len = 256;
@@ -158,28 +158,28 @@ static const char * spooky_io_gen_io_ex_msg(const char * start, const char * pat
 }
 
 errno_t spooky_io_read_buffer_from_file(const char * path, char ** buffer, const spooky_ex ** ex) {
-	FILE *fp = fopen(path, "r");
-	if(errno || !fp) { goto err1; }
+  FILE *fp = fopen(path, "r");
+  if(errno || !fp) { goto err1; }
 
-	fseek(fp, 0L, SEEK_END);
-	if(errno) { goto err2; }
+  fseek(fp, 0L, SEEK_END);
+  if(errno) { goto err2; }
 
-	const long temp_file_size = ftell(fp);
-	if(errno || temp_file_size < 0) { goto err3; }
+  const long temp_file_size = ftell(fp);
+  if(errno || temp_file_size < 0) { goto err3; }
 
-	const unsigned long file_size = (unsigned long)temp_file_size;
-	rewind(fp);
-	if(errno) { goto err4; }
+  const unsigned long file_size = (unsigned long)temp_file_size;
+  rewind(fp);
+  if(errno) { goto err4; }
 
-	char * temp = (char*)malloc((sizeof * temp) * (file_size + 1));
-	if (!temp) { goto err5; }
+  char * temp = (char*)malloc((sizeof * temp) * (file_size + 1));
+  if (!temp) { goto err5; }
 
-	size_t bytesRead = fread(temp, sizeof * temp, file_size, fp);
-	if (bytesRead != file_size) { goto err6; }
-	temp[bytesRead] = '\0';
+  size_t bytesRead = fread(temp, sizeof * temp, file_size, fp);
+  if (bytesRead != file_size) { goto err6; }
+  temp[bytesRead] = '\0';
 
-	int ret = fclose(fp);
-	if(ret || ret == EOF || errno) { goto err7; }
+  int ret = fclose(fp);
+  if(ret || ret == EOF || errno) { goto err7; }
 
   *buffer = temp;
   return SP_SUCCESS;
@@ -198,23 +198,25 @@ err5: /* malloc failure. */
   spooky_ex_new(__LINE__, __FILE__, -1, "Out-of-memory exception reading file contents to buffer.", NULL, ex);
   goto err;
 
-err4: ;/* Rewind failure (I/O failure)*/
+err4: /* Rewind failure (I/O failure)*/
 err3: /* ftell failure (I/O failure) */
   goto err2;
 
-err2: /* fseek failure */
+/* fseek failure */
+err2:
   {
     const char * buf = spooky_io_gen_io_ex_msg("I/O exception reading file path '", path, "'.");
     spooky_ex_new(__LINE__, __FILE__, -1, buf, NULL, ex);
+    goto err;
   }
-  goto err;
 
-err1: /* Unable to open file. */
+/* Unable to open file. */
+err1:
   {
     const char * buf = spooky_io_gen_io_ex_msg("Error reading file path '", path, "'.");
     spooky_ex_new(__LINE__, __FILE__, -1, buf, NULL, ex);
+    goto err;
   }
-  goto err;
 
 err:
   return SP_FAILURE;

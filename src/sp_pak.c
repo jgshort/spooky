@@ -45,7 +45,7 @@ const uint16_t SPOOKY_PACK_SUBREVISION_VERSION = 0;
  *
  * unpack example:
  *  i = (data[0]<<0) | (data[1]<<8) | (data[2]<<16) | (data[3]<<24);
-*/
+ */
 
 #define SPOOKY_HEADER_LEN 16
 #define SPOOKY_FOOTER_LEN 16
@@ -175,12 +175,12 @@ static bool spooky_write_raw(void * value, size_t len, FILE * fp) {
 }
 
 static bool spooky_read_raw(FILE * fp, size_t len, void * buf) {
-	assert(fp != NULL && buf != NULL);
+  assert(fp != NULL && buf != NULL);
   assert(len > 0);
 
   if(feof(fp) != 0) return false;
-	size_t hir = fread(buf, sizeof(unsigned char), len, fp);
-	assert(hir);
+  size_t hir = fread(buf, sizeof(unsigned char), len, fp);
+  assert(hir);
 
   return hir > 0 && ferror(fp) == 0;
 }
@@ -215,7 +215,7 @@ static bool spooky_read_hash(FILE * fp, unsigned char * buf, size_t buf_len) {
 }
 
 static bool spooky_write_item_type(spooky_pack_item_type type, FILE * fp, uint64_t * content_len) {
-	assert(fp != NULL);
+  assert(fp != NULL);
   assert(type >= spit_unspecified && type <= spit_eof);
   assert(type >= 0 && type <= UCHAR_MAX);
   assert(type >= 0);
@@ -641,26 +641,26 @@ static bool spooky_write_string(const char * value, FILE * fp, uint64_t * conten
 static bool spooky_write_fixed_width_string(const char * value, size_t fixed_width, FILE * fp, uint64_t * content_len) {
   static char nullstr = '\0';
 
- 	assert(fixed_width > 0 && fixed_width <= MAX_PACK_STRING_LEN);
-	assert(value);
+  assert(fixed_width > 0 && fixed_width <= MAX_PACK_STRING_LEN);
+  assert(value);
 
-	char * buf = malloc(fixed_width * sizeof(char));
+  char * buf = malloc(fixed_width * sizeof(char));
   if(!buf) goto err0;
 
-	memset(buf, 0, fixed_width * sizeof(char));
-	size_t len = strnlen(value, MAX_PACK_STRING_LEN);
-	size_t min = (fixed_width < len ? fixed_width : len);
-	memcpy(buf, value, min * sizeof(char));
+  memset(buf, 0, fixed_width * sizeof(char));
+  size_t len = strnlen(value, MAX_PACK_STRING_LEN);
+  size_t min = (fixed_width < len ? fixed_width : len);
+  memcpy(buf, value, min * sizeof(char));
 
   size_t rmin = 0, rbuf = 0, rnull = 0;
 
   rmin = fwrite(&min, sizeof(char), sizeof min, fp);
   if(rmin != (sizeof min) * 1) goto err1;
 
-	rbuf = fwrite(buf, sizeof(char), min, fp);
+  rbuf = fwrite(buf, sizeof(char), min, fp);
   if((size_t)rbuf != sizeof(char) * min) goto err1;
 
-	rnull =  fwrite(&nullstr, sizeof nullstr, 1, fp);
+  rnull =  fwrite(&nullstr, sizeof nullstr, 1, fp);
   if(rnull != 1) goto err1;
 
   free(buf), buf = NULL;
@@ -692,11 +692,11 @@ static bool spooky_write_float(float value, FILE * fp, uint64_t * content_len) {
 static bool spooky_read_char(FILE * fp, char * value) {
   if(feof(fp) != 0) return false;
 
-	char c;
+  char c;
   size_t hir = fread(&c, sizeof c, 1, fp);
   assert(hir == sizeof *value);
 
-	*value = c;
+  *value = c;
 
   return hir == sizeof *value && ferror(fp) == 0;
 }
@@ -706,11 +706,11 @@ static bool spooky_read_uint8(FILE * fp, uint8_t * value) {
 
   if(feof(fp) != 0) return false;
 
-	uint8_t byte;
+  uint8_t byte;
   size_t hir = fread(&byte, sizeof byte, 1, fp);
   assert(hir == sizeof *value);
 
-	*value = byte;
+  *value = byte;
 
   return hir == sizeof *value && ferror(fp) == 0;
 }
@@ -753,7 +753,7 @@ static bool spooky_read_int16(FILE * fp, int16_t * value) {
 }
 
 bool spooky_read_uint32(FILE * fp, uint32_t * value) {
-	if(feof(fp) != 0) return false;
+  if(feof(fp) != 0) return false;
 
   uint8_t bytes[sizeof(uint32_t)] = { 0 } ;
   size_t hir = fread(&bytes, sizeof bytes, 1, fp);
@@ -766,7 +766,7 @@ bool spooky_read_uint32(FILE * fp, uint32_t * value) {
 }
 
 static bool spooky_read_int32(FILE * fp, int32_t * value) {
-	if(feof(fp) != 0) return false;
+  if(feof(fp) != 0) return false;
 
   int8_t bytes[sizeof(int32_t)] = { 0 } ;
   size_t hir = fread(&bytes, sizeof bytes, 1, fp);
@@ -779,7 +779,7 @@ static bool spooky_read_int32(FILE * fp, int32_t * value) {
 }
 
 static bool spooky_read_uint64(FILE * fp, uint64_t * value) {
-	if(feof(fp) != 0) return false;
+  if(feof(fp) != 0) return false;
 
   uint8_t bytes[sizeof(uint64_t)] = { 0 } ;
   size_t hir = fread(&bytes, sizeof(uint8_t), sizeof * value, fp);
@@ -787,13 +787,13 @@ static bool spooky_read_uint64(FILE * fp, uint64_t * value) {
 
   /* little endian */
   *value = ((uint64_t)bytes[0] <<  0) | ((uint64_t)bytes[1] <<  8) | ((uint64_t)bytes[2] << 16) | ((uint64_t)bytes[3] << 24)
-				 | ((uint64_t)bytes[4] << 32) | ((uint64_t)bytes[5] << 40) | ((uint64_t)bytes[6] << 48) | ((uint64_t)bytes[7] << 56);
+    | ((uint64_t)bytes[4] << 32) | ((uint64_t)bytes[5] << 40) | ((uint64_t)bytes[6] << 48) | ((uint64_t)bytes[7] << 56);
 
   return ferror(fp) == 0;
 }
 
 static bool spooky_read_int64(FILE * fp, int64_t * value) {
-	if(feof(fp) != 0) return false;
+  if(feof(fp) != 0) return false;
 
   uint8_t bytes[sizeof *value] = { 0 } ;
   size_t hir = fread(&bytes, sizeof(uint8_t), sizeof *value,  fp);
@@ -801,7 +801,7 @@ static bool spooky_read_int64(FILE * fp, int64_t * value) {
 
   /* little endian */
   *value = ((int64_t)bytes[0] <<  0) | ((int64_t)bytes[1] <<  8) | ((int64_t)bytes[2] << 16) | ((int64_t)bytes[3] << 24)
-				 | ((int64_t)bytes[4] << 32) | ((int64_t)bytes[5] << 40) | ((int64_t)bytes[6] << 48) | ((int64_t)bytes[7] << 56);
+    | ((int64_t)bytes[4] << 32) | ((int64_t)bytes[5] << 40) | ((int64_t)bytes[6] << 48) | ((int64_t)bytes[7] << 56);
 
   return ferror(fp) == 0;
 }
@@ -820,23 +820,23 @@ static bool spooky_read_header(FILE * fp) {
 }
 
 static bool spooky_read_version(FILE * fp, spooky_pack_version *version) {
-    if(feof(fp) != 0) return false;
+  if(feof(fp) != 0) return false;
 
-    if(!spooky_read_uint16(fp, &(version->major))) return false;
-    if(!spooky_read_uint16(fp, &(version->minor))) return false;
-    if(!spooky_read_uint16(fp, &(version->revision))) return false;
-    if(!spooky_read_uint16(fp, &(version->subrevision))) return false;
+  if(!spooky_read_uint16(fp, &(version->major))) return false;
+  if(!spooky_read_uint16(fp, &(version->minor))) return false;
+  if(!spooky_read_uint16(fp, &(version->revision))) return false;
+  if(!spooky_read_uint16(fp, &(version->subrevision))) return false;
 
-    return true;
+  return true;
 }
 
 static bool spooky_write_version(spooky_pack_version version, FILE * fp, uint64_t * content_len) {
-    if(!spooky_write_uint16(version.major, fp, content_len)) return false;
-    if(!spooky_write_uint16(version.minor, fp, content_len)) return false;
-    if(!spooky_write_uint16(version.revision, fp, content_len)) return false;
-    if(!spooky_write_uint16(version.subrevision, fp, content_len)) return false;
+  if(!spooky_write_uint16(version.major, fp, content_len)) return false;
+  if(!spooky_write_uint16(version.minor, fp, content_len)) return false;
+  if(!spooky_write_uint16(version.revision, fp, content_len)) return false;
+  if(!spooky_write_uint16(version.subrevision, fp, content_len)) return false;
 
-    return true;
+  return true;
 }
 
 static bool spooky_read_footer(FILE * fp) {
@@ -1341,7 +1341,7 @@ err5:
 #define MAX_TEST_STACK_BUFFER_SZ 1024
 
 static void spooky_write_char_tests() {
-	unsigned char buf[MAX_TEST_STACK_BUFFER_SZ] = { 0 };
+  unsigned char buf[MAX_TEST_STACK_BUFFER_SZ] = { 0 };
 
   FILE * fp = fmemopen(buf, sizeof(unsigned char) * 2, "rb+");
   assert(fp);
@@ -1353,7 +1353,7 @@ static void spooky_write_char_tests() {
   assert(fflush(fp) == 0);
   assert(fclose(fp) == 0);
 
-	assert(buf[0] == 0xff);
+  assert(buf[0] == 0xff);
   assert(buf[1] == 0x01);
 
   assert(content_len == sizeof(uint8_t) + sizeof(char));
@@ -1653,7 +1653,7 @@ static void spooky_write_float_tests() {
   assert(fflush(fp) == 0);
   assert(fclose(fp) == 0);
 
-	/* uses string serializer; needs to skip length bits */
+  /* uses string serializer; needs to skip length bits */
   char * p = buf + sizeof(size_t);
   char * e = NULL;
   float result = strtof(p, &e);
@@ -1670,7 +1670,7 @@ static void spooky_read_uint8_tests() {
 
   uint8_t result;
   bool ret = spooky_read_uint8(fp, &result);
-	assert(fflush(fp) == 0);
+  assert(fflush(fp) == 0);
   assert(fclose(fp) == 0);
 
   assert(ret);
@@ -1685,7 +1685,7 @@ void spooky_read_int8_tests() {
 
   int8_t result;
   bool ret = spooky_read_int8(fp, &result);
-	assert(fflush(fp) == 0);
+  assert(fflush(fp) == 0);
   assert(fclose(fp) == 0);
 
   assert(ret);
@@ -1768,7 +1768,7 @@ static void spooky_read_uint64_tests() {
 }
 
 static void spooky_read_int64_tests() {
-	const int64_t expected = 0x0d0c0b0affeeddcc;
+  const int64_t expected = 0x0d0c0b0affeeddcc;
 
   /* stored in little endian; flip the bits */
   unsigned char buf[sizeof(int64_t)] = { 0xcc, 0xdd, 0xee, 0xff, 0x0a, 0x0b, 0x0c, 0x0d };
@@ -1784,7 +1784,7 @@ static void spooky_read_int64_tests() {
 }
 
 void spooky_pack_tests() {
-	spooky_write_char_tests();
+  spooky_write_char_tests();
 
   spooky_write_uint8_tests();
   spooky_write_int8_tests();
@@ -1800,20 +1800,20 @@ void spooky_pack_tests() {
 
   spooky_write_string_tests();
   spooky_write_string_empty_tests();
-	spooky_write_fixed_width_string_tests();
+  spooky_write_fixed_width_string_tests();
 
   spooky_write_float_tests();
 
   spooky_write_bool_tests();
   spooky_read_bool_tests();
 
-	spooky_read_uint8_tests();
+  spooky_read_uint8_tests();
   spooky_read_int8_tests();
   spooky_read_uint16_tests();
   spooky_read_int16_tests();
- 	spooky_read_uint32_tests();
- 	spooky_read_int32_tests();
- 	spooky_read_uint64_tests();
- 	spooky_read_int64_tests();
+  spooky_read_uint32_tests();
+  spooky_read_int32_tests();
+  spooky_read_uint64_tests();
+  spooky_read_int64_tests();
 }
 

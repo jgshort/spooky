@@ -389,7 +389,7 @@ bool spooky_base_get_focus(const spooky_base * self) {
 }
 
 void spooky_base_set_focus(const spooky_base * self, bool is_focus) {
-    self->data->is_focus = is_focus;
+  self->data->is_focus = is_focus;
 }
 
 static bool spooky_base_get_is_modal(const spooky_base * self) {

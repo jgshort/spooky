@@ -159,20 +159,20 @@ void spooky_help_render(const spooky_base * self, SDL_Renderer * renderer) {
   SDL_GetRendererOutputSize(renderer, &help_rect_w, &help_rect_h);
 
   int help_out = snprintf(help, sizeof(help),
-    "               > HELP <                 \n"
-    " ? or F1 : Help                         \n"
-    "                                        \n"
-    " Ctrl `  : Debug Console                \n"
-    " Ctrl +  : Text size up                 \n"
-    " Ctrl -  : Text size down               \n"
-    "                                        \n"
-    " F3: HUD            F12: Full screen    \n"
-    "                                        \n"
-    " Esc    : Cancel/Back Out               \n"
-    "                                        \n"
-    " Ctrl-Q : Quit                          \n"
-    "                          [Esc to Close]\n"
-  );
+      "               > HELP <                 \n"
+      " ? or F1 : Help                         \n"
+      "                                        \n"
+      " Ctrl `  : Debug Console                \n"
+      " Ctrl +  : Text size up                 \n"
+      " Ctrl -  : Text size down               \n"
+      "                                        \n"
+      " F3: HUD            F12: Full screen    \n"
+      "                                        \n"
+      " Esc    : Cancel/Back Out               \n"
+      "                                        \n"
+      " Ctrl-Q : Quit                          \n"
+      "                          [Esc to Close]\n"
+      );
 
   int out_w = 0, out_h = 0;
   static const SDL_Color help_fore_color = { .r = 255, .g = 255, .b = 255, .a = 255};
@@ -180,10 +180,10 @@ void spooky_help_render(const spooky_base * self, SDL_Renderer * renderer) {
   font->write_to_renderer(font, renderer, &help_point, &help_fore_color, help, (size_t)help_out, &out_w, &out_h);
 
   /*
-  assert(help_out > 0 && (size_t)help_out < sizeof(help));
+     assert(help_out > 0 && (size_t)help_out < sizeof(help));
 
-  int help_text_w, help_text_h;
-                         //"               > HELP <                 \n"
+     int help_text_w, help_text_h;
+  //"               > HELP <                 \n"
   font->measure_text(font, "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm", strlen("mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm"), &help_text_w, &help_text_h);
 
 
@@ -193,10 +193,10 @@ void spooky_help_render(const spooky_base * self, SDL_Renderer * renderer) {
   int x_center = help_rect_w / 2;
   int y_center = help_rect_h / 2;
   SDL_Rect origin = {
-    .x = x_center - (help_text_w / 2),// - (help_text_w / 2),
-    .y = y_center - (help_text_h / 2), //- (help_h / 2),
-    .w = help_text_w,
-    .h = help_h
+  .x = x_center - (help_text_w / 2),// - (help_text_w / 2),
+  .y = y_center - (help_text_h / 2), //- (help_h / 2),
+  .w = help_text_w,
+  .h = help_h
   };
 
   const SDL_Rect * rect = &origin;
@@ -204,16 +204,16 @@ void spooky_help_render(const spooky_base * self, SDL_Renderer * renderer) {
   const SDL_Color background_color = { .r = 199, .g = 78, .b = 157, .a = 150 };
   const spooky_gui_rgba_context * rgba = spooky_gui_push_draw_color(renderer, &background_color);
   {
-    SDL_BlendMode blend_mode;
-    SDL_GetRenderDrawBlendMode(renderer, &blend_mode);
+  SDL_BlendMode blend_mode;
+  SDL_GetRenderDrawBlendMode(renderer, &blend_mode);
 
-    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+  SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
 
-    SDL_Rect rr = { .x = help_point.x, .y = help_point.y, .w = help_w, .h = help_h };
-    SDL_RenderFillRect(renderer, &rr);
-    SDL_SetRenderDrawBlendMode(renderer, blend_mode);
+  SDL_Rect rr = { .x = help_point.x, .y = help_point.y, .w = help_w, .h = help_h };
+  SDL_RenderFillRect(renderer, &rr);
+  SDL_SetRenderDrawBlendMode(renderer, blend_mode);
 
-    spooky_gui_pop_draw_color(rgba);
+  spooky_gui_pop_draw_color(rgba);
   }
   */
 }

@@ -1009,13 +1009,13 @@ static const spooky_box * spooky_box_render_scroll_box_texture(const spooky_box 
 
       int i = 0, row = 0;
       while(item != end) {
-/*
- * -----------------
- * |--|  |--|  |--|  (0, 0), (0, 1), (0, 2)
- * -----------------
- * |--|  |--|  |--|  (1, 0), (1, 1), (1, 2)
- * -----------------
- */
+        /*
+         * -----------------
+         * |--|  |--|  |--|  (0, 0), (0, 1), (0, 2)
+         * -----------------
+         * |--|  |--|  |--|  (1, 0), (1, 1), (1, 2)
+         * -----------------
+         */
         /* Render each line of the scroll box */
         switch(item->type) {
           case SBSBIT_TEXT:
@@ -1484,16 +1484,16 @@ static void spooky_box_scroll_box_recalculate_scroll_bars(const spooky_box * sel
 bool spooky_box_handle_event(const spooky_base * self, SDL_Event * event) {
   spooky_box_data * data = ((const spooky_box *)self)->data;
 
-/* TODO:
-  if(event->action == SP_GA_TEXT_INPUT) {
-    data->is_visible = true;
-    return false;
-  }
-  if(event->action == SP_GA_ESC) {
-    data->is_visible = false;
-    return false;
-  }
-*/
+  /* TODO:
+     if(event->action == SP_GA_TEXT_INPUT) {
+     data->is_visible = true;
+     return false;
+     }
+     if(event->action == SP_GA_ESC) {
+     data->is_visible = false;
+     return false;
+     }
+     */
 
   SDL_Rect r = { .x = data->rect.x, .y = data->rect.y, .w = data->rect.w, .h = data->rect.h };
   int mouse_x = event->motion.x;
@@ -1505,12 +1505,12 @@ bool spooky_box_handle_event(const spooky_base * self, SDL_Event * event) {
 
   const spooky_font * font = data->font;
   int header_height = font->get_height(font) + 3; /* top/bottom lines + padding */
-/* TODO:
-  if(event->action == SP_GA_SCALE_UP || event->action == SP_GA_SCALE_DOWN) {
-    // TODO: Scale UI
-    return false;
+  /* TODO:
+     if(event->action == SP_GA_SCALE_UP || event->action == SP_GA_SCALE_DOWN) {
+  // TODO: Scale UI
+  return false;
   }
-*/
+  */
 
   if(data->box_type == SBT_WINDOW) {
     /* intersected for drag/drop with title bar */
@@ -1765,11 +1765,11 @@ static void spooky_box_draw_window(const spooky_box * self, const SDL_Rect * rec
 
   /* Minimize Button */
   /*
-  SDL_SetRenderDrawColor(data->renderer, data->bg_color.r, data->bg_color.g, data->bg_color.b, box_alpha);
-  SDL_Rect min_rect = {.x = (r.x + r.w) - (spooky_gui_x_padding * 3), .y = r.y + 2, .w = spooky_gui_x_padding * 2, .h = (spooky_gui_y_padding * 2) - 3};
-  SDL_RenderFillRect(data->renderer, &min_rect);
- spooky_box_draw_3d_rectangle_v2(self, &min_rect, &white, &black);
-  */
+     SDL_SetRenderDrawColor(data->renderer, data->bg_color.r, data->bg_color.g, data->bg_color.b, box_alpha);
+     SDL_Rect min_rect = {.x = (r.x + r.w) - (spooky_gui_x_padding * 3), .y = r.y + 2, .w = spooky_gui_x_padding * 2, .h = (spooky_gui_y_padding * 2) - 3};
+     SDL_RenderFillRect(data->renderer, &min_rect);
+     spooky_box_draw_3d_rectangle_v2(self, &min_rect, &white, &black);
+     */
   SDL_SetRenderDrawColor(data->renderer, 255, 255, 255, box_alpha);
 
   /* draw untextured box */
@@ -2067,40 +2067,40 @@ void spooky_box_scroll_box_render(const spooky_base * self, SDL_Renderer * rende
   /* diagnostics */
   if(spooky_box_enable_diagnostics) {
     /*
-    SDL_Rect scroll_up_region = { .x = data->scroll_box_vertical_rect.x, .y = data->scroll_box_vertical_rect.y + data->up_rect.h + 1, .w = data->scroll_box_vertical_rect.w, .h = data->scroll_vertical_rect.y - (data->up_rect.y  + data->up_rect.h) };
-    SDL_Rect scroll_left_region = { .x = data->scroll_box_horizontal_rect.x - data->left_rect.w + 1, .y = data->scroll_box_horizontal_rect.y, .w = data->scroll_horizontal_rect.x - (data->left_rect.x  + data->left_rect.w), .h = data->scroll_box_vertical_rect.h };
+       SDL_Rect scroll_up_region = { .x = data->scroll_box_vertical_rect.x, .y = data->scroll_box_vertical_rect.y + data->up_rect.h + 1, .w = data->scroll_box_vertical_rect.w, .h = data->scroll_vertical_rect.y - (data->up_rect.y  + data->up_rect.h) };
+       SDL_Rect scroll_left_region = { .x = data->scroll_box_horizontal_rect.x - data->left_rect.w + 1, .y = data->scroll_box_horizontal_rect.y, .w = data->scroll_horizontal_rect.x - (data->left_rect.x  + data->left_rect.w), .h = data->scroll_box_vertical_rect.h };
 
-    SDL_Rect scroll_down_region = { .x = data->scroll_box_vertical_rect.x, .y = data->scroll_vertical_rect.y + data->scroll_vertical_rect.h + 1, .w = data->scroll_box_vertical_rect.w, .h = data->scroll_box_vertical_rect.h - scroll_up_region.h - data->up_rect.h - data->down_rect.h - data->scroll_vertical_rect.h - 2 };
+       SDL_Rect scroll_down_region = { .x = data->scroll_box_vertical_rect.x, .y = data->scroll_vertical_rect.y + data->scroll_vertical_rect.h + 1, .w = data->scroll_box_vertical_rect.w, .h = data->scroll_box_vertical_rect.h - scroll_up_region.h - data->up_rect.h - data->down_rect.h - data->scroll_vertical_rect.h - 2 };
 
-    SDL_Rect horizontal_page_left_region = { .x = r.x + data->scroll_box_horizontal_rect.x + data->left_rect.w, .y =  data->scroll_box_horizontal_rect.y, .w = data->scroll_horizontal_rect.x - (data->left_rect.x + data->left_rect.w), .h = data->scroll_box_horizontal_rect.h };
-    SDL_SetRenderDrawColor(renderer, 200, 100, 255, 255);
-    SDL_RenderDrawRect(renderer, &horizontal_page_left_region);
+       SDL_Rect horizontal_page_left_region = { .x = r.x + data->scroll_box_horizontal_rect.x + data->left_rect.w, .y =  data->scroll_box_horizontal_rect.y, .w = data->scroll_horizontal_rect.x - (data->left_rect.x + data->left_rect.w), .h = data->scroll_box_horizontal_rect.h };
+       SDL_SetRenderDrawColor(renderer, 200, 100, 255, 255);
+       SDL_RenderDrawRect(renderer, &horizontal_page_left_region);
 
-    SDL_Rect horizontal_page_right_region = { .x = r.x + data->scroll_horizontal_rect.x +  data->scroll_horizontal_rect.w, .y = data->scroll_box_horizontal_rect.y, .w = data->scroll_box_horizontal_rect.w - scroll_left_region.w - data->left_rect.w - data->right_rect.w - data->scroll_horizontal_rect.w, .h = data->scroll_box_horizontal_rect.h };
-    SDL_SetRenderDrawColor(renderer, 200, 200, 100, 255);
-    SDL_RenderDrawRect(renderer, &horizontal_page_right_region);
+       SDL_Rect horizontal_page_right_region = { .x = r.x + data->scroll_horizontal_rect.x +  data->scroll_horizontal_rect.w, .y = data->scroll_box_horizontal_rect.y, .w = data->scroll_box_horizontal_rect.w - scroll_left_region.w - data->left_rect.w - data->right_rect.w - data->scroll_horizontal_rect.w, .h = data->scroll_box_horizontal_rect.h };
+       SDL_SetRenderDrawColor(renderer, 200, 200, 100, 255);
+       SDL_RenderDrawRect(renderer, &horizontal_page_right_region);
 
-    SDL_SetRenderDrawColor(renderer, 0, 255, 255, 255);
-    SDL_RenderDrawRect(renderer, &scroll_up_region);
-    SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
-    SDL_RenderDrawRect(renderer, &scroll_down_region);
+       SDL_SetRenderDrawColor(renderer, 0, 255, 255, 255);
+       SDL_RenderDrawRect(renderer, &scroll_up_region);
+       SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
+       SDL_RenderDrawRect(renderer, &scroll_down_region);
 
-    SDL_SetRenderDrawColor(renderer, 0, 255, 255, 255);
-    SDL_RenderDrawRect(renderer, &(data->scroll_box_vertical_rect));
+       SDL_SetRenderDrawColor(renderer, 0, 255, 255, 255);
+       SDL_RenderDrawRect(renderer, &(data->scroll_box_vertical_rect));
 
-    SDL_SetRenderDrawColor(renderer, 255, 0, 255, 255);
-    SDL_RenderDrawRect(renderer, &(data->up_rect));
+       SDL_SetRenderDrawColor(renderer, 255, 0, 255, 255);
+       SDL_RenderDrawRect(renderer, &(data->up_rect));
 
-    SDL_SetRenderDrawColor(renderer, 255, 255, 0, 255);
-    SDL_RenderDrawRect(renderer, &(data->down_rect));
+       SDL_SetRenderDrawColor(renderer, 255, 255, 0, 255);
+       SDL_RenderDrawRect(renderer, &(data->down_rect));
 
-    SDL_SetRenderDrawColor(renderer, 0, 255, 255, 255);
-    SDL_RenderDrawRect(renderer, data->scroll_button.rect);
+       SDL_SetRenderDrawColor(renderer, 0, 255, 255, 255);
+       SDL_RenderDrawRect(renderer, data->scroll_button.rect);
 
-    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-    SDL_Rect region = {.x = 0, .y = 0, .w = data->scroll_window_texture_width, .h = data->scroll_window_texture_height};
-    SDL_RenderDrawRect(renderer, &region);
-    */
+       SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+       SDL_Rect region = {.x = 0, .y = 0, .w = data->scroll_window_texture_width, .h = data->scroll_window_texture_height};
+       SDL_RenderDrawRect(renderer, &region);
+       */
     SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
     SDL_RenderDrawRect(renderer, &(data->scroll_box_vertical_rect));
   }

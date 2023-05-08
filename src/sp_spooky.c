@@ -261,21 +261,21 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
 #ifdef __APPLE__
         /* On OS X Mojave, resize of a non-maximized window does not correctly update the aspect ratio */
         if (evt.type == SDL_WINDOWEVENT && (
-             evt.window.event == SDL_WINDOWEVENT_SIZE_CHANGED
-          || evt.window.event == SDL_WINDOWEVENT_MOVED
-          || evt.window.event == SDL_WINDOWEVENT_RESIZED
-          || evt.window.event == SDL_WINDOWEVENT_SHOWN
-          /* Only happens when clicking About in OS X Mojave */
-          || evt.window.event == SDL_WINDOWEVENT_FOCUS_LOST
-        ))
+              evt.window.event == SDL_WINDOWEVENT_SIZE_CHANGED
+              || evt.window.event == SDL_WINDOWEVENT_MOVED
+              || evt.window.event == SDL_WINDOWEVENT_RESIZED
+              || evt.window.event == SDL_WINDOWEVENT_SHOWN
+              /* Only happens when clicking About in OS X Mojave */
+              || evt.window.event == SDL_WINDOWEVENT_FOCUS_LOST
+              ))
 #elif __unix__
-        if (evt.type == SDL_WINDOWEVENT && (
-          evt.window.event == SDL_WINDOWEVENT_RESIZED
-        ))
+          if (evt.type == SDL_WINDOWEVENT && (
+                evt.window.event == SDL_WINDOWEVENT_RESIZED
+                ))
 #endif
-        {
-          /* Resizing logic removed */
-        }
+          {
+            /* Resizing logic removed */
+          }
 
         /* Handle top-level global events */
         switch(evt.type) {
@@ -329,12 +329,12 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
                   }
                   break;
                 default: ;
-                  break;
+                         break;
               } /* >> switch(sym ... */
             }
             break;
           default: ;
-            break;
+                   break;
         } /* >> switch(evt.type ... */
 
         /* handle menu events */
@@ -553,7 +553,7 @@ errno_t spooky_command_parser(spooky_context * context, const spooky_console * c
         "Logging entries: %zu\n"
         , tv_sec, tv_usec
         , spooky_log_get_global_entries_count()
-    );
+        );
 #endif
 #ifdef __linux__
     out += snprintf(out, 4096 - (size_t)(out - info),
@@ -566,7 +566,7 @@ errno_t spooky_command_parser(spooky_context * context, const spooky_console * c
         , ru_maxrss
         , ru_minflt, ru_majflt
         , spooky_log_get_global_entries_count()
-    );
+        );
 #endif
     console->push_str(console, info);
   } else if(strncmp(command, "log", sizeof("log")) == 0) {
@@ -583,9 +583,9 @@ static errno_t spooky_parse_args(int argc, char ** argv, spooky_options * option
       if(i + 1 > argc) { goto err0; }
       switch (argv[i][1]) {
         /* case 'p': { options->gen_primes = true; return SP_SUCCESS; }
-        case 'E': { options->exercise_hash = true; return SP_SUCCESS; }
-        case 'i': options->ifile = argv[i + 1]; break;
-        case 'o': options->ofile = argv[i + 1]; break; */
+           case 'E': { options->exercise_hash = true; return SP_SUCCESS; }
+           case 'i': options->ifile = argv[i + 1]; break;
+           case 'o': options->ofile = argv[i + 1]; break; */
         case 'L': options->print_licenses = true; break;
         default: goto err0;
       }
@@ -668,11 +668,11 @@ static FILE * spooky_open_pak_file(char ** argv) {
       "Index Entries: %" PRIu64 ", "
       "Index Offset:  %" PRIu64 ", "
       "Index Len: %" PRIu64 "\n",
-        content_offset,
-        content_len,
-        index_entries,
-        index_offset,
-        index_len
+      content_offset,
+      content_len,
+      index_entries,
+      index_offset,
+      index_len
       );
 #endif
 
