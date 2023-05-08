@@ -1,7 +1,7 @@
 #pragma once
 
-#ifndef SPOOKY_SPRITE__H
-#define SPOOKY_SPRITE__H
+#ifndef SP_SPRITE__H
+#define SP_SPRITE__H
 
 #ifdef __cplusplus
 extern "C" {
@@ -46,5 +46,5 @@ extern "C" {
 }
 #endif
 
-#endif /* SPOOKY_SPRITE__H */
+#endif /* SP_SPRITE__H */
 

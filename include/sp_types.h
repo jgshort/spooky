@@ -1,7 +1,7 @@
 #pragma once
 
-#ifndef SPOOKY_TYPES__H
-#define SPOOKY_TYPES__H
+#ifndef SP_TYPES__H
+#define SP_TYPES__H
 
 #ifdef __cplusplus
 extern "C" {
@@ -30,5 +30,5 @@ extern "C" {
 }
 #endif
 
-#endif /* SPOOKY_TYPES__H */
+#endif /* SP_TYPES__H */
 

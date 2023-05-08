@@ -1,5 +1,5 @@
-#ifndef SPOOKY_WM__H
-#define SPOOKY_WM__H
+#ifndef SP_WM__H
+#define SP_WM__H
 
 #ifdef __cplusplus
 extern "C" {
@@ -43,5 +43,5 @@ extern "C" {
 #endif
 
 
-#endif /* SPOOKY_WM__H */
+#endif /* SP_WM__H */
 

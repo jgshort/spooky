@@ -7,7 +7,7 @@ extern "C" {
 
 #include <stdlib.h>
 
-  extern const size_t SPOOKY_MAX_STRING_LEN;
+  extern const size_t SP_MAX_STRING_LEN;
 
 #ifdef __cplusplus
 }

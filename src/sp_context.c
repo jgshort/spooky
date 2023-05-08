@@ -231,7 +231,7 @@ const spooky_font * spooky_context_init_font(void) {
 
   spooky_pack_item_file * ttf = NULL;
   void * temp = NULL;
-  hash->find(hash, font_name, strnlen(font_name, SPOOKY_MAX_STRING_LEN), &temp);
+  hash->find(hash, font_name, strnlen(font_name, SP_MAX_STRING_LEN), &temp);
   ttf = temp;
 
   const spooky_font * font = spooky_font_acquire();
@@ -284,7 +284,7 @@ errno_t spooky_init_context(spooky_context * context, FILE * fp) {
 
   const spooky_config * config = spooky_config_acquire();
   config = config->ctor(config);
-  context->data->perspective = SPOOKY_SVP_DEFAULT;
+  context->data->perspective = SP_SVP_DEFAULT;
   context->data->is_running = true;
   context->data->config = config;
   context->data->modal = NULL;

@@ -61,8 +61,8 @@ static const uint64_t spooky_hash_primes[] = {
   11493228998133068689llu, 14480561146010017169llu, 18446744073709551557llu
 };
 
-static const size_t SPOOKY_HASH_DEFAULT_ATOM_ALLOC = 1 << 12;
-static const size_t SPOOKY_HASH_DEFAULT_STRING_ALLOC = 1048576 * 2;
+static const size_t SP_HASH_DEFAULT_ATOM_ALLOC = 1 << 12;
+static const size_t SP_HASH_DEFAULT_STRING_ALLOC = 1048576 * 2;
 
 typedef struct spooky_string_buffer spooky_string_buffer;
 typedef struct spooky_string_buffer {
@@ -164,8 +164,8 @@ const spooky_hash_table * spooky_hash_table_cctor(const spooky_hash_table * self
   spooky_hash_table_impl * impl = calloc(1, sizeof * self->impl);
   if(!impl) goto err0;
 
-  impl->keys_alloc = SPOOKY_HASH_DEFAULT_ATOM_ALLOC;
-  impl->strings_alloc = SPOOKY_HASH_DEFAULT_STRING_ALLOC;
+  impl->keys_alloc = SP_HASH_DEFAULT_ATOM_ALLOC;
+  impl->strings_alloc = SP_HASH_DEFAULT_STRING_ALLOC;
 
   impl->prime_index = prime_index;
   impl->prime = spooky_hash_primes[impl->prime_index];
@@ -186,7 +186,7 @@ const spooky_hash_table * spooky_hash_table_cctor(const spooky_hash_table * self
       if(!first_buffer) { first_buffer = buffer; }
       buffer->next = NULL;
       buffer->len = 0;
-      buffer->capacity = SPOOKY_HASH_DEFAULT_STRING_ALLOC;
+      buffer->capacity = SP_HASH_DEFAULT_STRING_ALLOC;
       buffer->strings = calloc(buffer->capacity , sizeof * buffer->strings);
       prev = buffer;
       i++;
@@ -444,7 +444,7 @@ errno_t spooky_hash_ensure_internal(const spooky_hash_table * self, const char *
   if(!s) { return SP_FAILURE; }
   if(s_len <= 0) { return SP_FAILURE; }
 
-  assert(s_len <= SPOOKY_MAX_STRING_LEN);
+  assert(s_len <= SP_MAX_STRING_LEN);
 
   if(!skip_rebalance) { spooky_hash_rebalance(self); }
 
@@ -568,15 +568,15 @@ const char * spooky_hash_move_string_to_strings(const spooky_hash_table * self, 
 
   if(!s) { return NULL; }
   if(s_len <= 0) { return NULL; }
-  if(s_len >= SPOOKY_MAX_STRING_LEN) { s_len = SPOOKY_MAX_STRING_LEN; }
+  if(s_len >= SP_MAX_STRING_LEN) { s_len = SP_MAX_STRING_LEN; }
 
-  assert(s_len > 0 && s_len <= SPOOKY_MAX_STRING_LEN);
+  assert(s_len > 0 && s_len <= SP_MAX_STRING_LEN);
   spooky_string_buffer * buffer = impl->current_buffer;
   size_t alloc_len = s_len + 1;
   if(buffer->len + alloc_len > buffer->capacity) {
     // reallocate strings
     size_t new_len = 0;
-    size_t new_capacity = SPOOKY_HASH_DEFAULT_STRING_ALLOC;
+    size_t new_capacity = SP_HASH_DEFAULT_STRING_ALLOC;
     while(new_len + alloc_len > new_capacity) {
       new_capacity *= 2;
     }
@@ -602,7 +602,7 @@ const char * spooky_hash_move_string_to_strings(const spooky_hash_table * self, 
 
   buffer->string_count++;
 
-  size_t n_len = s_len >= SPOOKY_MAX_STRING_LEN ? SPOOKY_MAX_STRING_LEN : s_len;
+  size_t n_len = s_len >= SP_MAX_STRING_LEN ? SP_MAX_STRING_LEN : s_len;
   char * offset = buffer->strings + buffer->len;
   buffer->len += n_len + 1;
 

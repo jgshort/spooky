@@ -19,9 +19,9 @@
 #include "../include/sp_str.h"
 #include "../include/sp_limits.h"
 
-#define SPOOKY_STR_BUFFER_CAPACITY_DEFAULT 32768
+#define SP_STR_BUFFER_CAPACITY_DEFAULT 32768
 
-static const size_t SPOOKY_STR_MAX_STR_LEN = sizeof("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.");
+static const size_t SP_STR_MAX_STR_LEN = sizeof("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.");
 
 /* Reference type:
  * typedef struct spooky_str {
@@ -43,10 +43,10 @@ void spooky_str_swap(spooky_str ** left, spooky_str ** right) {
 }
 
 /* See: http://www.cse.yorku.ca/~oz/hash.html */
-#define SPOOKY_HASH_USE_SDBM
+#define SP_HASH_USE_SDBM
 inline static uint64_t spooky_hash_str_internal(const char * restrict s, size_t s_len) {
   register uint64_t hash;
-#ifdef SPOOKY_HASH_USE_SDBM
+#ifdef SP_HASH_USE_SDBM
   /* use SDBM algorithm: */
 
 # define HASH_DEF hash = (((uint64_t)*(s++)) + /* good: 65599; better: */ 65587 * hash)
@@ -84,7 +84,7 @@ inline static uint64_t spooky_hash_str_internal(const char * restrict s, size_t 
   while((c = *(s++))) {
     hash = ((hash << 5) + hash) + (uint64_t)c; /* hash * 33 + c */
   }
-#endif /* SPOOKY_HASH_USE_SDBM */
+#endif /* SP_HASH_USE_SDBM */
   return hash;
 }
 
@@ -95,7 +95,7 @@ uint64_t spooky_hash_str(const char * restrict s, size_t s_len) {
 errno_t spooky_str_new(const char * s, size_t len, spooky_str * out_str) {
   assert(s && len > 0 && out_str);
 
-  size_t s_nlen = len >= SPOOKY_STR_MAX_STR_LEN ? SPOOKY_STR_MAX_STR_LEN : len;
+  size_t s_nlen = len >= SP_STR_MAX_STR_LEN ? SP_STR_MAX_STR_LEN : len;
   assert(s_nlen == len);
   if(s_nlen != len) { goto err0; }
 
@@ -116,7 +116,7 @@ errno_t spooky_str_ref(const char * s, size_t len, uint64_t hash, spooky_str * o
   if(!s || len == 0 || !out_str) { goto err0; }
 
   // fallback len verification
-  size_t s_nlen = len >= SPOOKY_STR_MAX_STR_LEN ? SPOOKY_STR_MAX_STR_LEN : len;
+  size_t s_nlen = len >= SP_STR_MAX_STR_LEN ? SP_STR_MAX_STR_LEN : len;
   assert(s_nlen == len);
   if(s_nlen != len) { goto err0; }
 
@@ -260,7 +260,7 @@ int spooky_str_compare(const spooky_str * left, const spooky_str * right) {
   if(left_hash < right_hash) { return 1; }
 
   size_t max_len = left_len < right_len ? left_len : right_len;
-  if(max_len > SPOOKY_MAX_STRING_LEN) { max_len = SPOOKY_MAX_STRING_LEN; }
+  if(max_len > SP_MAX_STRING_LEN) { max_len = SP_MAX_STRING_LEN; }
 
   int diff = strncmp(left->str, right->str, max_len);
   return diff;

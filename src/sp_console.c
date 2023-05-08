@@ -136,7 +136,7 @@ const spooky_console * spooky_console_ctor(const spooky_console * self, const ch
 
   impl->current_command = NULL;
   impl->text_len = 0;
-  impl->text_capacity = 0; //SPOOKY_MAX_STRING_LEN;
+  impl->text_capacity = 0; //SP_MAX_STRING_LEN;
   impl->text = NULL;// calloc(impl->text_capacity, sizeof * impl->text);;
 
   int w = 0, h = 0;
@@ -491,12 +491,12 @@ void spooky_console_push_str_impl(const spooky_console * self, const char * s, b
   if(strings == NULL) { abort(); }
   size_t split_count = 0;
 
-  size_t s_len = strnlen(s, SPOOKY_MAX_STRING_LEN);
+  size_t s_len = strnlen(s, SP_MAX_STRING_LEN);
   char * str = NULL;
   size_t str_len = 0;
-  if(spooky_str_trim(s, s_len, SPOOKY_MAX_STRING_LEN, &str, &str_len) != SP_SUCCESS) { abort(); }
+  if(spooky_str_trim(s, s_len, SP_MAX_STRING_LEN, &str, &str_len) != SP_SUCCESS) { abort(); }
 
-  char * working_str = strndup(str, SPOOKY_MAX_STRING_LEN);
+  char * working_str = strndup(str, SP_MAX_STRING_LEN);
   char * save_ptr = NULL, * token = NULL;
   char * ws = working_str;
   while((token = strtok_r(ws, "\n", &save_ptr)) != NULL) {
@@ -510,7 +510,7 @@ void spooky_console_push_str_impl(const spooky_console * self, const char * s, b
     }
     assert(split_count < strings_capacity);
     /* duped string[sc] freed in dtor; copied below on line->line = string: */
-    strings[split_count] = strndup(token, SPOOKY_MAX_STRING_LEN);
+    strings[split_count] = strndup(token, SP_MAX_STRING_LEN);
     split_count++;
     ws = NULL;
   }
@@ -521,7 +521,7 @@ void spooky_console_push_str_impl(const spooky_console * self, const char * s, b
     char * string = strings[split];
     if(string == NULL) { continue; }
     line->line = string;
-    line->line_len = strnlen(string, SPOOKY_MAX_STRING_LEN);
+    line->line_len = strnlen(string, SP_MAX_STRING_LEN);
     line->is_command = is_command;
     if(self->impl->lines->count > spooky_console_max_display_lines && self->impl->lines->head->next != NULL) {
       spooky_console_line * deleted = self->impl->lines->head->next;

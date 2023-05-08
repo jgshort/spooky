@@ -1,5 +1,5 @@
-#ifndef SPOOKY_FONT__H
-#define SPOOKY_FONT__H
+#ifndef SP_FONT__H
+#define SP_FONT__H
 
 #ifdef __cplusplus
 extern "C" {
@@ -8,12 +8,12 @@ extern "C" {
 #include <stdbool.h>
 #include "sp_gui.h"
 
-#define SPOOKY_FONT_MAX_TYPES 3
+#define SP_FONT_MAX_TYPES 3
 
   typedef char spooky_char;
 
   extern const int spooky_default_font_size;
-  extern const char * spooky_default_font_names[SPOOKY_FONT_MAX_TYPES];
+  extern const char * spooky_default_font_names[SP_FONT_MAX_TYPES];
 
   typedef enum spooky_font_line_adornment {
     SFLA_NONE      = 0x0000,
@@ -120,5 +120,5 @@ extern "C" {
 }
 #endif
 
-#endif /* SPOOKY_FONT__H */
+#endif /* SP_FONT__H */
 

@@ -20,7 +20,7 @@
 #include "../include/sp_z.h"
 #include "../include/sp_error.h"
 
-static const size_t SPOOKY_IO_MAX_PATH_LEN = 65536;
+static const size_t SP_IO_MAX_PATH_LEN = 65536;
 
 static const char * spooky_io_get_user_home(size_t * path_len) {
   static const char * home = NULL;
@@ -36,7 +36,7 @@ static const char * spooky_io_get_user_home(size_t * path_len) {
       if(!home) { home = "./"; }
     }
 
-    home_len = strnlen(home, SPOOKY_IO_MAX_PATH_LEN);
+    home_len = strnlen(home, SP_IO_MAX_PATH_LEN);
   }
 
   *path_len = home_len;
@@ -48,7 +48,7 @@ char * spooky_io_alloc_config_path(void) {
 
   size_t home_len = 0;
   const char * home = spooky_io_get_user_home(&home_len);
-  size_t default_path_len = strnlen(default_path, SPOOKY_IO_MAX_PATH_LEN);
+  size_t default_path_len = strnlen(default_path, SP_IO_MAX_PATH_LEN);
   char * config_path = calloc(home_len + default_path_len + 1, sizeof * config_path);
   if(!config_path) { abort(); }
 
@@ -66,10 +66,10 @@ void spooky_io_ensure_path(const char * path, mode_t mode) {
 }
 
 char * spooky_io_alloc_concat_path(char const * root_path, char const * path) {
-  char * full_path = calloc(strnlen(root_path, SPOOKY_IO_MAX_PATH_LEN) + strnlen(path, SPOOKY_IO_MAX_PATH_LEN) + sizeof('\0'), sizeof * full_path);
+  char * full_path = calloc(strnlen(root_path, SP_IO_MAX_PATH_LEN) + strnlen(path, SP_IO_MAX_PATH_LEN) + sizeof('\0'), sizeof * full_path);
   if (!full_path) { abort(); }
 
-  int allocated = snprintf(full_path, SPOOKY_IO_MAX_PATH_LEN, "%s%s", root_path, path);
+  int allocated = snprintf(full_path, SP_IO_MAX_PATH_LEN, "%s%s", root_path, path);
   assert(allocated >= 0);
   full_path[allocated] = '\0';
 
@@ -91,7 +91,7 @@ FILE * spooky_io_open_or_create_binary_file_for_writing(const char * path, int *
   }
 
   FILE * fp = fdopen(fd, "wb+x");
-  SPOOKY_SET_BINARY_MODE(fp);
+  SP_SET_BINARY_MODE(fp);
   fseek(fp, 0, SEEK_SET);
 
   *fd_out = fd;
@@ -110,7 +110,7 @@ FILE * spooky_io_open_binary_file_for_reading(const char * path, int * fd_out) {
   }
 
   fp = fdopen(fd, "rb");
-  SPOOKY_SET_BINARY_MODE(fp);
+  SP_SET_BINARY_MODE(fp);
   fseek(fp, 0, SEEK_SET);
 
   *fd_out = fd;

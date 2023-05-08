@@ -1,6 +1,6 @@
 #define _POSIX_C_SOURCE 200809L
 
-// ENABLE orthographic ligatures: #define SPOOKY_FONT_ORTHOGRAPHIC_LIGATURE
+// ENABLE orthographic ligatures: #define SP_FONT_ORTHOGRAPHIC_LIGATURE
 
 #include <stdlib.h>
 #include <memory.h>
@@ -17,9 +17,9 @@
 #include "../include/sp_math.h"
 #include "../include/sp_font.h"
 
-static const size_t SPOOKY_MAX_STRING_LEN = 4096;
+static const size_t SP_MAX_STRING_LEN = 4096;
 
-const char * spooky_default_font_names[SPOOKY_FONT_MAX_TYPES] = {
+const char * spooky_default_font_names[SP_FONT_MAX_TYPES] = {
   "print.char",
   "deja.sans",
   "pr.number"
@@ -236,9 +236,9 @@ const spooky_font * spooky_font_cctor(const spooky_font * self, SDL_Renderer * r
 #if defined(MSDOS) || defined(OS2) || defined(WIN32) || defined(__CYGWIN__)
 #include <fcntl.h>
 #include <io.h>
-#define SPOOKY_SET_BINARY_MODE(file) { setmode(fileno((file)), O_BINARY) }
+#define SP_SET_BINARY_MODE(file) { setmode(fileno((file)), O_BINARY) }
 #else
-#define SPOOKY_SET_BINARY_MODE(file)
+#define SP_SET_BINARY_MODE(file)
 #endif /* >> if defined(MSDOS) || ... */
 
 const spooky_font * spooky_font_ctor(const spooky_font * self, SDL_Renderer * renderer, const void * mem, size_t mem_len, int point_size) {
@@ -1067,7 +1067,7 @@ static void parse_chunk_lines(const spooky_char * src_text, size_t src_text_len,
           memset(next_line, 0, sizeof * next_line);
           next_line->next = NULL;
           next_line->line = next_string;
-          next_line->line_len = strnlen((const char *)next_line->line, SPOOKY_MAX_STRING_LEN);
+          next_line->line_len = strnlen((const char *)next_line->line, SP_MAX_STRING_LEN);
           next_line->has_newline = spooky_font_count_new_lines(chunk->text, chunk->text_len) >= 1;
           next_line->adornment = chunk->adornment;
 
@@ -1097,7 +1097,7 @@ static void parse_chunk_lines(const spooky_char * src_text, size_t src_text_len,
       memset(next_line, 0, sizeof * next_line);
       next_line->next = NULL;
       next_line->line = next_string;
-      next_line->line_len = strnlen((const char *)next_line->line, SPOOKY_MAX_STRING_LEN);
+      next_line->line_len = strnlen((const char *)next_line->line, SP_MAX_STRING_LEN);
       next_line->has_newline = spooky_font_count_new_lines(chunk->text, chunk->text_len) >= 1;
       next_line->adornment = chunk->adornment;
 
@@ -1109,7 +1109,7 @@ static void parse_chunk_lines(const spooky_char * src_text, size_t src_text_len,
       prev = next_line;
       next_line++;
     } else {
-      size_t len = strnlen((const char *)text, SPOOKY_MAX_STRING_LEN);
+      size_t len = strnlen((const char *)text, SP_MAX_STRING_LEN);
       assert((next_string + len + 1) < end_string_buffer);
 
       memmove(next_string, text, len);
@@ -1118,7 +1118,7 @@ static void parse_chunk_lines(const spooky_char * src_text, size_t src_text_len,
       memset(next_line, 0, sizeof * next_line);
       next_line->next = NULL;
       next_line->line = next_string;
-      next_line->line_len = strnlen((const char *)next_line->line, SPOOKY_MAX_STRING_LEN);
+      next_line->line_len = strnlen((const char *)next_line->line, SP_MAX_STRING_LEN);
       next_line->has_newline = spooky_font_count_new_lines(chunk->text, chunk->text_len) >= 1;
       next_line->adornment = chunk->adornment;
 

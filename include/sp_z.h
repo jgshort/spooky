@@ -1,5 +1,5 @@
-#ifndef SPOOKY_Z__H
-#define SPOOKY_Z__H
+#ifndef SP_Z__H
+#define SP_Z__H
 
 #ifdef __cplusplus
 extern "C" {
@@ -20,9 +20,9 @@ extern "C" {
 #if defined(MSDOS) || defined(OS2) || defined(WIN32) || defined(__CYGWIN__)
 #include <fcntl.h>
 #include <io.h>
-#define SPOOKY_SET_BINARY_MODE(file) { setmode(fileno((file)), O_BINARY) }
+#define SP_SET_BINARY_MODE(file) { setmode(fileno((file)), O_BINARY) }
 #else
-#define SPOOKY_SET_BINARY_MODE(file)
+#define SP_SET_BINARY_MODE(file)
 #endif /* >> if defined(MSDOS) || ... */
 
 #include <stdio.h>
@@ -34,5 +34,5 @@ extern "C" {
 }
 #endif
 
-#endif /* SPOOKY_Z__H */
+#endif /* SP_Z__H */
 

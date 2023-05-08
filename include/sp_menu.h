@@ -1,7 +1,7 @@
 #pragma once
 
-#ifndef SPOOKY_MENU__H
-#define SPOOKY_MENU__H
+#ifndef SP_MENU__H
+#define SP_MENU__H
 
 #ifdef __cplusplus
 extern "C" {
@@ -85,5 +85,5 @@ extern "C" {
 }
 #endif
 
-#endif /* SPOOKY_MENU__H */
+#endif /* SP_MENU__H */
 

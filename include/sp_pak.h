@@ -1,5 +1,5 @@
-#ifndef SPOOKY_PACK__H
-#define SPOOKY_PACK__H
+#ifndef SP_PACK__H
+#define SP_PACK__H
 
 #ifdef __cplusplus
 extern "C" {
@@ -39,5 +39,5 @@ extern "C" {
 #endif
 
 
-#endif /* SPOOKY_PACK__H */
+#endif /* SP_PACK__H */
 

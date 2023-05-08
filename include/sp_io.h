@@ -1,7 +1,7 @@
 #pragma once
 
-#ifndef SPOOKY_IO__H
-#define SPOOKY_IO__H
+#ifndef SP_IO__H
+#define SP_IO__H
 
 #ifdef __cplusplus
 extern "C" {
@@ -25,5 +25,5 @@ extern "C" {
 }
 #endif
 
-#endif /* SPOOKY_IO__H */
+#endif /* SP_IO__H */
 

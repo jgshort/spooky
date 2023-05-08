@@ -12,29 +12,7 @@
 #include <sys/resource.h>
 #include <sodium.h>
 
-#include "../config.h"
-#include "../include/sp_types.h"
-#include "../include/sp_str.h"
-#include "../include/sp_error.h"
-#include "../include/sp_math.h"
-#include "../include/sp_hash.h"
-#include "../include/sp_pak.h"
-#include "../include/sp_gui.h"
-#include "../include/sp_font.h"
-#include "../include/sp_base.h"
-#include "../include/sp_console.h"
-#include "../include/sp_debug.h"
-#include "../include/sp_help.h"
-#include "../include/sp_context.h"
-#include "../include/sp_menu.h"
-#include "../include/sp_wm.h"
-#include "../include/sp_log.h"
-#include "../include/sp_limits.h"
-#include "../include/sp_time.h"
-#include "../include/sp_db.h"
-#include "../include/sp_box.h"
-#include "../include/sp_config.h"
-#include "../include/sp_text.h"
+#include "../include/sp_spooky.h"
 
 static errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex);
 static errno_t spooky_command_parser(spooky_context * context, const spooky_console * console, const char * command) ;
@@ -77,7 +55,7 @@ int main(int argc, char **argv) {
     /* Loading a font from the resource pak example */
     void * temp = NULL;
     spooky_pack_item_file * font = NULL;
-    hash->find(hash, "pr.number", strnlen("pr.number", SPOOKY_MAX_STRING_LEN), &temp);
+    hash->find(hash, "pr.number", strnlen("pr.number", SP_MAX_STRING_LEN), &temp);
     font = (spooky_pack_item_file *)temp;
 
     SDL_RWops * src = SDL_RWFromMem(font->data, (int)font->data_len);
@@ -685,11 +663,11 @@ static void spooky_print_licenses(const spooky_hash_table * hash) {
 
   spooky_pack_item_file * temp = NULL;
   char * deja_license = NULL, * open_license = NULL;
-  if(hash->find(hash, "deja.license", strnlen("deja.license", SPOOKY_MAX_STRING_LEN), ((void *)&temp)) == SP_SUCCESS) {
+  if(hash->find(hash, "deja.license", strnlen("deja.license", SP_MAX_STRING_LEN), ((void *)&temp)) == SP_SUCCESS) {
     deja_license = strndup(temp->data, temp->data_len);
   }
 
-  if(hash->find(hash, "open.font.license", strnlen("open.font.license", SPOOKY_MAX_STRING_LEN), ((void *)&temp)) == SP_SUCCESS) {
+  if(hash->find(hash, "open.font.license", strnlen("open.font.license", SP_MAX_STRING_LEN), ((void *)&temp)) == SP_SUCCESS) {
     open_license = strndup(temp->data, temp->data_len);
   }
 

@@ -1,5 +1,5 @@
-#ifndef SPOOKY_GUI__H
-#define SPOOKY_GUI__H
+#ifndef SP_GUI__H
+#define SP_GUI__H
 
 #ifdef __cplusplus
 extern "C" {
@@ -44,11 +44,11 @@ extern "C" {
   void spooky_gui_pop_draw_color(const spooky_gui_rgba_context * /* context */);
 
   typedef enum spooky_view_perspective {
-    SPOOKY_SVP_DEFAULT = 0,
-    SPOOKY_SVP_Z = SPOOKY_SVP_DEFAULT,
-    SPOOKY_SVP_X,
-    SPOOKY_SVP_Y,
-    SPOOKY_SVP_EOE
+    SP_SVP_DEFAULT = 0,
+    SP_SVP_Z = SP_SVP_DEFAULT,
+    SP_SVP_X,
+    SP_SVP_Y,
+    SP_SVP_EOE
   } spooky_view_perspective;
 
   void spooky_gui_color_lighten(SDL_Color * /* color */, float /* luminosity */);
@@ -58,5 +58,5 @@ extern "C" {
 }
 #endif
 
-#endif /* SPOOKY_GUI__H */
+#endif /* SP_GUI__H */
 

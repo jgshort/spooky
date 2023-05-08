@@ -112,7 +112,7 @@ void spooky_box_release(const spooky_box * self) {
 }
 
 static void spooky_box_set_name(const spooky_box * self, const char * name) {
-  size_t name_len = strnlen(name, SPOOKY_MAX_STRING_LEN);
+  size_t name_len = strnlen(name, SP_MAX_STRING_LEN);
   self->data->name_len = name_len;
   self->data->name = name;
 }
@@ -801,7 +801,7 @@ static const spooky_box_scroll_box_item * spooky_box_attach_scroll_box_item_text
   const spooky_font * font = data->_super.font;
 
   int text_width, text_height;
-  font->measure_text(font, text, strnlen(text, SPOOKY_MAX_STRING_LEN), &text_width, &text_height);
+  font->measure_text(font, text, strnlen(text, SP_MAX_STRING_LEN), &text_width, &text_height);
 
   temp->width = text_width;
   temp->height = text_height;
@@ -861,7 +861,7 @@ static const spooky_box_scroll_box_item * spooky_box_attach_scroll_box_item_imag
   temp->text = NULL;
 
   SDL_Surface * surface = NULL;
-  spooky_load_image(path, strnlen(path, SPOOKY_MAX_STRING_LEN), &surface);
+  spooky_load_image(path, strnlen(path, SP_MAX_STRING_LEN), &surface);
   temp->texture = SDL_CreateTextureFromSurface(data->_super.renderer, surface);
   SDL_FreeSurface(surface), surface = NULL;
 
@@ -909,7 +909,7 @@ static const spooky_box_scroll_box_item * spooky_box_attach_scroll_box_item_imag
 
   /* For images, the text length in pixels must not exceed the max_texture_width in pixels to prevent clipping */
   int text_width, text_height;
-  font->measure_text(font, text, strnlen(text, SPOOKY_MAX_STRING_LEN), &text_width, &text_height);
+  font->measure_text(font, text, strnlen(text, SP_MAX_STRING_LEN), &text_width, &text_height);
 
   if(text_width > max_texture_rect_width) {
     /* trim the text which will alloc a new string */
@@ -967,7 +967,7 @@ static void spooky_box_calculate_max_text_properties(const spooky_box * self, in
   for(int i = 0; i < data->scroll_bar_items_count; i++) {
     int temp_text_width, temp_text_height;
     const char * text = data->scroll_bar_items[i].text;
-    font->measure_text(font, text, strnlen(text, SPOOKY_MAX_STRING_LEN), &temp_text_width, &temp_text_height);
+    font->measure_text(font, text, strnlen(text, SP_MAX_STRING_LEN), &temp_text_width, &temp_text_height);
 
     if(max_text_width) *max_text_width = spooky_int_max(*max_text_width, temp_text_width);
     if(max_text_height) *max_text_height = spooky_int_max(*max_text_height, temp_text_height);
@@ -1023,7 +1023,7 @@ static const spooky_box * spooky_box_render_scroll_box_texture(const spooky_box 
               int y = i * (item->rect.h + top_padding + bottom_padding);
               if(item->text) {
                 SDL_Point p = { .x = 1, .y = y };
-                font->write(font, &p, &white, item->text, strnlen(item->text, SPOOKY_MAX_STRING_LEN), NULL, NULL);
+                font->write(font, &p, &white, item->text, strnlen(item->text, SP_MAX_STRING_LEN), NULL, NULL);
               }
             }
             break;
@@ -1042,11 +1042,11 @@ static const spooky_box * spooky_box_render_scroll_box_texture(const spooky_box 
               if(item->text) {
                 /* item text appears below the image */
                 int t_width, t_height;
-                font->measure_text(font, item->text, strnlen(item->text, SPOOKY_MAX_STRING_LEN), &t_width, &t_height);
+                font->measure_text(font, item->text, strnlen(item->text, SP_MAX_STRING_LEN), &t_width, &t_height);
 
                 int text_center = d.x + ((d.w / 2) - (t_width / 2));
                 SDL_Point p = { .x = text_center, .y = d.y + d.h - max_text_height + 1};
-                font->write(font, &p, &white, item->text, strnlen(item->text, SPOOKY_MAX_STRING_LEN), NULL, NULL);
+                font->write(font, &p, &white, item->text, strnlen(item->text, SP_MAX_STRING_LEN), NULL, NULL);
               }
 
               if(col >= max_items_per_row - 1) row++;
@@ -1761,7 +1761,7 @@ static void spooky_box_draw_window(const spooky_box * self, const SDL_Rect * rec
 
   SDL_Color w = { .r = 255, .g = 255, .b = 255, .a = box_alpha };
   SDL_Point p = { .x = r.x + 2, .y = r.y + 2 };
-  font->write(font, &p, &w, data->name, strnlen(data->name, SPOOKY_MAX_STRING_LEN), NULL, NULL);
+  font->write(font, &p, &w, data->name, strnlen(data->name, SP_MAX_STRING_LEN), NULL, NULL);
 
   /* Minimize Button */
   /*
@@ -1807,7 +1807,7 @@ static void spooky_box_draw_button(const spooky_box * self, const SDL_Rect * rec
     text_p.x = text_p.x + 1;
     text_p.y = text_p.y + 1;
   }
-  font->write(font, &text_p, &w, data->name, strnlen(data->name, SPOOKY_MAX_STRING_LEN), NULL, NULL);
+  font->write(font, &text_p, &w, data->name, strnlen(data->name, SP_MAX_STRING_LEN), NULL, NULL);
 
   SDL_Color top_line_color = { .r = 255, .g = 255, .b = 255, .a = 255 };
   SDL_Color bottom_line_color = { .r = 0, .g = 0, .b = 0, .a = 255 };
@@ -1838,7 +1838,7 @@ static void spooky_box_draw_main_menu(const spooky_box * self, const SDL_Rect * 
       const spooky_box * box = data->boxes[i];
       if(box->get_box_type(box) == SBT_MAIN_MENU_ITEM) {
         int w, h;
-        data->font->measure_text(data->font, box->data->name, strnlen(box->data->name, SPOOKY_MAX_STRING_LEN),  &w, &h);
+        data->font->measure_text(data->font, box->data->name, strnlen(box->data->name, SP_MAX_STRING_LEN),  &w, &h);
         int m_dash = data->font->get_m_dash(data->font);
 
         /* Spacing between menu items */
@@ -1879,7 +1879,7 @@ static void spooky_box_draw_main_menu_item(const spooky_box * self, const SDL_Re
     w.g = 100;
   }
   SDL_Point text_p = { .x = r.x + (r.w / 2) - (data->name_width / 2) + 1, .y = r.y + (r.h / 2) - (data->name_height / 2)};
-  font->write(font, &text_p, &w, data->name, strnlen(data->name, SPOOKY_MAX_STRING_LEN), NULL, NULL);
+  font->write(font, &text_p, &w, data->name, strnlen(data->name, SP_MAX_STRING_LEN), NULL, NULL);
 }
 
 void spooky_box_scroll_box_render(const spooky_base * self, SDL_Renderer * renderer) {
@@ -1947,7 +1947,7 @@ void spooky_box_scroll_box_render(const spooky_base * self, SDL_Renderer * rende
           SDL_SetRenderDrawColor(renderer, 0, 0, 0, 120);
           SDL_RenderFillRect(renderer, &selected_rect);
           SDL_Point selected_p = { .x = selected_rect.x - x_offset, .y = selected_rect.y + 1 };
-          data->_super.font->write(data->_super.font, &selected_p, &white, item->text, strnlen(item->text, SPOOKY_MAX_STRING_LEN), NULL, NULL);
+          data->_super.font->write(data->_super.font, &selected_p, &white, item->text, strnlen(item->text, SP_MAX_STRING_LEN), NULL, NULL);
         }
       }  else if(item->type == SBSBIT_IMAGE) {
         SDL_Rect hover_rect = { .x = item->rect.x - x_offset, .y = item->rect.y - y_offset - 10, .h = item->height, .w = item->width};
@@ -1964,12 +1964,12 @@ void spooky_box_scroll_box_render(const spooky_base * self, SDL_Renderer * rende
         spooky_box_calculate_max_text_properties((const spooky_box *)self, &max_text_width, &max_text_height);
 
         int t_width, t_height;
-        data->_super.font->measure_text(data->_super.font, item->text, strnlen(item->text, SPOOKY_MAX_STRING_LEN), &t_width, &t_height);
+        data->_super.font->measure_text(data->_super.font, item->text, strnlen(item->text, SP_MAX_STRING_LEN), &t_width, &t_height);
 
         int text_center = (item->rect.x - x_offset) + ((item->rect.w / 2) - (t_width / 2));
         SDL_Point p = { .x = text_center, .y = hover_rect.y + hover_rect.h - max_text_height - 5 };
         data->_super.font->set_is_drop_shadow(data->_super.font, true);
-        data->_super.font->write(data->_super.font, &p, &white, item->text, strnlen(item->text, SPOOKY_MAX_STRING_LEN), NULL, NULL);
+        data->_super.font->write(data->_super.font, &p, &white, item->text, strnlen(item->text, SP_MAX_STRING_LEN), NULL, NULL);
         data->_super.font->set_is_drop_shadow(data->_super.font, false);
       }
     }
@@ -1981,7 +1981,7 @@ void spooky_box_scroll_box_render(const spooky_base * self, SDL_Renderer * rende
           SDL_SetRenderDrawColor(renderer, 255, 255, 255, 120);
           SDL_RenderFillRect(renderer, &hover_rect);
           SDL_Point hover_p = { .x = hover_rect.x - x_offset, .y = hover_rect.y + 1 };
-          data->_super.font->write(data->_super.font, &hover_p, &black, item->text, strnlen(item->text, SPOOKY_MAX_STRING_LEN), NULL, NULL);
+          data->_super.font->write(data->_super.font, &hover_p, &black, item->text, strnlen(item->text, SP_MAX_STRING_LEN), NULL, NULL);
         }
       } else if(item->type == SBSBIT_IMAGE) {
         SDL_Rect hover_rect = { .x = item->rect.x - x_offset, .y = item->rect.y - y_offset - 10, .h = item->height, .w = item->width};
@@ -1998,11 +1998,11 @@ void spooky_box_scroll_box_render(const spooky_base * self, SDL_Renderer * rende
         spooky_box_calculate_max_text_properties((const spooky_box *)self, &max_text_width, &max_text_height);
 
         int t_width, t_height;
-        data->_super.font->measure_text(data->_super.font, item->text, strnlen(item->text, SPOOKY_MAX_STRING_LEN), &t_width, &t_height);
+        data->_super.font->measure_text(data->_super.font, item->text, strnlen(item->text, SP_MAX_STRING_LEN), &t_width, &t_height);
 
         int text_center = (item->rect.x - x_offset) + ((item->rect.w / 2) - (t_width / 2));
         SDL_Point p = { .x = text_center, .y = hover_rect.y + hover_rect.h - max_text_height - 5 };
-        data->_super.font->write(data->_super.font, &p, &white, item->text, strnlen(item->text, SPOOKY_MAX_STRING_LEN), NULL, NULL);
+        data->_super.font->write(data->_super.font, &p, &white, item->text, strnlen(item->text, SP_MAX_STRING_LEN), NULL, NULL);
       }
     }
     data->_super.font->set_is_drop_shadow(data->_super.font, true);
@@ -2160,7 +2160,7 @@ static void spooky_box_draw_image(const spooky_box * self, const SDL_Rect * rect
   /* Write the text "Preview" centered over the preview image */
   SDL_Point preview_text_p = { .x = r.x + ((r.w / 2) - (data->name_width / 2)), .y = r.y + ((r.h / 2) - (data->name_height / 2)) };
 
-  data->font->write(data->font, &preview_text_p, &white, data->name, strnlen(data->name, SPOOKY_MAX_STRING_LEN), NULL, NULL);
+  data->font->write(data->font, &preview_text_p, &white, data->name, strnlen(data->name, SP_MAX_STRING_LEN), NULL, NULL);
 }
 
 static void spooky_box_draw_text(const spooky_box * self, const SDL_Rect * rect) {

@@ -7,7 +7,7 @@
 
 #include "../include/sp_z.h"
 
-#define SPOOKY_Z_CHUNK 16384
+#define SP_Z_CHUNK 16384
 
 errno_t spooky_inflate_file(FILE * source, FILE * dest, size_t * dest_len) {
   static_assert(sizeof(int) == sizeof(errno_t), "Unexpected size delta in errno_t");
@@ -23,8 +23,8 @@ errno_t spooky_inflate_file(FILE * source, FILE * dest, size_t * dest_len) {
 
   int ret = 0;
   unsigned long have = 0;
-  unsigned char in[SPOOKY_Z_CHUNK] = { 0 };
-  unsigned char out[SPOOKY_Z_CHUNK] = { 0 };
+  unsigned char in[SP_Z_CHUNK] = { 0 };
+  unsigned char out[SP_Z_CHUNK] = { 0 };
 
   /* allocate inflate state */
   z_stream strm = {
@@ -41,7 +41,7 @@ errno_t spooky_inflate_file(FILE * source, FILE * dest, size_t * dest_len) {
   /* decompress until deflate stream ends or end of file */
   size_t written = 0;
   do {
-    unsigned long read = fread(in, 1, SPOOKY_Z_CHUNK, source);
+    unsigned long read = fread(in, 1, SP_Z_CHUNK, source);
     assert(read <= UINT_MAX);
     if(read > UINT_MAX) {
       inflateEnd(&strm);
@@ -61,7 +61,7 @@ errno_t spooky_inflate_file(FILE * source, FILE * dest, size_t * dest_len) {
     flush = feof(source) ? Z_FINISH : Z_NO_FLUSH;
     /* run inflate() on input until output buffer not full */
     do {
-      strm.avail_out = SPOOKY_Z_CHUNK;
+      strm.avail_out = SP_Z_CHUNK;
       strm.next_out = out;
       ret = inflate(&strm, flush);
       assert(ret != Z_STREAM_ERROR);  /* state not clobbered */
@@ -78,7 +78,7 @@ errno_t spooky_inflate_file(FILE * source, FILE * dest, size_t * dest_len) {
           break;
       }
 
-      have = SPOOKY_Z_CHUNK - strm.avail_out;
+      have = SP_Z_CHUNK - strm.avail_out;
       size_t extracted = 0;
       if((extracted = fwrite(out, sizeof out[0], have, dest)) != have || ferror(dest)) {
         inflateEnd(&strm);
@@ -101,8 +101,8 @@ errno_t spooky_deflate_file(FILE * source, FILE * dest, size_t * dest_len) {
   assert(SP_SUCCESS == Z_OK);
 
   const int level = Z_DEFAULT_COMPRESSION;
-  unsigned char in[SPOOKY_Z_CHUNK] = { 0 };
-  unsigned char out[SPOOKY_Z_CHUNK] = { 0 };
+  unsigned char in[SP_Z_CHUNK] = { 0 };
+  unsigned char out[SP_Z_CHUNK] = { 0 };
 
   /* allocate deflate state */
   z_stream strm = { 0 };
@@ -118,7 +118,7 @@ errno_t spooky_deflate_file(FILE * source, FILE * dest, size_t * dest_len) {
 
   size_t written = 0;
   do {
-    unsigned long len = fread(in, 1, SPOOKY_Z_CHUNK, source);
+    unsigned long len = fread(in, 1, SP_Z_CHUNK, source);
     assert(len <= UINT_MAX);
     if(len > UINT_MAX) { goto err0; }
     strm.avail_in = (unsigned int)len;
@@ -127,11 +127,11 @@ errno_t spooky_deflate_file(FILE * source, FILE * dest, size_t * dest_len) {
     flush = feof(source) ? Z_FINISH : Z_NO_FLUSH;
     strm.next_in = in;
     do {
-      strm.avail_out = SPOOKY_Z_CHUNK;
+      strm.avail_out = SP_Z_CHUNK;
       strm.next_out = out;
       ret = deflate(&strm, flush);
       assert(ret != Z_STREAM_ERROR);
-      have = SPOOKY_Z_CHUNK - strm.avail_out;
+      have = SP_Z_CHUNK - strm.avail_out;
       if(fwrite(out, 1, have, dest) != have || ferror(dest)) {
         fprintf(stderr, "Deflate file write error.\n");
         goto err0;
@@ -152,3 +152,4 @@ err0:
   deflateEnd(&strm);
   return Z_ERRNO;
 }
+

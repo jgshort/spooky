@@ -1,5 +1,5 @@
-#ifndef SPOOKY_MATH__H
-#define SPOOKY_MATH__H
+#ifndef SP_MATH__H
+#define SP_MATH__H
 
 #ifdef __cplusplus
 extern "C" {
@@ -37,5 +37,5 @@ extern "C" {
 }
 #endif
 
-#endif /* SPOOKY_MATH__H */
+#endif /* SP_MATH__H */
 

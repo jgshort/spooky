@@ -1,5 +1,5 @@
-#ifndef SPOOKY_BOX__H
-#define SPOOKY_BOX__H
+#ifndef SP_BOX__H
+#define SP_BOX__H
 
 #ifdef __cplusplus
 extern "C" {
@@ -164,5 +164,5 @@ extern "C" {
 }
 #endif
 
-#endif /* SPOOKY_BOX__H */
+#endif /* SP_BOX__H */
 
