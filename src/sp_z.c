@@ -9,7 +9,7 @@
 
 #define SP_Z_CHUNK 16384
 
-errno_t spooky_inflate_file(FILE * source, FILE * dest, size_t * dest_len) {
+errno_t sp_inflate_file(FILE * source, FILE * dest, size_t * dest_len) {
   static_assert(sizeof(int) == sizeof(errno_t), "Unexpected size delta in errno_t");
   assert(SP_SUCCESS == Z_OK);
 
@@ -97,7 +97,7 @@ errno_t spooky_inflate_file(FILE * source, FILE * dest, size_t * dest_len) {
   return ret == Z_STREAM_END ? Z_OK : Z_DATA_ERROR;
 }
 
-errno_t spooky_deflate_file(FILE * source, FILE * dest, size_t * dest_len) {
+errno_t sp_deflate_file(FILE * source, FILE * dest, size_t * dest_len) {
   assert(SP_SUCCESS == Z_OK);
 
   const int level = Z_DEFAULT_COMPRESSION;

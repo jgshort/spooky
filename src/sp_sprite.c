@@ -7,7 +7,7 @@
 #include "../include/sp_gui.h"
 #include "../include/sp_sprite.h"
 
-typedef struct spooky_sprite_data {
+typedef struct sp_sprite_data {
   SDL_Texture * texture;
 
   SDL_Rect src;
@@ -21,58 +21,58 @@ typedef struct spooky_sprite_data {
 
   bool is_visible;
   char padding[7];
-} spooky_sprite_data;
+} sp_sprite_data;
 
-// Not utilized yet: static bool spooky_sprite_handle_event(const spooky_base * self, SDL_Event * event);
-static void spooky_sprite_handle_delta(const spooky_sprite * self, const SDL_Event * event, uint64_t last_update_time, double interpolation);
-static void spooky_sprite_render(const spooky_sprite * self, SDL_Renderer * renderer, const SDL_Rect * src, const SDL_Rect * dest);
+// Not utilized yet: static bool sp_sprite_handle_event(const sp_base * self, SDL_Event * event);
+static void sp_sprite_handle_delta(const sp_sprite * self, const SDL_Event * event, uint64_t last_update_time, double interpolation);
+static void sp_sprite_render(const sp_sprite * self, SDL_Renderer * renderer, const SDL_Rect * src, const SDL_Rect * dest);
 
-static bool spooky_sprite_get_is_visible(const spooky_sprite * self);
-static void spooky_sprite_set_is_visible(const spooky_sprite * self, bool is_visible);
+static bool sp_sprite_get_is_visible(const sp_sprite * self);
+static void sp_sprite_set_is_visible(const sp_sprite * self, bool is_visible);
 
-static void spooky_sprite_set_sheet(const spooky_sprite * self, int sheet);
-static void spooky_sprite_next_sheet(const spooky_sprite * self);
-static void spooky_sprite_prev_sheet(const spooky_sprite * self);
-static void spooky_sprite_validate_current_sheet(const spooky_sprite * self);
+static void sp_sprite_set_sheet(const sp_sprite * self, int sheet);
+static void sp_sprite_next_sheet(const sp_sprite * self);
+static void sp_sprite_prev_sheet(const sp_sprite * self);
+static void sp_sprite_validate_current_sheet(const sp_sprite * self);
 
-static void spooky_sprite_set_texture(const spooky_sprite * self, SDL_Texture * texture);
+static void sp_sprite_set_texture(const sp_sprite * self, SDL_Texture * texture);
 
-const spooky_sprite * spooky_sprite_alloc() {
-  spooky_sprite * self = calloc(1, sizeof * self);
+const sp_sprite * sp_sprite_alloc() {
+  sp_sprite * self = calloc(1, sizeof * self);
   if(!self) { abort(); }
   return self;
 }
 
-const spooky_sprite * spooky_sprite_init(spooky_sprite * self) {
+const sp_sprite * sp_sprite_init(sp_sprite * self) {
   assert(self);
   if(!self) { abort(); }
 
-  self->ctor = &spooky_sprite_ctor;
-  self->dtor = &spooky_sprite_dtor;
-  self->free = &spooky_sprite_free;
-  self->release = &spooky_sprite_release;
+  self->ctor = &sp_sprite_ctor;
+  self->dtor = &sp_sprite_dtor;
+  self->free = &sp_sprite_free;
+  self->release = &sp_sprite_release;
 
-  // Not utilized yet: self->super.handle_event = &spooky_sprite_handle_event;
-  self->handle_delta = &spooky_sprite_handle_delta;
-  self->render = &spooky_sprite_render;
+  // Not utilized yet: self->super.handle_event = &sp_sprite_handle_event;
+  self->handle_delta = &sp_sprite_handle_delta;
+  self->render = &sp_sprite_render;
 
-  self->set_sheet = &spooky_sprite_set_sheet;
-  self->next_sheet = &spooky_sprite_next_sheet;
-  self->prev_sheet = &spooky_sprite_prev_sheet;
+  self->set_sheet = &sp_sprite_set_sheet;
+  self->next_sheet = &sp_sprite_next_sheet;
+  self->prev_sheet = &sp_sprite_prev_sheet;
 
-  self->set_is_visible = &spooky_sprite_set_is_visible;
-  self->get_is_visible = &spooky_sprite_get_is_visible;
-  self->set_texture = &spooky_sprite_set_texture;
+  self->set_is_visible = &sp_sprite_set_is_visible;
+  self->get_is_visible = &sp_sprite_get_is_visible;
+  self->set_texture = &sp_sprite_set_texture;
 
   return self;
 }
 
-const spooky_sprite * spooky_sprite_acquire() {
-  return spooky_sprite_init((spooky_sprite * )(uintptr_t)spooky_sprite_alloc());
+const sp_sprite * sp_sprite_acquire() {
+  return sp_sprite_init((sp_sprite * )(uintptr_t)sp_sprite_alloc());
 }
 
-const spooky_sprite * spooky_sprite_ctor(const spooky_sprite * self, SDL_Texture * texture) {
-  spooky_sprite_data * data = calloc(1, sizeof * data);
+const sp_sprite * sp_sprite_ctor(const sp_sprite * self, SDL_Texture * texture) {
+  sp_sprite_data * data = calloc(1, sizeof * data);
   if(!data) abort();
 
   data->texture = texture;
@@ -80,44 +80,44 @@ const spooky_sprite * spooky_sprite_ctor(const spooky_sprite * self, SDL_Texture
   data->total_frames = 0;
   data->is_visible = true;
 
-  ((spooky_sprite *)(uintptr_t)self)->data = data;
+  ((sp_sprite *)(uintptr_t)self)->data = data;
 
   return self;
 }
 
-const spooky_sprite * spooky_sprite_dtor(const spooky_sprite * self) {
+const sp_sprite * sp_sprite_dtor(const sp_sprite * self) {
   if(self) {
     if(self->data->texture) {
       SDL_DestroyTexture(self->data->texture);
       self->data->texture = NULL;
     }
-    free(((spooky_sprite *)(uintptr_t)self)->data), ((spooky_sprite *)(uintptr_t)self)->data = NULL;
+    free(((sp_sprite *)(uintptr_t)self)->data), ((sp_sprite *)(uintptr_t)self)->data = NULL;
   }
 
   return self;
 }
 
-void spooky_sprite_free(const spooky_sprite * self) {
+void sp_sprite_free(const sp_sprite * self) {
   if(self) {
-    free((spooky_sprite *)(uintptr_t)self), self = NULL;
+    free((sp_sprite *)(uintptr_t)self), self = NULL;
   }
 }
 
-void spooky_sprite_release(const spooky_sprite * self) {
+void sp_sprite_release(const sp_sprite * self) {
   self->free(self->dtor(self));
 }
 
 /* Not utilized yet:
-   static bool spooky_sprite_handle_event(const spooky_sprite * self, SDL_Event * event) {
+   static bool sp_sprite_handle_event(const sp_sprite * self, SDL_Event * event) {
    (void)self;
    (void)event;
    return false;
    }
    */
 
-static void spooky_sprite_handle_delta(const spooky_sprite * self, const SDL_Event * event, uint64_t last_update_time, double interpolation) {
+static void sp_sprite_handle_delta(const sp_sprite * self, const SDL_Event * event, uint64_t last_update_time, double interpolation) {
   (void)event;
-  spooky_sprite_data * data = self->data;
+  sp_sprite_data * data = self->data;
 
   (void)last_update_time;
   (void)interpolation;
@@ -130,8 +130,8 @@ static void spooky_sprite_handle_delta(const spooky_sprite * self, const SDL_Eve
   (void)interpolation;
 }
 
-static void spooky_sprite_render(const spooky_sprite * self, SDL_Renderer * renderer, const SDL_Rect * src, const SDL_Rect * dest) {
-  spooky_sprite_data * data = self->data;
+static void sp_sprite_render(const sp_sprite * self, SDL_Renderer * renderer, const SDL_Rect * src, const SDL_Rect * dest) {
+  sp_sprite_data * data = self->data;
 
   if(!data->is_visible) { return; }
 
@@ -143,34 +143,34 @@ static void spooky_sprite_render(const spooky_sprite * self, SDL_Renderer * rend
   SDL_RenderCopy(renderer, data->texture, src, dest);
 }
 
-static bool spooky_sprite_get_is_visible(const spooky_sprite * self) {
+static bool sp_sprite_get_is_visible(const sp_sprite * self) {
   return self->data->is_visible;
 }
 
-static void spooky_sprite_set_is_visible(const spooky_sprite * self, bool is_visible) {
+static void sp_sprite_set_is_visible(const sp_sprite * self, bool is_visible) {
   self->data->is_visible = is_visible;
 }
 
-static void spooky_sprite_set_sheet(const spooky_sprite * self, int sheet) {
+static void sp_sprite_set_sheet(const sp_sprite * self, int sheet) {
   self->data->current_sheet = sheet;
   self->data->current_frame = 0;
 }
 
-static void spooky_sprite_validate_current_sheet(const spooky_sprite * self) {
+static void sp_sprite_validate_current_sheet(const sp_sprite * self) {
   if(self->data->current_sheet > self->data->total_sheets - 1) { self->data->current_sheet = self->data->total_sheets - 1; }
   if(self->data->current_sheet < 0) { self->data->current_sheet = 0; }
 }
 
-static void spooky_sprite_next_sheet(const spooky_sprite * self) {
+static void sp_sprite_next_sheet(const sp_sprite * self) {
   self->data->current_sheet++;
-  spooky_sprite_validate_current_sheet(self);
+  sp_sprite_validate_current_sheet(self);
 }
 
-static void spooky_sprite_prev_sheet(const spooky_sprite * self) {
+static void sp_sprite_prev_sheet(const sp_sprite * self) {
   self->data->current_sheet--;
-  spooky_sprite_validate_current_sheet(self);
+  sp_sprite_validate_current_sheet(self);
 }
 
-static void spooky_sprite_set_texture(const spooky_sprite * self, SDL_Texture * texture) {
+static void sp_sprite_set_texture(const sp_sprite * self, SDL_Texture * texture) {
   self->data->texture = texture;
 }

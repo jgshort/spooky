@@ -10,30 +10,30 @@ extern "C" {
 #include "sp_base.h"
 #include "sp_context.h"
 
-  struct spooky_text_data;
-  typedef struct spooky_text spooky_text;
+  struct sp_text_data;
+  typedef struct sp_text sp_text;
 
-  typedef struct spooky_text {
-    spooky_base super;
+  typedef struct sp_text {
+    sp_base super;
 
-    const spooky_base * (*as_base)(const spooky_text * /* self */);
-    const spooky_text * (*ctor)(const spooky_text * /* self */, const char * name, const spooky_context * /* context */, SDL_Renderer * /* renderer */);
-    const spooky_text * (*dtor)(const spooky_text * /* self */);
-    void (*free)(const spooky_text * /* self */);
-    void (*release)(const spooky_text * /* self */);
+    const sp_base * (*as_base)(const sp_text * /* self */);
+    const sp_text * (*ctor)(const sp_text * /* self */, const char * name, const sp_context * /* context */, SDL_Renderer * /* renderer */);
+    const sp_text * (*dtor)(const sp_text * /* self */);
+    void (*free)(const sp_text * /* self */);
+    void (*release)(const sp_text * /* self */);
 
-    struct spooky_text_data * data;
-  } spooky_text;
+    struct sp_text_data * data;
+  } sp_text;
 
-  const spooky_base * spooky_text_as_base(const spooky_text * /* self */);
-  const spooky_text * spooky_text_init(spooky_text * /* self */);
-  const spooky_text * spooky_text_alloc(void);
-  const spooky_text * spooky_text_acquire(void);
-  const spooky_text * spooky_text_ctor(const spooky_text * /* self */, const char * name, const spooky_context * /* context */, SDL_Renderer * /* renderer */);
-  const spooky_text * spooky_text_dtor(const spooky_text * /* self */);
+  const sp_base * sp_text_as_base(const sp_text * /* self */);
+  const sp_text * sp_text_init(sp_text * /* self */);
+  const sp_text * sp_text_alloc(void);
+  const sp_text * sp_text_acquire(void);
+  const sp_text * sp_text_ctor(const sp_text * /* self */, const char * name, const sp_context * /* context */, SDL_Renderer * /* renderer */);
+  const sp_text * sp_text_dtor(const sp_text * /* self */);
 
-  void spooky_text_free(const spooky_text * /* self */);
-  void spooky_text_release(const spooky_text * /* self */);
+  void sp_text_free(const sp_text * /* self */);
+  void sp_text_release(const sp_text * /* self */);
 
 #ifdef __cplusplus
 }

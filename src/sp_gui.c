@@ -5,39 +5,39 @@
 #include "../include/sp_gui.h"
 #include "../include/sp_math.h"
 
-const bool spooky_gui_is_fullscreen = false;
-const float spooky_gui_canvas_scale_factor = 1.2f;
+const bool sp_gui_is_fullscreen = false;
+const float sp_gui_canvas_scale_factor = 1.2f;
 
-const uint32_t spooky_gui_window_flags
-  = spooky_gui_is_fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0
+const uint32_t sp_gui_window_flags
+  = sp_gui_is_fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0
   | SDL_WINDOW_OPENGL
   | SDL_WINDOW_HIDDEN
   | SDL_WINDOW_ALLOW_HIGHDPI
   ;
-const uint32_t spooky_gui_renderer_flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC;
+const uint32_t sp_gui_renderer_flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC;
 
-const int spooky_gui_ratcliff_factor = 7;
+const int sp_gui_ratcliff_factor = 7;
 
-const int spooky_gui_window_default_logical_width = 1024;
-const int spooky_gui_window_default_logical_height = 768;
+const int sp_gui_window_default_logical_width = 1024;
+const int sp_gui_window_default_logical_height = 768;
 
-const float spooky_gui_default_aspect_ratio = (float)spooky_gui_window_default_logical_height / (float)spooky_gui_window_default_logical_width;
+const float sp_gui_default_aspect_ratio = (float)sp_gui_window_default_logical_height / (float)sp_gui_window_default_logical_width;
 
-typedef struct spooky_gui_rgba_context {
+typedef struct sp_gui_rgba_context {
   SDL_Renderer * renderer;
   uint8_t r;
   uint8_t g;
   uint8_t b;
   uint8_t a;
   char padding[4];
-} spooky_gui_rgba_context;
+} sp_gui_rgba_context;
 
-#define SPOOKY_GUI_MAX_DRAW_CONTEXTS 64
-static spooky_gui_rgba_context spooky_gui_draw_contexts[SPOOKY_GUI_MAX_DRAW_CONTEXTS];
-static size_t spooky_gui_next_draw_context = 0;
-static const spooky_gui_rgba_context * spooky_gui_last_draw_context = spooky_gui_draw_contexts + SPOOKY_GUI_MAX_DRAW_CONTEXTS;
+#define sp_GUI_MAX_DRAW_CONTEXTS 64
+static sp_gui_rgba_context sp_gui_draw_contexts[sp_GUI_MAX_DRAW_CONTEXTS];
+static size_t sp_gui_next_draw_context = 0;
+static const sp_gui_rgba_context * sp_gui_last_draw_context = sp_gui_draw_contexts + sp_GUI_MAX_DRAW_CONTEXTS;
 
-errno_t spooky_gui_load_image(const char * file_path, size_t file_path_len, SDL_Surface ** out_surface) {
+errno_t sp_gui_load_image(const char * file_path, size_t file_path_len, SDL_Surface ** out_surface) {
   assert(!(file_path == NULL || file_path_len <= 0));
 
   if(file_path == NULL || file_path_len <= 0) { goto err0; }
@@ -65,13 +65,13 @@ err0:
   }
 }
 
-errno_t spooky_gui_load_texture(SDL_Renderer * renderer, const char * file_path, size_t file_path_len, SDL_Texture ** out_texture) {
+errno_t sp_gui_load_texture(SDL_Renderer * renderer, const char * file_path, size_t file_path_len, SDL_Texture ** out_texture) {
   assert(!(*out_texture != NULL || renderer == NULL || file_path == NULL || file_path_len <= 0));
 
   if(*out_texture != NULL || renderer == NULL || file_path == NULL || file_path_len <= 0) { goto err0; }
 
   SDL_Surface * surface = NULL;
-  errno_t surface_error = spooky_gui_load_image(file_path, file_path_len, &surface);
+  errno_t surface_error = sp_gui_load_image(file_path, file_path_len, &surface);
   if(surface_error != SP_SUCCESS || surface == NULL) { goto err1; }
 
   SDL_ClearError();
@@ -107,16 +107,16 @@ err0:
 
 float get_ui_scale_factor(void) { return 1.f; }
 
-const spooky_gui_rgba_context * spooky_gui_push_draw_color(SDL_Renderer * renderer, const SDL_Color * new_color) {
-  if(spooky_gui_next_draw_context + 1 >= SPOOKY_GUI_MAX_DRAW_CONTEXTS) {
+const sp_gui_rgba_context * sp_gui_push_draw_color(SDL_Renderer * renderer, const SDL_Color * new_color) {
+  if(sp_gui_next_draw_context + 1 >= sp_GUI_MAX_DRAW_CONTEXTS) {
     /* abort? */
     return NULL;
   }
 
-  spooky_gui_rgba_context * context = &spooky_gui_draw_contexts[spooky_gui_next_draw_context];
-  assert(context < spooky_gui_last_draw_context);
+  sp_gui_rgba_context * context = &sp_gui_draw_contexts[sp_gui_next_draw_context];
+  assert(context < sp_gui_last_draw_context);
 
-  spooky_gui_next_draw_context++;
+  sp_gui_next_draw_context++;
   SDL_GetRenderDrawColor(renderer, &context->r, &context->g, &context->b, &context->a);
   if(new_color) {
     SDL_SetRenderDrawColor(renderer, new_color->r, new_color->g, new_color->b, new_color->a);
@@ -125,7 +125,7 @@ const spooky_gui_rgba_context * spooky_gui_push_draw_color(SDL_Renderer * render
   return context;
 }
 
-void spooky_gui_pop_draw_color(const spooky_gui_rgba_context * context) {
+void sp_gui_pop_draw_color(const sp_gui_rgba_context * context) {
   if(!context) {
     return;
   }
@@ -134,17 +134,17 @@ void spooky_gui_pop_draw_color(const spooky_gui_rgba_context * context) {
 
   SDL_SetRenderDrawColor(context->renderer, context->a, context->g, context->b, context->a);
 
-  spooky_gui_next_draw_context--;
-  if(spooky_gui_next_draw_context < 1) { spooky_gui_next_draw_context = 0; }
+  sp_gui_next_draw_context--;
+  if(sp_gui_next_draw_context < 1) { sp_gui_next_draw_context = 0; }
 }
 
-void spooky_gui_color_lighten(SDL_Color * color, float luminosity) {
-  color->r = (uint8_t)(spooky_int_min(spooky_int_max(0, (int)((float)color->r + (luminosity * 255.f))), 255));
-  color->g = (uint8_t)(spooky_int_min(spooky_int_max(0, (int)((float)color->g + (luminosity * 255.f))), 255));
-  color->b = (uint8_t)(spooky_int_min(spooky_int_max(0, (int)((float)color->b + (luminosity * 255.f))), 255));
+void sp_gui_color_lighten(SDL_Color * color, float luminosity) {
+  color->r = (uint8_t)(sp_int_min(sp_int_max(0, (int)((float)color->r + (luminosity * 255.f))), 255));
+  color->g = (uint8_t)(sp_int_min(sp_int_max(0, (int)((float)color->g + (luminosity * 255.f))), 255));
+  color->b = (uint8_t)(sp_int_min(sp_int_max(0, (int)((float)color->b + (luminosity * 255.f))), 255));
 }
 
-void spooky_gui_color_darken(SDL_Color * color, int percent) {
+void sp_gui_color_darken(SDL_Color * color, int percent) {
   color->r = (uint8_t)(color->r - (int)((color->r * percent) / 100));
   color->g = (uint8_t)(color->g - (int)((color->g * percent) / 100));
   color->b = (uint8_t)(color->b - (int)((color->b * percent) / 100));

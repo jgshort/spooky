@@ -33,20 +33,20 @@ extern "C" {
   /** Return value indicating failure. */
   extern const errno_t SP_FAILURE;
 
-  int spooky_is_sdl_error(const char * /* msg */);
+  int sp_is_sdl_error(const char * /* msg */);
 
-  typedef struct spooky_ex spooky_ex;
-  typedef struct spooky_ex {
+  typedef struct sp_ex sp_ex;
+  typedef struct sp_ex {
     int code;
     char padding[4];
     long line;
     const char * file;
     const char * msg;
-    const spooky_ex * inner;
-  } spooky_ex;
+    const sp_ex * inner;
+  } sp_ex;
 
-  errno_t spooky_ex_new(long line, const char * file, const int code, const char * msg, const spooky_ex * inner, const spooky_ex ** out_ex);
-  errno_t spooky_ex_print(const spooky_ex * ex);
+  errno_t sp_ex_new(long line, const char * file, const int code, const char * msg, const sp_ex * inner, const sp_ex ** out_ex);
+  errno_t sp_ex_print(const sp_ex * ex);
 
 #ifdef __cplusplus
 }

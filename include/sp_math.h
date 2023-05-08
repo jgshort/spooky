@@ -9,29 +9,29 @@ extern "C" {
 #include <stdbool.h>
 #include <stdint.h>
 
-  typedef struct spooky_vector {
+  typedef struct sp_vector {
     uint32_t x;
     uint32_t y;
     uint32_t z;
-  } spooky_vector;
+  } sp_vector;
 
-  typedef struct spooky_vector_3df {
+  typedef struct sp_vector_3df {
     double x;
     double y;
     double z;
-  } spooky_vector_3df;
+  } sp_vector_3df;
 
   extern const float SMATH_FLT_EPSILON;
 
-  bool spooky_float_equal(float /* left */, float /* right */, float /* max_rel_diff */ /*SMATH_FLT_EPSILON*/);
+  bool sp_float_equal(float /* left */, float /* right */, float /* max_rel_diff */ /*SMATH_FLT_EPSILON*/);
 
-  int spooky_int_min3(int /* a */, int /* b */, int /* c */);
-  int spooky_int_max3(int /* a */, int /* b */, int /* c */);
+  int sp_int_min3(int /* a */, int /* b */, int /* c */);
+  int sp_int_max3(int /* a */, int /* b */, int /* c */);
 
-  int spooky_int_max(int /* left */, int /* right */);
-  int spooky_int_min(int /* left */, int /* right */);
+  int sp_int_max(int /* left */, int /* right */);
+  int sp_int_min(int /* left */, int /* right */);
 
-  float spooky_round_up(float /* n */, int /* by_m */);
+  float sp_round_up(float /* n */, int /* by_m */);
 
 #ifdef __cplusplus
 }

@@ -14,22 +14,22 @@
 #include "../include/sp_math.h"
 #include "../include/sp_io.h"
 
-static const spooky_menu * spooky_menu_read_definitions(const spooky_context * context, SDL_Rect rect, const char * path);
+static const sp_menu * sp_menu_read_definitions(const sp_context * context, SDL_Rect rect, const char * path);
 
-static const int SPOOKY_MENU_MARGIN_TOP_BOTTOM = 5;
+static const int sp_MENU_MARGIN_TOP_BOTTOM = 5;
 
-static const spooky_menu ** menu_stack = NULL;
+static const sp_menu ** menu_stack = NULL;
 static size_t menu_stack_len = 0;
 static size_t menu_stack_capacity = 8;
 
-typedef struct spooky_menu_data {
-	const spooky_context * context;
-	const spooky_font * font;
+typedef struct sp_menu_data {
+	const sp_context * context;
+	const sp_font * font;
 	const char * name;
 
-	const spooky_menu * active_menu;
+	const sp_menu * active_menu;
 
-	spooky_menu * menu_items;
+	sp_menu * menu_items;
 
 	size_t menu_items_capacity;
 	size_t menu_items_count;
@@ -45,7 +45,7 @@ typedef struct spooky_menu_data {
 	int last_mouse_x;
 	int last_mouse_y;
 
-	spooky_menu_types menu_type;
+	sp_menu_types menu_type;
 
 	bool is_active;
 	bool is_visible;
@@ -56,13 +56,13 @@ typedef struct spooky_menu_data {
 
 	char padding[7];
 
-	const spooky_menu * parent;
+	const sp_menu * parent;
 
 	int max_width;
 	int max_height;
 
 	/* DEBUG: SDL_Rect hover_rect; */
-} spooky_menu_data;
+} sp_menu_data;
 
 /* Menu configuration (main menu, menu items, etc. */
 typedef void (*event_handler)(void);
@@ -71,123 +71,123 @@ typedef struct menu_selection {
 	const char * name;
 	event_handler on_click;
 
-	const spooky_menu * menu_action;
+	const sp_menu * menu_action;
 } menu_selection;
 
 typedef struct menu_items {
 	const char * name;
-	const spooky_menu * menu_item;
+	const sp_menu * menu_item;
 	size_t selections_count;
 	menu_selection * selections;
 } menu_items;
 
-static const spooky_menu * spooky_menu_get_active_menu(const spooky_menu * self);
-static void spooky_menu_set_active_menu(const spooky_menu * self, const spooky_menu * active_menu);
-static const spooky_menu * spooky_menu_attach_item(const spooky_menu * self, const spooky_menu * item, const spooky_menu ** out_copy);
+static const sp_menu * sp_menu_get_active_menu(const sp_menu * self);
+static void sp_menu_set_active_menu(const sp_menu * self, const sp_menu * active_menu);
+static const sp_menu * sp_menu_attach_item(const sp_menu * self, const sp_menu * item, const sp_menu ** out_copy);
 
-static bool spooky_menu_handle_event(const spooky_base * self, SDL_Event * event);
-// static void spooky_menu_handle_delta(const spooky_base * self, const SDL_Event * event, uint64_t last_update_time, double interpolation);
-static void spooky_menu_render(const spooky_base * self, SDL_Renderer * renderer);
+static bool sp_menu_handle_event(const sp_base * self, SDL_Event * event);
+// static void sp_menu_handle_delta(const sp_base * self, const SDL_Event * event, uint64_t last_update_time, double interpolation);
+static void sp_menu_render(const sp_base * self, SDL_Renderer * renderer);
 
-static void spooky_menu_render_main_menu(const spooky_menu * self, SDL_Renderer * renderer, const SDL_Rect * rect);
-static void spooky_menu_render_main_menu_item(const spooky_menu * self, SDL_Renderer * renderer, const SDL_Rect * rect);
-static void spooky_menu_render_menu_action(const spooky_menu * self, SDL_Renderer * renderer, const spooky_menu * parent, const SDL_Rect * rect);
+static void sp_menu_render_main_menu(const sp_menu * self, SDL_Renderer * renderer, const SDL_Rect * rect);
+static void sp_menu_render_main_menu_item(const sp_menu * self, SDL_Renderer * renderer, const SDL_Rect * rect);
+static void sp_menu_render_menu_action(const sp_menu * self, SDL_Renderer * renderer, const sp_menu * parent, const SDL_Rect * rect);
 
-static spooky_menu_types spooky_menu_get_menu_type(const spooky_menu * self);
+static sp_menu_types sp_menu_get_menu_type(const sp_menu * self);
 
-static int spooky_menu_get_x(const spooky_menu * self);
-static void spooky_menu_set_x(const spooky_menu * self, int x);
-static int spooky_menu_get_y(const spooky_menu * self);
-static void spooky_menu_set_y(const spooky_menu * self, int y);
-static int spooky_menu_get_w(const spooky_menu * self);
-static void spooky_menu_set_w(const spooky_menu * self, int w);
-static int spooky_menu_get_h(const spooky_menu * self);
-static void spooky_menu_set_h(const spooky_menu * self, int h);
+static int sp_menu_get_x(const sp_menu * self);
+static void sp_menu_set_x(const sp_menu * self, int x);
+static int sp_menu_get_y(const sp_menu * self);
+static void sp_menu_set_y(const sp_menu * self, int y);
+static int sp_menu_get_w(const sp_menu * self);
+static void sp_menu_set_w(const sp_menu * self, int w);
+static int sp_menu_get_h(const sp_menu * self);
+static void sp_menu_set_h(const sp_menu * self, int h);
 
-static const char  * spooky_menu_get_name(const spooky_menu * self);
+static const char  * sp_menu_get_name(const sp_menu * self);
 
-static void spooky_menu_set_parent(const spooky_menu * self, const spooky_menu * parent);
-static bool spooky_menu_get_is_active(const spooky_menu * self);
+static void sp_menu_set_parent(const sp_menu * self, const sp_menu * parent);
+static bool sp_menu_get_is_active(const sp_menu * self);
 
-static int spooky_menu_get_name_width(const spooky_menu * self);
-static int spooky_menu_get_name_height(const spooky_menu * self);
+static int sp_menu_get_name_width(const sp_menu * self);
+static int sp_menu_get_name_height(const sp_menu * self);
 
-static void spooky_menu_get_menu_action_hover_rect(const spooky_menu * self, SDL_Rect r, SDL_Rect * out_rect);
+static void sp_menu_get_menu_action_hover_rect(const sp_menu * self, SDL_Rect r, SDL_Rect * out_rect);
 
-static void spooky_menu_set_is_expanded(const spooky_menu * self, bool value);
+static void sp_menu_set_is_expanded(const sp_menu * self, bool value);
 
-static void spooky_menu_copy(const spooky_menu * source, spooky_menu * dest);
+static void sp_menu_copy(const sp_menu * source, sp_menu * dest);
 
-static const spooky_base * spooky_menu_as_base(const spooky_menu * self) {
-	return (const spooky_base *)self;
+static const sp_base * sp_menu_as_base(const sp_menu * self) {
+	return (const sp_base *)self;
 }
 
-const spooky_menu * spooky_menu_alloc(void) {
-	spooky_menu * self = calloc(1, sizeof * self);
+const sp_menu * sp_menu_alloc(void) {
+	sp_menu * self = calloc(1, sizeof * self);
 	if(!self) abort();
 
 	return self;
 }
 
-static void spooky_menu_copy(const spooky_menu * source, spooky_menu * dest) {
-	const spooky_menu * new = spooky_menu_init(dest);
+static void sp_menu_copy(const sp_menu * source, sp_menu * dest) {
+	const sp_menu * new = sp_menu_init(dest);
 
-	spooky_menu_data * data = calloc(1, sizeof * data);
+	sp_menu_data * data = calloc(1, sizeof * data);
 	if(!data) { abort(); }
 
-	((spooky_menu *)(uintptr_t)new)->data = data;
+	((sp_menu *)(uintptr_t)new)->data = data;
 
 	memmove((void *)(uintptr_t)new->data, source->data, sizeof * source->data);
 }
 
-const spooky_menu * spooky_menu_init(spooky_menu * self) {
+const sp_menu * sp_menu_init(sp_menu * self) {
 	if(!self) { abort(); }
 
-	self->ctor = &spooky_menu_ctor;
-	self->dtor = &spooky_menu_dtor;
-	self->free = &spooky_menu_free;
-	self->release = &spooky_menu_release;
-	self->as_base = &spooky_menu_as_base;
+	self->ctor = &sp_menu_ctor;
+	self->dtor = &sp_menu_dtor;
+	self->free = &sp_menu_free;
+	self->release = &sp_menu_release;
+	self->as_base = &sp_menu_as_base;
 
-	self->attach_item = &spooky_menu_attach_item;
+	self->attach_item = &sp_menu_attach_item;
 
-	self->get_name = &spooky_menu_get_name;
+	self->get_name = &sp_menu_get_name;
 
-	self->super.handle_event = &spooky_menu_handle_event;
-	self->super.render = &spooky_menu_render;
-	self->get_menu_type = &spooky_menu_get_menu_type;
+	self->super.handle_event = &sp_menu_handle_event;
+	self->super.render = &sp_menu_render;
+	self->get_menu_type = &sp_menu_get_menu_type;
 
-	self->get_x = &spooky_menu_get_x;
-	self->set_x = &spooky_menu_set_x;
+	self->get_x = &sp_menu_get_x;
+	self->set_x = &sp_menu_set_x;
 
-	self->get_y = &spooky_menu_get_y;
-	self->set_y = &spooky_menu_set_y;
+	self->get_y = &sp_menu_get_y;
+	self->set_y = &sp_menu_set_y;
 
-	self->get_w = &spooky_menu_get_w;
-	self->set_w = &spooky_menu_set_w;
+	self->get_w = &sp_menu_get_w;
+	self->set_w = &sp_menu_set_w;
 
-	self->get_h = &spooky_menu_get_h;
-	self->set_h = &spooky_menu_set_h;
+	self->get_h = &sp_menu_get_h;
+	self->set_h = &sp_menu_set_h;
 
-	self->get_active_menu = &spooky_menu_get_active_menu;
-	self->set_active_menu = &spooky_menu_set_active_menu;
+	self->get_active_menu = &sp_menu_get_active_menu;
+	self->set_active_menu = &sp_menu_set_active_menu;
 
-	self->set_parent = &spooky_menu_set_parent;
-	self->get_is_active = &spooky_menu_get_is_active;
+	self->set_parent = &sp_menu_set_parent;
+	self->get_is_active = &sp_menu_get_is_active;
 
-	self->get_name_width = &spooky_menu_get_name_width;
-	self->get_name_height = &spooky_menu_get_name_height;
-	self->set_is_expanded = &spooky_menu_set_is_expanded;
+	self->get_name_width = &sp_menu_get_name_width;
+	self->get_name_height = &sp_menu_get_name_height;
+	self->set_is_expanded = &sp_menu_set_is_expanded;
 
 	return self;
 }
 
-const spooky_menu * spooky_menu_acquire(void) {
-	return spooky_menu_init((spooky_menu *)(uintptr_t)spooky_menu_alloc());
+const sp_menu * sp_menu_acquire(void) {
+	return sp_menu_init((sp_menu *)(uintptr_t)sp_menu_alloc());
 }
 
-const spooky_menu * spooky_menu_ctor(const spooky_menu * self, const spooky_font * font, const spooky_context * context, const char * name, SDL_Rect rect, spooky_menu_types menu_type) {
-	spooky_menu_data * data = calloc(1, sizeof * data);
+const sp_menu * sp_menu_ctor(const sp_menu * self, const sp_font * font, const sp_context * context, const char * name, SDL_Rect rect, sp_menu_types menu_type) {
+	sp_menu_data * data = calloc(1, sizeof * data);
 	if(!data) { abort(); }
 
 	data->context = context;
@@ -202,7 +202,7 @@ const spooky_menu * spooky_menu_ctor(const spooky_menu * self, const spooky_font
 	data->bg_color = (SDL_Color){ .r = 255, .g = 255, .b = 255, .a = 255 };
 	data->fg_color = (SDL_Color){ .r = 0, .g = 0, .b = 0, .a = 255 };
 
-	((spooky_menu *)(uintptr_t)self)->data = data;
+	((sp_menu *)(uintptr_t)self)->data = data;
 
 	data->font->measure_text(data->font, data->name, strnlen(data->name, 1024), &(data->name_width), &(data->name_height));
 
@@ -225,14 +225,14 @@ const spooky_menu * spooky_menu_ctor(const spooky_menu * self, const spooky_font
 	return self;
 }
 
-const spooky_menu * spooky_menu_dtor(const spooky_menu * self) {
+const sp_menu * sp_menu_dtor(const sp_menu * self) {
 	if(self) {
-		spooky_menu_data * data = self->data;
+		sp_menu_data * data = self->data;
 
 		free((void *)(uintptr_t)data->name), data->name = NULL;
 		if(data && data->menu_items_count > 0) {
 			for(size_t i = 0; i < data->menu_items_count; i++) {
-				const spooky_menu * menu = &(data->menu_items[i]);
+				const sp_menu * menu = &(data->menu_items[i]);
 				menu->free(menu->dtor(menu));
 			}
 			free((void *)(uintptr_t)data->menu_items), data->menu_items = NULL;
@@ -244,22 +244,22 @@ const spooky_menu * spooky_menu_dtor(const spooky_menu * self) {
 	return self;
 }
 
-void spooky_menu_free(const spooky_menu * self) {
+void sp_menu_free(const sp_menu * self) {
 	if(self) {
 		free((void *)(uintptr_t)self), self = NULL;
 	}
 }
 
-void spooky_menu_release(const spooky_menu * self) {
+void sp_menu_release(const sp_menu * self) {
 	self->free(self->dtor(self));
 }
 
-const spooky_menu * spooky_menu_load_from_file(const spooky_context * context, SDL_Rect rect, const char * path) {
-	return spooky_menu_read_definitions(context, rect, path);
+const sp_menu * sp_menu_load_from_file(const sp_context * context, SDL_Rect rect, const char * path) {
+	return sp_menu_read_definitions(context, rect, path);
 }
 
-static const spooky_menu * spooky_menu_attach_item(const spooky_menu * self, const spooky_menu * item, const spooky_menu ** out_copy) {
-	spooky_menu_data * data = self->data;
+static const sp_menu * sp_menu_attach_item(const sp_menu * self, const sp_menu * item, const sp_menu ** out_copy) {
+	sp_menu_data * data = self->data;
 	if(!data->menu_items) {
 		data->menu_items = calloc(data->menu_items_capacity, sizeof * data->menu_items);
 		if(!data->menu_items) { abort(); }
@@ -267,19 +267,19 @@ static const spooky_menu * spooky_menu_attach_item(const spooky_menu * self, con
 
 	if(data->menu_items_count + 1 > data->menu_items_capacity) {
 		data->menu_items_capacity += 8;
-		spooky_menu * temp_menu_items = realloc(data->menu_items, sizeof data->menu_items[0] * data->menu_items_capacity);
+		sp_menu * temp_menu_items = realloc(data->menu_items, sizeof data->menu_items[0] * data->menu_items_capacity);
 		if(!temp_menu_items) { abort(); }
 		data->menu_items = temp_menu_items;
 	}
 
-	spooky_menu * copy = &(data->menu_items[data->menu_items_count]);
-	spooky_menu_copy(item, copy);
+	sp_menu * copy = &(data->menu_items[data->menu_items_count]);
+	sp_menu_copy(item, copy);
 
 	if(out_copy) {
 		*out_copy = copy;
 	}
 
-	spooky_menu_data * copy_data = copy->data;
+	sp_menu_data * copy_data = copy->data;
 
 	copy->set_parent(copy, self);
 
@@ -288,14 +288,14 @@ static const spooky_menu * spooky_menu_attach_item(const spooky_menu * self, con
 
 	int width, height;
 	data->font->measure_text(data->font, copy_data->name, strnlen(copy_data->name, 1024), &width, &height);
-	data->max_width = spooky_int_max(data->max_width, width);
+	data->max_width = sp_int_max(data->max_width, width);
 	data->max_height = data->font->get_line_skip(data->font) * ((int)data->menu_items_count + 1);
 
 	return self;
 }
 
-static bool spooky_menu_handle_event(const spooky_base * self, SDL_Event * event) {
-	spooky_menu_data * data = ((const spooky_menu *)self)->data;
+static bool sp_menu_handle_event(const sp_base * self, SDL_Event * event) {
+	sp_menu_data * data = ((const sp_menu *)self)->data;
 
 	SDL_Rect r = { .x = data->rect.x, .y = data->rect.y, .w = data->rect.w, .h = data->rect.h };
 
@@ -311,11 +311,11 @@ static bool spooky_menu_handle_event(const spooky_base * self, SDL_Event * event
 	// data->is_intersected = SDL_EnclosePoints(&mouse_coords, 1, &r, NULL);
 	data->is_intersected = (mouse_x >= r.x) && (mouse_x <= r.x + r.w) && (mouse_y >= r.y) && (mouse_y <= r.y + r.h);
 
-	const spooky_menu * parent = data->parent;
+	const sp_menu * parent = data->parent;
 
 	bool handled = false;
 	if(data->menu_type == SMT_MAIN_MENU) {
-		spooky_menu_set_is_expanded((const spooky_menu *)self, data->is_intersected || data->is_active);
+		sp_menu_set_is_expanded((const sp_menu *)self, data->is_intersected || data->is_active);
 
 		if(event->type == SDL_MOUSEBUTTONDOWN && data->is_intersected) {
 			// main menu has been clicked
@@ -329,8 +329,8 @@ static bool spooky_menu_handle_event(const spooky_base * self, SDL_Event * event
 
 		if(data->menu_items_count > 0) {
 			for(size_t i = 0; i < data->menu_items_count; i++) {
-				const spooky_menu * menu = &(data->menu_items[i]);
-				spooky_menu_handle_event((const spooky_base *)menu, event);
+				const sp_menu * menu = &(data->menu_items[i]);
+				sp_menu_handle_event((const sp_base *)menu, event);
 			}
 		}
 		handled = false;
@@ -342,10 +342,10 @@ static bool spooky_menu_handle_event(const spooky_base * self, SDL_Event * event
 
 		data->is_active = (data->is_intersected && parent->get_active_menu(parent)) || (data->is_intersected && parent->get_active_menu(parent) == NULL && event->type == SDL_MOUSEBUTTONDOWN);
 		if(data->is_active) {
-			parent->set_active_menu(parent, (const spooky_menu *)self);
+			parent->set_active_menu(parent, (const sp_menu *)self);
 		}
 		uint8_t menu_alpha = 243;
-		if(data->is_hover || data->is_active || parent->get_active_menu(parent) == (const spooky_menu *)self) {
+		if(data->is_hover || data->is_active || parent->get_active_menu(parent) == (const sp_menu *)self) {
 			data->fg_color = (SDL_Color){ .r = 255, .g = 255, .b = 255, .a = menu_alpha};
 		} else {
 			data->fg_color = (SDL_Color){ .r = 0, .g = 0, .b = 0, .a = menu_alpha};
@@ -354,8 +354,8 @@ static bool spooky_menu_handle_event(const spooky_base * self, SDL_Event * event
 		/* Handle actions */
 		if(data->menu_items_count > 0) {
 			for(size_t i = 0; i < data->menu_items_count; i++) {
-				const spooky_menu * action = &(data->menu_items[i]);
-				action->super.handle_event((const spooky_base *)action, event);
+				const sp_menu * action = &(data->menu_items[i]);
+				action->super.handle_event((const sp_base *)action, event);
 			}
 		}
 	}
@@ -363,9 +363,9 @@ static bool spooky_menu_handle_event(const spooky_base * self, SDL_Event * event
 		if(!data->is_expanded) return false;
 
 		SDL_Rect hover_rect;
-		spooky_menu_get_menu_action_hover_rect((const spooky_menu *)self, r, &hover_rect);
+		sp_menu_get_menu_action_hover_rect((const sp_menu *)self, r, &hover_rect);
 
-		hover_rect.y += SPOOKY_MENU_MARGIN_TOP_BOTTOM;
+		hover_rect.y += sp_MENU_MARGIN_TOP_BOTTOM;
 		hover_rect.x = parent->get_x(parent);
 
 		/* DEBUG: data->hover_rect = (SDL_Rect){ .x = hover_rect.x, .y = hover_rect.y, .w = hover_rect.w, .h = hover_rect.h }; */
@@ -375,10 +375,10 @@ static bool spooky_menu_handle_event(const spooky_base * self, SDL_Event * event
 	return handled || data->is_active;
 }
 
-static void spooky_menu_render(const spooky_base * self, SDL_Renderer * renderer) {
+static void sp_menu_render(const sp_base * self, SDL_Renderer * renderer) {
 	static const SDL_Color black = { .r = 0, .g = 0, .b = 0, .a = 255 };
 
-	spooky_menu_data * data = ((const spooky_menu *)self)->data;
+	sp_menu_data * data = ((const sp_menu *)self)->data;
 
 	if(!data->is_visible) return;
 
@@ -393,12 +393,12 @@ static void spooky_menu_render(const spooky_base * self, SDL_Renderer * renderer
 
 	switch(data->menu_type) {
 		case SMT_MAIN_MENU:
-			spooky_menu_render_main_menu((const spooky_menu *)self, renderer, &r);
+			sp_menu_render_main_menu((const sp_menu *)self, renderer, &r);
 			break;
 		case SMT_MAIN_MENU_ITEM:
 		case SMT_MAIN_MENU_ACTION:
 			if(data->is_expanded) {
-				spooky_menu_render_main_menu_item((const spooky_menu *)self, renderer, &r);
+				sp_menu_render_main_menu_item((const sp_menu *)self, renderer, &r);
 			}
 			break;
 		case SMT_NULL:
@@ -437,7 +437,7 @@ static void spooky_menu_render(const spooky_base * self, SDL_Renderer * renderer
 
 		data->font->measure_text(data->font, title, strnlen(title, 1024), &width, NULL);
 		/* TODO: Get the proper screen width */
-		SDL_Point title_point = { .x = (spooky_gui_window_default_logical_width - width) - data->font->get_m_dash(data->font), .y = 3 };
+		SDL_Point title_point = { .x = (sp_gui_window_default_logical_width - width) - data->font->get_m_dash(data->font), .y = 3 };
 		data->font->write_to_renderer(data->font, renderer, &title_point, &black, title, strnlen(title, 1024), NULL, NULL);
 
 		data->font->set_is_drop_shadow(data->font, true);
@@ -447,8 +447,8 @@ static void spooky_menu_render(const spooky_base * self, SDL_Renderer * renderer
 	SDL_SetRenderDrawColor(renderer, red, green, blue, alpha);
 }
 
-static void spooky_menu_render_main_menu(const spooky_menu * self, SDL_Renderer * renderer, const SDL_Rect * rect) {
-	spooky_menu_data * data = self->data;
+static void sp_menu_render_main_menu(const sp_menu * self, SDL_Renderer * renderer, const SDL_Rect * rect) {
+	sp_menu_data * data = self->data;
 
 	SDL_Rect r = *rect;
 	SDL_BlendMode blend_mode = SDL_BLENDMODE_BLEND;
@@ -462,7 +462,7 @@ static void spooky_menu_render_main_menu(const spooky_menu * self, SDL_Renderer 
 		/* render children */
 		int width_accum = 0;
 		for(size_t i = 0; i < data->menu_items_count; i++) {
-			const spooky_menu * menu = &(data->menu_items[i]);
+			const sp_menu * menu = &(data->menu_items[i]);
 			if(menu->get_menu_type(menu) == SMT_MAIN_MENU_ITEM) {
 				int w, h;
 				data->font->measure_text(data->font, menu->get_name(menu), strnlen(menu->get_name(menu), 1024), &w, &h);
@@ -490,15 +490,15 @@ static void spooky_menu_render_main_menu(const spooky_menu * self, SDL_Renderer 
 	}
 }
 
-static void spooky_menu_render_main_menu_item(const spooky_menu * self, SDL_Renderer * renderer, const SDL_Rect * rect) {
-	spooky_menu_data * data = self->data;
+static void sp_menu_render_main_menu_item(const sp_menu * self, SDL_Renderer * renderer, const SDL_Rect * rect) {
+	sp_menu_data * data = self->data;
 
 	SDL_Rect r = (SDL_Rect) { .x = rect->x, .y = rect->y, .w = rect->w + 3, .h = rect->h } ;
 
 	SDL_BlendMode blend_mode = SDL_BLENDMODE_BLEND;
 	SDL_SetRenderDrawBlendMode(renderer, blend_mode);
 
-	const spooky_menu * parent = data->parent;
+	const sp_menu * parent = data->parent;
 
 	if(parent) {
 		if(data->is_hover || data->is_active || parent->get_active_menu(parent) == self) {
@@ -511,7 +511,7 @@ static void spooky_menu_render_main_menu_item(const spooky_menu * self, SDL_Rend
 			/* Draw the drop-down rectangle */
 			SDL_Rect drop_down_rect = {
 				.x = r.x,
-				.y = data->font->get_line_skip(data->font) + SPOOKY_MENU_MARGIN_TOP_BOTTOM,
+				.y = data->font->get_line_skip(data->font) + sp_MENU_MARGIN_TOP_BOTTOM,
 				.w = data->max_width + 8,
 				.h = data->max_height + (2 * (int)data->menu_items_count) // (((int)data->menu_items_count + 1) * data->font->get_line_skip(data->font)) + data->font->get_line_skip(data->font) + 5
 			};
@@ -523,9 +523,9 @@ static void spooky_menu_render_main_menu_item(const spooky_menu * self, SDL_Rend
 
 			/* Draw each action */
 			for(size_t i = 0; i < data->menu_items_count; i++) {
-				const spooky_menu * action = &(data->menu_items[i]);
+				const sp_menu * action = &(data->menu_items[i]);
 				if(action->get_menu_type(action) == SMT_MAIN_MENU_ACTION) {
-					spooky_menu_render_menu_action(action, renderer, self, &r);
+					sp_menu_render_menu_action(action, renderer, self, &r);
 				}
 			}
 		}
@@ -538,11 +538,11 @@ static void spooky_menu_render_main_menu_item(const spooky_menu * self, SDL_Rend
 	}
 }
 
-static void spooky_menu_get_menu_action_hover_rect(const spooky_menu * self, SDL_Rect r, SDL_Rect * hover_rect) {
-	spooky_menu_data * data = self->data;
-	const spooky_menu * parent = data->parent;
+static void sp_menu_get_menu_action_hover_rect(const sp_menu * self, SDL_Rect r, SDL_Rect * hover_rect) {
+	sp_menu_data * data = self->data;
+	const sp_menu * parent = data->parent;
 
-	spooky_menu_data * parent_data = parent->data;
+	sp_menu_data * parent_data = parent->data;
 
 	SDL_Point action_p = { .x = r.x + (r.w / 2) - (parent->get_name_width(parent) / 2) + 1, .y = r.y + (r.h / 2) - (parent->get_name_height(parent) / 2)};
 	action_p.y += ((int)(data->menu_item_offset) * data->font->get_line_skip(data->font)) + 5 + ((int)(data->menu_item_offset * 2));
@@ -552,21 +552,21 @@ static void spooky_menu_get_menu_action_hover_rect(const spooky_menu * self, SDL
 	*hover_rect = (SDL_Rect){ .x = r.x, .y = action_p.y, .w = parent_data->max_width + 8, .h = data->font->get_line_skip(data->font)};
 }
 
-static void spooky_menu_render_menu_action(const spooky_menu * self, SDL_Renderer * renderer, const spooky_menu * parent, const SDL_Rect * rect) {
+static void sp_menu_render_menu_action(const sp_menu * self, SDL_Renderer * renderer, const sp_menu * parent, const SDL_Rect * rect) {
 	static const SDL_Color black = { .r = 0, .g = 0, .b = 0, .a = 255 };
 	static const SDL_Color white = { .r = 255, .g = 255, .b = 255, .a = 255 };
 
 	(void)parent;
-	spooky_menu_data * data = self->data;
+	sp_menu_data * data = self->data;
 
 	SDL_Rect r = (SDL_Rect) { .x = rect->x, .y = rect->y, .w = rect->w, .h = rect->h } ;
 
 	data->font->set_is_drop_shadow(data->font, false);
-	const char * name = spooky_menu_get_name(self);
+	const char * name = sp_menu_get_name(self);
 
 	SDL_Rect hover_rect;
 
-	spooky_menu_get_menu_action_hover_rect(self, r, &hover_rect);
+	sp_menu_get_menu_action_hover_rect(self, r, &hover_rect);
 	SDL_Point action_p = { .x = hover_rect.x + 4, .y = hover_rect.y };
 
 	if(name[0] != '-') {
@@ -587,91 +587,91 @@ static void spooky_menu_render_menu_action(const spooky_menu * self, SDL_Rendere
 	data->font->set_is_drop_shadow(data->font, true);
 }
 
-static spooky_menu_types spooky_menu_get_menu_type(const spooky_menu * self) {
-	spooky_menu_data * data = self->data;
+static sp_menu_types sp_menu_get_menu_type(const sp_menu * self) {
+	sp_menu_data * data = self->data;
 	return data->menu_type;
 }
 
-int spooky_menu_get_x(const spooky_menu * self) {
-	spooky_menu_data * data = self->data;
+int sp_menu_get_x(const sp_menu * self) {
+	sp_menu_data * data = self->data;
 	return data->rect.x;
 }
 
-void spooky_menu_set_x(const spooky_menu * self, int x) {
-	spooky_menu_data * data = self->data;
+void sp_menu_set_x(const sp_menu * self, int x) {
+	sp_menu_data * data = self->data;
 	data->rect.x = x;
 }
 
-int spooky_menu_get_y(const spooky_menu * self) {
-	spooky_menu_data * data = self->data;
+int sp_menu_get_y(const sp_menu * self) {
+	sp_menu_data * data = self->data;
 	return data->rect.y;
 }
 
-void spooky_menu_set_y(const spooky_menu * self, int y) {
-	spooky_menu_data * data = self->data;
+void sp_menu_set_y(const sp_menu * self, int y) {
+	sp_menu_data * data = self->data;
 	data->rect.y = y;
 }
 
-int spooky_menu_get_w(const spooky_menu * self) {
-	spooky_menu_data * data = self->data;
+int sp_menu_get_w(const sp_menu * self) {
+	sp_menu_data * data = self->data;
 	return data->rect.w;
 }
 
-void spooky_menu_set_w(const spooky_menu * self, int w) {
-	spooky_menu_data * data = self->data;
+void sp_menu_set_w(const sp_menu * self, int w) {
+	sp_menu_data * data = self->data;
 	data->rect.w = w;
 }
 
-int spooky_menu_get_h(const spooky_menu * self) {
-	spooky_menu_data * data = self->data;
+int sp_menu_get_h(const sp_menu * self) {
+	sp_menu_data * data = self->data;
 	return data->rect.h;
 }
 
-void spooky_menu_set_h(const spooky_menu * self, int h) {
-	spooky_menu_data * data = self->data;
+void sp_menu_set_h(const sp_menu * self, int h) {
+	sp_menu_data * data = self->data;
 	data->rect.h = h;
 }
 
-const char  * spooky_menu_get_name(const spooky_menu * self) {
-	spooky_menu_data * data = self->data;
+const char  * sp_menu_get_name(const sp_menu * self) {
+	sp_menu_data * data = self->data;
 	return data->name;
 }
 
-static void spooky_menu_set_active_menu(const spooky_menu * self, const spooky_menu * active_menu) {
-	spooky_menu_data * data = self->data;
+static void sp_menu_set_active_menu(const sp_menu * self, const sp_menu * active_menu) {
+	sp_menu_data * data = self->data;
 	data->active_menu = active_menu;
 }
 
-static const spooky_menu * spooky_menu_get_active_menu(const spooky_menu * self) {
-	spooky_menu_data * data = self->data;
+static const sp_menu * sp_menu_get_active_menu(const sp_menu * self) {
+	sp_menu_data * data = self->data;
 	return data->active_menu;
 }
 
-static void spooky_menu_set_parent(const spooky_menu * self, const spooky_menu * parent) {
-	spooky_menu_data * data = self->data;
+static void sp_menu_set_parent(const sp_menu * self, const sp_menu * parent) {
+	sp_menu_data * data = self->data;
 	data->parent = parent;
 }
 
-static bool spooky_menu_get_is_active(const spooky_menu * self) {
-	spooky_menu_data * data = self->data;
+static bool sp_menu_get_is_active(const sp_menu * self) {
+	sp_menu_data * data = self->data;
 	return data->is_active;
 }
 
-static int spooky_menu_get_name_width(const spooky_menu * self) {
-	spooky_menu_data * data = self->data;
+static int sp_menu_get_name_width(const sp_menu * self) {
+	sp_menu_data * data = self->data;
 	return data->name_width;
 }
 
-static int spooky_menu_get_name_height(const spooky_menu * self) {
-	spooky_menu_data * data = self->data;
+static int sp_menu_get_name_height(const sp_menu * self) {
+	sp_menu_data * data = self->data;
 	return data->name_height;
 }
 
-static void spooky_menu_set_is_expanded(const spooky_menu * self, bool value) {
-	spooky_menu_data * data = self->data;
+static void sp_menu_set_is_expanded(const sp_menu * self, bool value) {
+	sp_menu_data * data = self->data;
 	data->is_expanded = value;
 	for(size_t i = 0; i < data->menu_items_count; i++) {
-		const spooky_menu * menu = &(data->menu_items[i]);
+		const sp_menu * menu = &(data->menu_items[i]);
 		menu->set_is_expanded(menu, value);
 	}
 }
@@ -695,15 +695,15 @@ typedef enum {
 	SMTT_TOKEN_IDENTIFIER,
 	SMTT_TOKEN_STRING,
 	SMTT_TOKEN_EOE
-} spooky_menu_token_type;
+} sp_menu_token_type;
 
 typedef struct {
-	spooky_menu_token_type type;
+	sp_menu_token_type type;
 	char padding[4];
 	char * value;
-} spooky_menu_token;
+} sp_menu_token;
 
-static void spooky_menu_advance_input(const char **str, spooky_menu_token * lookahead) {
+static void sp_menu_advance_input(const char **str, sp_menu_token * lookahead) {
 	const char * s = *str;
 	while(isspace(*s)) {
 		s++;
@@ -781,21 +781,21 @@ static void spooky_menu_advance_input(const char **str, spooky_menu_token * look
 	abort();
 }
 
-static const spooky_menu * spooky_menu_push_item(const spooky_context * context, SDL_Rect rect, const char * text, spooky_menu_types type) {
+static const sp_menu * sp_menu_push_item(const sp_context * context, SDL_Rect rect, const char * text, sp_menu_types type) {
 	if(menu_stack == NULL) {
 		menu_stack = calloc(menu_stack_capacity, sizeof ** menu_stack);
 		if(!menu_stack) { abort(); }
 	}
 
 	if(menu_stack_len + 1 > menu_stack_capacity) {
-		const spooky_menu ** temp = realloc(menu_stack, (menu_stack_capacity + 8) * sizeof ** temp);
+		const sp_menu ** temp = realloc(menu_stack, (menu_stack_capacity + 8) * sizeof ** temp);
 		if(!temp) { abort(); }
 
 		menu_stack_capacity += 8;
 		menu_stack = temp;
 	}
 
-	const spooky_menu * menu = spooky_menu_acquire();
+	const sp_menu * menu = sp_menu_acquire();
 	menu = menu->ctor(menu, context->get_font(context), context, text, rect, type);
 
 	menu_stack[menu_stack_len] = menu;
@@ -804,48 +804,48 @@ static const spooky_menu * spooky_menu_push_item(const spooky_context * context,
 	return menu;
 }
 
-static const spooky_menu * spooky_menu_read_definitions(const spooky_context * context, SDL_Rect rect, const char * path) {
-	static const spooky_ex _ex = { 0 };
-	static const spooky_ex *ex = &_ex;
+static const sp_menu * sp_menu_read_definitions(const sp_context * context, SDL_Rect rect, const char * path) {
+	static const sp_ex _ex = { 0 };
+	static const sp_ex *ex = &_ex;
 
 	char * buffer = NULL;
-	errno_t res = spooky_io_read_buffer_from_file(path, &buffer, &ex);
+	errno_t res = sp_io_read_buffer_from_file(path, &buffer, &ex);
 	if(res || !buffer) {
-		spooky_ex_print(ex);
+		sp_ex_print(ex);
 		abort();
 	}
 
 	const char * s = buffer;
 
 	/* Array to hold the parsed tokens */
-	spooky_menu_token * tokens = calloc(256, sizeof * tokens);
+	sp_menu_token * tokens = calloc(256, sizeof * tokens);
 	size_t tokens_len = 0;
 	size_t tokens_capacity = 256;
 
 	int count = 0;
 	while(s && *s != '\0' && *s != EOF) {
 		if(tokens_len + 1 > tokens_capacity) {
-			spooky_menu_token * temp = realloc(tokens, (tokens_capacity * 2) * sizeof * temp);
+			sp_menu_token * temp = realloc(tokens, (tokens_capacity * 2) * sizeof * temp);
 			if(!temp) { abort(); }
 			tokens_capacity *= 2;
 			tokens = temp;
 		}
 
-		spooky_menu_token * T = &(tokens[tokens_len++]);
-		spooky_menu_advance_input(&s, T);
+		sp_menu_token * T = &(tokens[tokens_len++]);
+		sp_menu_advance_input(&s, T);
 		count++;
 	}
 
-	const spooky_menu * main_menu = spooky_menu_push_item(context, rect, "Main Menu", SMT_MAIN_MENU);
-	const spooky_menu * current = main_menu;
+	const sp_menu * main_menu = sp_menu_push_item(context, rect, "Main Menu", SMT_MAIN_MENU);
+	const sp_menu * current = main_menu;
 
 	int j = 0, level = 0;
 	while(j < count) {
-		spooky_menu_token prev = { .type = SMTT_TOKEN_EOE, { 0 } };
+		sp_menu_token prev = { .type = SMTT_TOKEN_EOE, { 0 } };
 		if(j - 1 > 0) {
 			prev = tokens[j - 1];
 		}
-		spooky_menu_token t = tokens[j++];
+		sp_menu_token t = tokens[j++];
 
 		switch(t.type) {
 			case SMTT_TOKEN_LEFT_BRACKET:
@@ -869,11 +869,11 @@ static const spooky_menu * spooky_menu_read_definitions(const spooky_context * c
 					SDL_Rect r = { .x = 0, .y = 0, .w = 0, .h = 0 };
 					if(level == 1) {
 						/* Top-level menu item */
-						const spooky_menu * menu = spooky_menu_push_item(context, r, t.value, SMT_MAIN_MENU_ITEM);
+						const sp_menu * menu = sp_menu_push_item(context, r, t.value, SMT_MAIN_MENU_ITEM);
 						main_menu->attach_item(main_menu, menu, &current);
 					} else {
 						/* Action */
-						const spooky_menu * menu = spooky_menu_push_item(context, r, t.value, SMT_MAIN_MENU_ACTION);
+						const sp_menu * menu = sp_menu_push_item(context, r, t.value, SMT_MAIN_MENU_ACTION);
 						current->attach_item(current, menu, NULL);
 					}
 				}

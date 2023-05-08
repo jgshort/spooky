@@ -9,34 +9,34 @@ extern "C" {
 #include "sp_context.h"
 #include "sp_iter.h"
 
-  typedef struct spooky_wm spooky_wm;
-  typedef struct spooky_wm {
-    spooky_base super;
+  typedef struct sp_wm sp_wm;
+  typedef struct sp_wm {
+    sp_base super;
 
-    const spooky_base * (*as_base)(const spooky_wm * /* self */);
-    const spooky_wm * (*ctor)(const spooky_wm * /* self */, const char * /* name */, const spooky_context * /* context */);
-    const spooky_wm * (*dtor)(const spooky_wm * /* self */);
-    void (*free)(const spooky_wm * /* self */);
-    void (*release)(const spooky_wm * /* self */);
+    const sp_base * (*as_base)(const sp_wm * /* self */);
+    const sp_wm * (*ctor)(const sp_wm * /* self */, const char * /* name */, const sp_context * /* context */);
+    const sp_wm * (*dtor)(const sp_wm * /* self */);
+    void (*free)(const sp_wm * /* self */);
+    void (*release)(const sp_wm * /* self */);
 
-    void (*register_window)(spooky_wm const * /* self */, const spooky_base * /* active_object */);
-    void (*activate_window)(spooky_wm const * /* self */, const spooky_base * /* active_object */);
-    //const spooky_iter * (*window_iter)(spooky_wm const * /* self */);
+    void (*register_window)(sp_wm const * /* self */, const sp_base * /* active_object */);
+    void (*activate_window)(sp_wm const * /* self */, const sp_base * /* active_object */);
+    //const sp_iter * (*window_iter)(sp_wm const * /* self */);
 
-    const spooky_base * (*get_active_object)(const spooky_wm * /* self */);
+    const sp_base * (*get_active_object)(const sp_wm * /* self */);
 
-    void (*set_active_object)(const spooky_wm * /* self */, const spooky_base * /* active_object */);
-    int (*get_max_z_order)(const spooky_wm * /* self */);
-    struct spooky_wm_data * data;
-  } spooky_wm;
+    void (*set_active_object)(const sp_wm * /* self */, const sp_base * /* active_object */);
+    int (*get_max_z_order)(const sp_wm * /* self */);
+    struct sp_wm_data * data;
+  } sp_wm;
 
-  const spooky_wm * spooky_wm_alloc(void);
-  const spooky_wm * spooky_wm_init(spooky_wm * /* self */);
-  const spooky_wm * spooky_wm_acquire(void);
-  const spooky_wm * spooky_wm_ctor(const spooky_wm * /* self */, const char * /* name */, const spooky_context * /* context */);
-  const spooky_wm * spooky_wm_dtor(const spooky_wm * /* self */);
-  void spooky_wm_free(const spooky_wm * /* self */);
-  void spooky_wm_release(const spooky_wm * /* self */);
+  const sp_wm * sp_wm_alloc(void);
+  const sp_wm * sp_wm_init(sp_wm * /* self */);
+  const sp_wm * sp_wm_acquire(void);
+  const sp_wm * sp_wm_ctor(const sp_wm * /* self */, const char * /* name */, const sp_context * /* context */);
+  const sp_wm * sp_wm_dtor(const sp_wm * /* self */);
+  void sp_wm_free(const sp_wm * /* self */);
+  void sp_wm_release(const sp_wm * /* self */);
 
 #ifdef __cplusplus
 }

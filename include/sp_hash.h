@@ -8,36 +8,36 @@ extern "C" {
 #include <stdlib.h>
 #include "sp_str.h"
 
-  typedef struct spooky_hash_table_impl spooky_hash_table_impl;
-  typedef void (*spooky_hash_free_item)(void * /* item */);
+  typedef struct sp_hash_table_impl sp_hash_table_impl;
+  typedef void (*sp_hash_free_item)(void * /* item */);
 
-  typedef struct spooky_hash_table spooky_hash_table;
-  typedef struct spooky_hash_table {
-    const spooky_hash_table * (*ctor)(const spooky_hash_table * /* self */);
-    const spooky_hash_table * (*dtor)(const spooky_hash_table * /* self */, const spooky_hash_free_item /* free_item_fn */);
-    void (*free)(const spooky_hash_table * /* self */);
-    void (*release)(const spooky_hash_table * /* self */, const spooky_hash_free_item /* free_item_fn */);
+  typedef struct sp_hash_table sp_hash_table;
+  typedef struct sp_hash_table {
+    const sp_hash_table * (*ctor)(const sp_hash_table * /* self */);
+    const sp_hash_table * (*dtor)(const sp_hash_table * /* self */, const sp_hash_free_item /* free_item_fn */);
+    void (*free)(const sp_hash_table * /* self */);
+    void (*release)(const sp_hash_table * /* self */, const sp_hash_free_item /* free_item_fn */);
 
-    errno_t (*ensure)(const spooky_hash_table * /* self */, const char * /* s */, size_t /* s_len */, void * /* value */, spooky_str ** /* str */);
-    errno_t (*find)(const spooky_hash_table * /* self */, const char * /* s */, size_t /* s_len */, void ** /* value */);
+    errno_t (*ensure)(const sp_hash_table * /* self */, const char * /* s */, size_t /* s_len */, void * /* value */, sp_str ** /* str */);
+    errno_t (*find)(const sp_hash_table * /* self */, const char * /* s */, size_t /* s_len */, void ** /* value */);
 
-    char * (*print_stats)(const spooky_hash_table * /* self */);
-    double (*get_load_factor)(const spooky_hash_table * /* self */);
+    char * (*print_stats)(const sp_hash_table * /* self */);
+    double (*get_load_factor)(const sp_hash_table * /* self */);
 
-    size_t (*get_bucket_length)(const spooky_hash_table * /* self */);
-    size_t (*get_bucket_capacity)(const spooky_hash_table * /* self */);
-    size_t (*get_key_count)(const spooky_hash_table * /* self */);
+    size_t (*get_bucket_length)(const sp_hash_table * /* self */);
+    size_t (*get_bucket_capacity)(const sp_hash_table * /* self */);
+    size_t (*get_key_count)(const sp_hash_table * /* self */);
 
-    spooky_hash_table_impl * impl;
-  } spooky_hash_table;
+    sp_hash_table_impl * impl;
+  } sp_hash_table;
 
-  const spooky_hash_table * spooky_hash_table_alloc();
-  const spooky_hash_table * spooky_hash_table_init(spooky_hash_table * /* self */);
-  const spooky_hash_table * spooky_hash_table_acquire();
-  const spooky_hash_table * spooky_hash_table_ctor(const spooky_hash_table * /* self */);
-  const spooky_hash_table * spooky_hash_table_dtor(const spooky_hash_table * /* self */, const spooky_hash_free_item /* free_item_fn */);
-  void spooky_hash_table_free(const spooky_hash_table * /* self */);
-  void spooky_hash_table_release(const spooky_hash_table * /* self */, const spooky_hash_free_item /* free_item_fn */);
+  const sp_hash_table * sp_hash_table_alloc();
+  const sp_hash_table * sp_hash_table_init(sp_hash_table * /* self */);
+  const sp_hash_table * sp_hash_table_acquire();
+  const sp_hash_table * sp_hash_table_ctor(const sp_hash_table * /* self */);
+  const sp_hash_table * sp_hash_table_dtor(const sp_hash_table * /* self */, const sp_hash_free_item /* free_item_fn */);
+  void sp_hash_table_free(const sp_hash_table * /* self */);
+  void sp_hash_table_release(const sp_hash_table * /* self */, const sp_hash_free_item /* free_item_fn */);
 
 #ifdef __cplusplus
 }

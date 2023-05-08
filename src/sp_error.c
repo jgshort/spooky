@@ -5,24 +5,24 @@
 
 #include "../include/sp_error.h"
 
-#define SPOOKY_EX_MAX_ALLOCS 2048
+#define sp_EX_MAX_ALLOCS 2048
 
 const errno_t SP_SUCCESS = 0;
 const errno_t SP_FAILURE = !SP_SUCCESS;
 
-//static spooky_ex * spooky_ex_allocated_exes[SPOOKY_EX_MAX_ALLOCS];
-//static size_t spooky_ex_next_alloc = 0;
+//static sp_ex * sp_ex_allocated_exes[sp_EX_MAX_ALLOCS];
+//static size_t sp_ex_next_alloc = 0;
 
-static spooky_ex spooky_ex_stack[SPOOKY_EX_MAX_ALLOCS] = { 0 };
-static size_t spooky_ex_stack_len = 0;
+static sp_ex sp_ex_stack[sp_EX_MAX_ALLOCS] = { 0 };
+static size_t sp_ex_stack_len = 0;
 
-int spooky_is_sdl_error(const char * msg) {
+int sp_is_sdl_error(const char * msg) {
   /* SDL_GetError() will return an empty string if it hasn't been set */
   return msg != NULL && msg[0] != '\0';
 }
 
-errno_t spooky_ex_new(long line, const char * file, const int code, const char * msg, const spooky_ex * inner, const spooky_ex ** out_ex) {
-  spooky_ex * temp = &(spooky_ex_stack[spooky_ex_stack_len++]);
+errno_t sp_ex_new(long line, const char * file, const int code, const char * msg, const sp_ex * inner, const sp_ex ** out_ex) {
+  sp_ex * temp = &(sp_ex_stack[sp_ex_stack_len++]);
 
   temp->code = code;
   temp->line = line;
@@ -35,7 +35,7 @@ errno_t spooky_ex_new(long line, const char * file, const int code, const char *
   return SP_SUCCESS;
 }
 
-errno_t spooky_ex_print(const spooky_ex * ex) {
+errno_t sp_ex_print(const sp_ex * ex) {
   if(ex) {
     int nest = 0;
     do {

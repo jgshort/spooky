@@ -9,14 +9,14 @@ extern "C" {
 
 #include <stdint.h>
 
-  typedef struct spooky_save_game {
+  typedef struct sp_save_game {
     const char * name;
     int save_game_version;
     int v1_id;
-  } spooky_save_game;
+  } sp_save_game;
 
-  typedef struct spooky_save_game_v1 {
-    spooky_save_game base;
+  typedef struct sp_save_game_v1 {
+    sp_save_game base;
     int seed;
     char padding[4];
     int turns;
@@ -24,7 +24,7 @@ extern "C" {
     double x;
     double y;
     double z;
-  } spooky_save_game_v1;
+  } sp_save_game_v1;
 
 #ifdef __cplusplus
 }

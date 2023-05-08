@@ -7,46 +7,46 @@ extern "C" {
 
 #include "sp_console.h"
 
-  typedef enum spooky_log_severity {
+  typedef enum sp_log_severity {
     SLS_INFO,
     SLS_DEBUG,
     SLS_WARN,
     SLS_ERROR,
     SLS_CRITICAL
-  } spooky_log_severity;
+  } sp_log_severity;
 
-  typedef struct spooky_log spooky_log;
-  typedef struct spooky_log {
-    const spooky_log * (*ctor)(const spooky_log * self);
-    const spooky_log * (*dtor)(const spooky_log * self);
-    void (*free)(const spooky_log * self);
-    void (*release)(const spooky_log * self);
+  typedef struct sp_log sp_log;
+  typedef struct sp_log {
+    const sp_log * (*ctor)(const sp_log * self);
+    const sp_log * (*dtor)(const sp_log * self);
+    void (*free)(const sp_log * self);
+    void (*release)(const sp_log * self);
 
-    void (*prepend)(const spooky_log * self, const char * line, spooky_log_severity severity);
-    void (*dump)(const spooky_log * self, const spooky_console * console);
-  } spooky_log;
+    void (*prepend)(const sp_log * self, const char * line, sp_log_severity severity);
+    void (*dump)(const sp_log * self, const sp_console * console);
+  } sp_log;
 
-  const spooky_log * spooky_log_init(spooky_log * self);
-  const spooky_log * spooky_log_alloc(void);
-  const spooky_log * spooky_log_acquire(void);
-  const spooky_log * spooky_log_ctor(const spooky_log * self);
-  const spooky_log * spooky_log_dtor(const spooky_log * self);
-  void spooky_log_free(const spooky_log * self);
-  void spooky_log_release(const spooky_log * self);
+  const sp_log * sp_log_init(sp_log * self);
+  const sp_log * sp_log_alloc(void);
+  const sp_log * sp_log_acquire(void);
+  const sp_log * sp_log_ctor(const sp_log * self);
+  const sp_log * sp_log_dtor(const sp_log * self);
+  void sp_log_free(const sp_log * self);
+  void sp_log_release(const sp_log * self);
 
-  void spooky_log_startup(void);
+  void sp_log_startup(void);
 
-  void spooky_log_prepend_formatted(spooky_log_severity severity, const char * format, ...)
+  void sp_log_prepend_formatted(sp_log_severity severity, const char * format, ...)
 #ifdef __linux__
     __attribute__ ((format (printf, 2, 3)))
 #endif
     ;
 
-  void spooky_log_shutdown(void);
-  void spooky_log_dump_to_console(const spooky_console * console);
-  size_t spooky_log_get_global_entries_count(void);
+  void sp_log_shutdown(void);
+  void sp_log_dump_to_console(const sp_console * console);
+  size_t sp_log_get_global_entries_count(void);
 
-#define SP_LOG(sev, ...) do { spooky_log_prepend_formatted((sev), __VA_ARGS__); } while(0)
+#define SP_LOG(sev, ...) do { sp_log_prepend_formatted((sev), __VA_ARGS__); } while(0)
 
 #ifdef __cplusplus
 }

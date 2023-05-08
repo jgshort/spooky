@@ -27,8 +27,8 @@ extern "C" {
 
 #include <stdio.h>
 
-  errno_t spooky_inflate_file(FILE * /* source */, FILE * /* dest */, size_t * /* dest_len */);
-  errno_t spooky_deflate_file(FILE * /* source */, FILE * /* dest */, size_t * /* dest_len */);
+  errno_t sp_inflate_file(FILE * /* source */, FILE * /* dest */, size_t * /* dest_len */);
+  errno_t sp_deflate_file(FILE * /* source */, FILE * /* dest */, size_t * /* dest_len */);
 
 #ifdef __cplusplus
 }

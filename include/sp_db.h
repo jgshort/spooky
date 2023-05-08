@@ -7,34 +7,34 @@ extern "C" {
 
 #include "sp_types.h"
 
-  typedef struct spooky_db spooky_db;
-  typedef struct spooky_db_data spooky_db_data;
-  typedef struct spooky_db {
-    const spooky_db * (*ctor)(const spooky_db * /* self */, const char * /* context_name */);
-    const spooky_db * (*dtor)(const spooky_db * /* self */);
-    void (*free)(const spooky_db * /* self */);
-    void (*release)(const spooky_db * /* self */);
+  typedef struct sp_db sp_db;
+  typedef struct sp_db_data sp_db_data;
+  typedef struct sp_db {
+    const sp_db * (*ctor)(const sp_db * /* self */, const char * /* context_name */);
+    const sp_db * (*dtor)(const sp_db * /* self */);
+    void (*free)(const sp_db * /* self */);
+    void (*release)(const sp_db * /* self */);
 
-    int (*open)(const spooky_db * /* self */);
-    int (*close)(const spooky_db * /* self */);
-    int (*create)(const spooky_db * /* self */);
-    int (*get_table_count)(const spooky_db * /* self */, const char * /* table_name */);
-    int (*get_last_row_id)(const spooky_db * /* self */, const char * /* table_name */);
+    int (*open)(const sp_db * /* self */);
+    int (*close)(const sp_db * /* self */);
+    int (*create)(const sp_db * /* self */);
+    int (*get_table_count)(const sp_db * /* self */, const char * /* table_name */);
+    int (*get_last_row_id)(const sp_db * /* self */, const char * /* table_name */);
 
-    int (*load_game)(const spooky_db * /* self */, const char * /* name */, spooky_save_game * /* state */);
-    int (*save_game)(const spooky_db * /* self */, const char * /* name */, const spooky_save_game * /* state */);
+    int (*load_game)(const sp_db * /* self */, const char * /* name */, sp_save_game * /* state */);
+    int (*save_game)(const sp_db * /* self */, const char * /* name */, const sp_save_game * /* state */);
 
-    spooky_db_data * data;
-  } spooky_db;
+    sp_db_data * data;
+  } sp_db;
 
-  const spooky_db * spooky_db_alloc();
-  const spooky_db * spooky_db_init(spooky_db * /* self */);
-  const spooky_db * spooky_db_acquire();
-  const spooky_db * spooky_db_ctor(const spooky_db * /* self */, const char * /* context_name */);
-  const spooky_db * spooky_db_dtor(const spooky_db * /* self */);
+  const sp_db * sp_db_alloc();
+  const sp_db * sp_db_init(sp_db * /* self */);
+  const sp_db * sp_db_acquire();
+  const sp_db * sp_db_ctor(const sp_db * /* self */, const char * /* context_name */);
+  const sp_db * sp_db_dtor(const sp_db * /* self */);
 
-  void spooky_db_free(const spooky_db * /* self */);
-  void spooky_db_release(const spooky_db * /* self */);
+  void sp_db_free(const sp_db * /* self */);
+  void sp_db_release(const sp_db * /* self */);
 
 #ifdef __cplusplus
 }

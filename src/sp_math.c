@@ -6,7 +6,7 @@
 
 const float SMATH_FLT_EPSILON = FLT_EPSILON;
 
-bool spooky_float_equal(float left, float right, float max_rel_diff /*SMATH_FLT_EPSILON*/)
+bool sp_float_equal(float left, float right, float max_rel_diff /*SMATH_FLT_EPSILON*/)
 {
   const float diff = fabsf(left - right);
   left = fabsf(left);
@@ -16,18 +16,18 @@ bool spooky_float_equal(float left, float right, float max_rel_diff /*SMATH_FLT_
   return diff <= scaled_epsilon;
 }
 
-int spooky_int_min3(int a, int b, int c) {
+int sp_int_min3(int a, int b, int c) {
   return (a < b) ? (a < c ? a : c) : (b < c ? b : c);
 }
 
-int spooky_int_max3(int a, int b, int c) {
+int sp_int_max3(int a, int b, int c) {
   return (a > b) ? (a > c ? a : c) : (b > c ? b : c);
 }
 
-int spooky_int_max(int left, int right) {
+int sp_int_max(int left, int right) {
   return left > right ? left : right;
 }
 
-int spooky_int_min(int left, int right) {
+int sp_int_min(int left, int right) {
   return left < right ? left : right;
 }

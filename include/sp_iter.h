@@ -7,15 +7,15 @@ extern "C" {
 
 #include <stdbool.h>
 
-  typedef struct spooky_iter spooky_iter;
+  typedef struct sp_iter sp_iter;
 
-  typedef struct spooky_iter {
-    bool (*next)(const spooky_iter * it);
-    const void * (*current)(const spooky_iter * it);
-    void (*reset)(const spooky_iter * it);
-    void (*reverse)(const spooky_iter * it);
-    void (*free)(const spooky_iter * it);
-  } spooky_iter;
+  typedef struct sp_iter {
+    bool (*next)(const sp_iter * it);
+    const void * (*current)(const sp_iter * it);
+    void (*reset)(const sp_iter * it);
+    void (*reverse)(const sp_iter * it);
+    void (*free)(const sp_iter * it);
+  } sp_iter;
 
 #ifdef __cplusplus
 }

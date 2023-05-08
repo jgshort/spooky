@@ -24,27 +24,27 @@
 static const size_t SP_STR_MAX_STR_LEN = sizeof("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.");
 
 /* Reference type:
- * typedef struct spooky_str {
+ * typedef struct sp_str {
  *  size_t len;
  *  size_t ref_count;
  *  unsigned long hash;
  *  const char * str;
- * } spooky_str;
+ * } sp_str;
  */
 
-void spooky_str_copy(spooky_str ** dest, const spooky_str * src) {
+void sp_str_copy(sp_str ** dest, const sp_str * src) {
   **dest = *src;
 }
 
-void spooky_str_swap(spooky_str ** left, spooky_str ** right) {
-  spooky_str temp = **left;
+void sp_str_swap(sp_str ** left, sp_str ** right) {
+  sp_str temp = **left;
   **left = **right;
   **right = temp;
 }
 
 /* See: http://www.cse.yorku.ca/~oz/hash.html */
 #define SP_HASH_USE_SDBM
-inline static uint64_t spooky_hash_str_internal(const char * restrict s, size_t s_len) {
+inline static uint64_t sp_hash_str_internal(const char * restrict s, size_t s_len) {
   register uint64_t hash;
 #ifdef SP_HASH_USE_SDBM
   /* use SDBM algorithm: */
@@ -88,18 +88,18 @@ inline static uint64_t spooky_hash_str_internal(const char * restrict s, size_t 
   return hash;
 }
 
-uint64_t spooky_hash_str(const char * restrict s, size_t s_len) {
-  return spooky_hash_str_internal(s, s_len);
+uint64_t sp_hash_str(const char * restrict s, size_t s_len) {
+  return sp_hash_str_internal(s, s_len);
 }
 
-errno_t spooky_str_new(const char * s, size_t len, spooky_str * out_str) {
+errno_t sp_str_new(const char * s, size_t len, sp_str * out_str) {
   assert(s && len > 0 && out_str);
 
   size_t s_nlen = len >= SP_STR_MAX_STR_LEN ? SP_STR_MAX_STR_LEN : len;
   assert(s_nlen == len);
   if(s_nlen != len) { goto err0; }
 
-  out_str->hash = spooky_hash_str_internal(s, s_nlen);
+  out_str->hash = sp_hash_str_internal(s, s_nlen);
   out_str->len = s_nlen;
   out_str->str = s;
 
@@ -111,7 +111,7 @@ err0:
   return SP_FAILURE;
 }
 
-errno_t spooky_str_ref(const char * s, size_t len, uint64_t hash, spooky_str * out_str) {
+errno_t sp_str_ref(const char * s, size_t len, uint64_t hash, sp_str * out_str) {
   assert(s && len > 0 && out_str);
   if(!s || len == 0 || !out_str) { goto err0; }
 
@@ -132,15 +132,15 @@ err0:
   return SP_FAILURE;
 }
 
-uint64_t spooky_str_get_hash(const spooky_str * self) {
+uint64_t sp_str_get_hash(const sp_str * self) {
   return self->hash;
 }
 
-const char * spooky_str_get_str(const spooky_str * self) {
+const char * sp_str_get_str(const sp_str * self) {
   return self->str;
 }
 
-errno_t spooky_str_isspace(int c, bool * out_space) {
+errno_t sp_str_isspace(int c, bool * out_space) {
   assert(!(NULL == out_space || (EOF != c  && (UCHAR_MAX < c || 0 > c))));
 
   if(NULL == out_space || (EOF != c  && (UCHAR_MAX < c || 0 > c))) {
@@ -152,7 +152,7 @@ errno_t spooky_str_isspace(int c, bool * out_space) {
   return SP_SUCCESS;
 }
 
-errno_t spooky_str_trim(const char * str, size_t str_len, size_t n_max, char ** out_str, size_t * out_str_len) {
+errno_t sp_str_trim(const char * str, size_t str_len, size_t n_max, char ** out_str, size_t * out_str_len) {
   assert(!(n_max < 1 || !out_str || !out_str_len));
 
   if(n_max < 1 || !out_str || !out_str_len) { goto err0; }
@@ -172,7 +172,7 @@ errno_t spooky_str_trim(const char * str, size_t str_len, size_t n_max, char ** 
     bool space = false;
     do {
       if(start < end) {
-        if(spooky_str_isspace(*start, &space)) { goto err0; }
+        if(sp_str_isspace(*start, &space)) { goto err0; }
       }
     } while(space && ++start < end);
   }
@@ -181,7 +181,7 @@ errno_t spooky_str_trim(const char * str, size_t str_len, size_t n_max, char ** 
     bool space = false;
     do {
       if(end > start) {
-        if(spooky_str_isspace(*(end - 1),  &space)) { goto err0; }
+        if(sp_str_isspace(*(end - 1),  &space)) { goto err0; }
       }
     } while(space && --end > start);
   }
@@ -227,15 +227,15 @@ err0:
   return SP_FAILURE;
 }
 
-int spooky_str_hash_compare(const void * a, const void * b) {
-  const spooky_str * l = (const spooky_str *)a;
-  const spooky_str * r = (const spooky_str *)b;
+int sp_str_hash_compare(const void * a, const void * b) {
+  const sp_str * l = (const sp_str *)a;
+  const sp_str * r = (const sp_str *)b;
   if(l->hash < r->hash) return -1;
   if(l->hash > r->hash) return 1;
   return 0;
 }
 
-int spooky_str_compare(const spooky_str * left, const spooky_str * right) {
+int sp_str_compare(const sp_str * left, const sp_str * right) {
   if(!left) { return -1; }
   if(!right) { return 1; }
 
@@ -266,7 +266,7 @@ int spooky_str_compare(const spooky_str * left, const spooky_str * right) {
   return diff;
 }
 
-const char * spooky_strcpy(const char * start, const char * end, size_t * text_len) {
+const char * sp_strcpy(const char * start, const char * end, size_t * text_len) {
   assert(start && end && text_len);
   assert(end >= start);
   assert(*text_len == 0);

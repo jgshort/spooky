@@ -22,7 +22,7 @@
 
 static const size_t SP_IO_MAX_PATH_LEN = 65536;
 
-static const char * spooky_io_get_user_home(size_t * path_len) {
+static const char * sp_io_get_user_home(size_t * path_len) {
   static const char * home = NULL;
   static size_t home_len = 0;
 
@@ -43,11 +43,11 @@ static const char * spooky_io_get_user_home(size_t * path_len) {
   return home;
 }
 
-char * spooky_io_alloc_config_path(void) {
+char * sp_io_alloc_config_path(void) {
   static const char * default_path = "/.config/pkin";
 
   size_t home_len = 0;
-  const char * home = spooky_io_get_user_home(&home_len);
+  const char * home = sp_io_get_user_home(&home_len);
   size_t default_path_len = strnlen(default_path, SP_IO_MAX_PATH_LEN);
   char * config_path = calloc(home_len + default_path_len + 1, sizeof * config_path);
   if(!config_path) { abort(); }
@@ -58,14 +58,14 @@ char * spooky_io_alloc_config_path(void) {
   return config_path;
 }
 
-void spooky_io_ensure_path(const char * path, mode_t mode) {
+void sp_io_ensure_path(const char * path, mode_t mode) {
   struct stat st = { 0 };
   if (stat(path, &st) == -1) {
     mkdir(path, mode);
   }
 }
 
-char * spooky_io_alloc_concat_path(char const * root_path, char const * path) {
+char * sp_io_alloc_concat_path(char const * root_path, char const * path) {
   char * full_path = calloc(strnlen(root_path, SP_IO_MAX_PATH_LEN) + strnlen(path, SP_IO_MAX_PATH_LEN) + sizeof('\0'), sizeof * full_path);
   if (!full_path) { abort(); }
 
@@ -76,7 +76,7 @@ char * spooky_io_alloc_concat_path(char const * root_path, char const * path) {
   return full_path;
 }
 
-FILE * spooky_io_open_or_create_binary_file_for_writing(const char * path, int * fd_out) {
+FILE * sp_io_open_or_create_binary_file_for_writing(const char * path, int * fd_out) {
   int fd = open(path, O_CREAT | O_RDWR | O_EXCL, S_IRUSR | S_IWUSR);
   if(fd < 0) {
     /* already exists; open it */
@@ -99,7 +99,7 @@ FILE * spooky_io_open_or_create_binary_file_for_writing(const char * path, int *
   return fp;
 }
 
-FILE * spooky_io_open_binary_file_for_reading(const char * path, int * fd_out) {
+FILE * sp_io_open_binary_file_for_reading(const char * path, int * fd_out) {
   FILE * fp = NULL;
 
   int fd = open(path, O_RDWR | O_EXCL, S_IRUSR | S_IWUSR);
@@ -119,7 +119,7 @@ FILE * spooky_io_open_binary_file_for_reading(const char * path, int * fd_out) {
 }
 
 /*
-   int spooky_io_context_exists(char const * context_name) {
+   int sp_io_context_exists(char const * context_name) {
    char const * config_path = get_config_path();
    char * full_path = alloc_concat_path(config_path, context_name);
 
@@ -132,7 +132,7 @@ FILE * spooky_io_open_binary_file_for_reading(const char * path, int * fd_out) {
    }
    */
 
-static const char * spooky_io_gen_io_ex_msg(const char * start, const char * path, const char * end) {
+static const char * sp_io_gen_io_ex_msg(const char * start, const char * path, const char * end) {
   static const size_t max_block_len = 256;
   static char buf[1024] = { 0 };
 
@@ -157,7 +157,7 @@ static const char * spooky_io_gen_io_ex_msg(const char * start, const char * pat
   return buf;
 }
 
-errno_t spooky_io_read_buffer_from_file(const char * path, char ** buffer, const spooky_ex ** ex) {
+errno_t sp_io_read_buffer_from_file(const char * path, char ** buffer, const sp_ex ** ex) {
   FILE *fp = fopen(path, "r");
   if(errno || !fp) { goto err1; }
 
@@ -195,7 +195,7 @@ err_free: /* Ensure freed buffer on post-allocation failures. */
   goto err;
 
 err5: /* malloc failure. */
-  spooky_ex_new(__LINE__, __FILE__, -1, "Out-of-memory exception reading file contents to buffer.", NULL, ex);
+  sp_ex_new(__LINE__, __FILE__, -1, "Out-of-memory exception reading file contents to buffer.", NULL, ex);
   goto err;
 
 err4: /* Rewind failure (I/O failure)*/
@@ -205,16 +205,16 @@ err3: /* ftell failure (I/O failure) */
 /* fseek failure */
 err2:
   {
-    const char * buf = spooky_io_gen_io_ex_msg("I/O exception reading file path '", path, "'.");
-    spooky_ex_new(__LINE__, __FILE__, -1, buf, NULL, ex);
+    const char * buf = sp_io_gen_io_ex_msg("I/O exception reading file path '", path, "'.");
+    sp_ex_new(__LINE__, __FILE__, -1, buf, NULL, ex);
     goto err;
   }
 
 /* Unable to open file. */
 err1:
   {
-    const char * buf = spooky_io_gen_io_ex_msg("Error reading file path '", path, "'.");
-    spooky_ex_new(__LINE__, __FILE__, -1, buf, NULL, ex);
+    const char * buf = sp_io_gen_io_ex_msg("Error reading file path '", path, "'.");
+    sp_ex_new(__LINE__, __FILE__, -1, buf, NULL, ex);
     goto err;
   }
 

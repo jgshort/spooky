@@ -8,54 +8,54 @@
 
 #include "../include/sp_log.h"
 
-const size_t spooky_log_max_display_lines = 1024;
-const size_t spooky_log_max_entry_capacity = 1024;
+const size_t sp_log_max_display_lines = 1024;
+const size_t sp_log_max_entry_capacity = 1024;
 
-typedef struct spooky_log_entry spooky_log_entry;
-typedef struct spooky_log_entry {
-  spooky_log_entry * next;
-  spooky_log_entry * prev;
-  spooky_log_severity severity;
+typedef struct sp_log_entry sp_log_entry;
+typedef struct sp_log_entry {
+  sp_log_entry * next;
+  sp_log_entry * prev;
+  sp_log_severity severity;
   char padding[4]; /* not portable */
   char * line;
   size_t line_len;
-} spooky_log_entry;
+} sp_log_entry;
 
-typedef struct spooky_log_entries {
-  spooky_log_entry * head;
+typedef struct sp_log_entries {
+  sp_log_entry * head;
   size_t count;
-} spooky_log_entries;
+} sp_log_entries;
 
-typedef struct spooky_log_impl {
-  spooky_log interface;
-  spooky_log_entries * entries;
-} spooky_log_impl;
+typedef struct sp_log_impl {
+  sp_log interface;
+  sp_log_entries * entries;
+} sp_log_impl;
 
-static void spooky_log_prepend(const spooky_log * self, const char * line, spooky_log_severity severity);
-static void spooky_log_list_prepend(spooky_log_entry * head, spooky_log_entry * line);
-static void spooky_log_dump(const spooky_log * self, const spooky_console * console);
-static size_t spooky_log_get_entries_count(const spooky_log * self);
+static void sp_log_prepend(const sp_log * self, const char * line, sp_log_severity severity);
+static void sp_log_list_prepend(sp_log_entry * head, sp_log_entry * line);
+static void sp_log_dump(const sp_log * self, const sp_console * console);
+static size_t sp_log_get_entries_count(const sp_log * self);
 
-static const spooky_log spooky_log_funcs = {
-  .ctor = &spooky_log_ctor,
-  .dtor = &spooky_log_dtor,
-  .free = &spooky_log_free,
-  .release = &spooky_log_release,
-  .prepend = &spooky_log_prepend,
-  .dump = &spooky_log_dump
+static const sp_log sp_log_funcs = {
+  .ctor = &sp_log_ctor,
+  .dtor = &sp_log_dtor,
+  .free = &sp_log_free,
+  .release = &sp_log_release,
+  .prepend = &sp_log_prepend,
+  .dump = &sp_log_dump
 };
 
-const spooky_log * spooky_log_global_log = NULL;
+const sp_log * sp_log_global_log = NULL;
 
-void spooky_log_startup(void) {
-  if(!spooky_log_global_log) {
-    const spooky_log * log = spooky_log_acquire();
+void sp_log_startup(void) {
+  if(!sp_log_global_log) {
+    const sp_log * log = sp_log_acquire();
     log = log->ctor(log);
-    spooky_log_global_log = log;
+    sp_log_global_log = log;
   }
 }
 
-void spooky_log_prepend_formatted(spooky_log_severity severity, const char * format, ...) {
+void sp_log_prepend_formatted(sp_log_severity severity, const char * format, ...) {
   char buffer[1024];
   va_list args;
   va_start(args, format);
@@ -67,46 +67,46 @@ void spooky_log_prepend_formatted(spooky_log_severity severity, const char * for
 #pragma GCC diagnostic pop
   va_end (args);
 
-  spooky_log_prepend(spooky_log_global_log, buffer, severity);
+  sp_log_prepend(sp_log_global_log, buffer, severity);
 }
 
-void spooky_log_shutdown(void) {
-  if(spooky_log_global_log) {
-    spooky_log_release(spooky_log_global_log);
+void sp_log_shutdown(void) {
+  if(sp_log_global_log) {
+    sp_log_release(sp_log_global_log);
   }
 }
 
-const spooky_log * spooky_log_alloc(void) {
-  const spooky_log_impl * self = calloc(1, sizeof * self);
-  return (const spooky_log *)self;
+const sp_log * sp_log_alloc(void) {
+  const sp_log_impl * self = calloc(1, sizeof * self);
+  return (const sp_log *)self;
 }
 
-const spooky_log * spooky_log_init(spooky_log * self) {
+const sp_log * sp_log_init(sp_log * self) {
   assert(self != NULL);
-  return memmove(self, &spooky_log_funcs, sizeof spooky_log_funcs);
+  return memmove(self, &sp_log_funcs, sizeof sp_log_funcs);
 }
 
-const spooky_log * spooky_log_acquire(void) {
-  return spooky_log_init((spooky_log *)(uintptr_t)spooky_log_alloc());
+const sp_log * sp_log_acquire(void) {
+  return sp_log_init((sp_log *)(uintptr_t)sp_log_alloc());
 }
 
-const spooky_log * spooky_log_ctor(const spooky_log * self) {
-  spooky_log_impl * impl = (spooky_log_impl *)(uintptr_t)self;
+const sp_log * sp_log_ctor(const sp_log * self) {
+  sp_log_impl * impl = (sp_log_impl *)(uintptr_t)self;
   impl->entries = calloc(1, sizeof * impl->entries);
   return self;
 }
 
-const spooky_log * spooky_log_dtor(const spooky_log * self) {
+const sp_log * sp_log_dtor(const sp_log * self) {
   if(self) {
-    spooky_log_impl * impl = (spooky_log_impl *)(uintptr_t)self;
+    sp_log_impl * impl = (sp_log_impl *)(uintptr_t)self;
 
     if(impl->entries->head != NULL) {
-      spooky_log_entry * t = impl->entries->head->next;
+      sp_log_entry * t = impl->entries->head->next;
       while(t != impl->entries->head) {
         if(t->line != NULL) {
           free(t->line), t->line = NULL;
         }
-        spooky_log_entry * old = t;
+        sp_log_entry * old = t;
         t = t->next;
         free(old), old = NULL;
       }
@@ -117,17 +117,17 @@ const spooky_log * spooky_log_dtor(const spooky_log * self) {
   return self;
 }
 
-void spooky_log_free(const spooky_log * self) {
+void sp_log_free(const sp_log * self) {
   if(self) {
     free((void *)(uintptr_t)self), self = NULL;
   }
 }
 
-void spooky_log_release(const spooky_log * self) {
+void sp_log_release(const sp_log * self) {
   self->free(self->dtor(self));
 }
 
-void spooky_log_list_prepend(spooky_log_entry * head, spooky_log_entry * line) {
+void sp_log_list_prepend(sp_log_entry * head, sp_log_entry * line) {
   assert(line != NULL && head != NULL);
   line->next = head;
   line->prev = head->prev;
@@ -135,15 +135,15 @@ void spooky_log_list_prepend(spooky_log_entry * head, spooky_log_entry * line) {
   head->prev = line;
 }
 
-void spooky_log_prepend(const spooky_log * self, const char * line, spooky_log_severity severity) {
-  spooky_log_impl * impl = (spooky_log_impl *)(uintptr_t)self;
+void sp_log_prepend(const sp_log * self, const char * line, sp_log_severity severity) {
+  sp_log_impl * impl = (sp_log_impl *)(uintptr_t)self;
 
-  spooky_log_entry * entry = calloc(1, sizeof * entry);
-  entry->line = strndup(line, spooky_log_max_entry_capacity);
-  entry->line_len = strnlen(line, spooky_log_max_entry_capacity);
+  sp_log_entry * entry = calloc(1, sizeof * entry);
+  entry->line = strndup(line, sp_log_max_entry_capacity);
+  entry->line_len = strnlen(line, sp_log_max_entry_capacity);
   entry->severity = severity;
-  if(impl->entries->count > spooky_log_max_display_lines && impl->entries->head->next != NULL) {
-    spooky_log_entry * deleted = impl->entries->head->next;
+  if(impl->entries->count > sp_log_max_display_lines && impl->entries->head->next != NULL) {
+    sp_log_entry * deleted = impl->entries->head->next;
     assert(deleted != NULL && deleted->next != NULL);
     if(deleted->next != NULL) {
       deleted->next->prev = impl->entries->head;
@@ -157,16 +157,16 @@ void spooky_log_prepend(const spooky_log * self, const char * line, spooky_log_s
     entry->prev = entry;
     impl->entries->head = entry;
   } else {
-    spooky_log_list_prepend(impl->entries->head, entry);
+    sp_log_list_prepend(impl->entries->head, entry);
   }
   impl->entries->count++;
 }
 
-void spooky_log_dump(const spooky_log * self, const spooky_console * console) {
-  spooky_log_impl * impl = (spooky_log_impl *)(uintptr_t)self;
+void sp_log_dump(const sp_log * self, const sp_console * console) {
+  sp_log_impl * impl = (sp_log_impl *)(uintptr_t)self;
   if(impl->entries->head != NULL) {
     console->push_str(console, impl->entries->head->line);
-    spooky_log_entry * t = impl->entries->head->next;
+    sp_log_entry * t = impl->entries->head->next;
     while(t != impl->entries->head) {
       if(t->line != NULL) {
         console->push_str(console, t->line);
@@ -176,16 +176,16 @@ void spooky_log_dump(const spooky_log * self, const spooky_console * console) {
   }
 }
 
-size_t spooky_log_get_entries_count(const spooky_log * self) {
-  spooky_log_impl * impl = (spooky_log_impl *)(uintptr_t)self;
+size_t sp_log_get_entries_count(const sp_log * self) {
+  sp_log_impl * impl = (sp_log_impl *)(uintptr_t)self;
   return impl->entries->count;
 }
 
-void spooky_log_dump_to_console(const spooky_console * console) {
-  spooky_log_global_log->dump(spooky_log_global_log, console);
+void sp_log_dump_to_console(const sp_console * console) {
+  sp_log_global_log->dump(sp_log_global_log, console);
 }
 
-size_t spooky_log_get_global_entries_count(void) {
-  return spooky_log_get_entries_count(spooky_log_global_log);
+size_t sp_log_get_global_entries_count(void) {
+  return sp_log_get_entries_count(sp_log_global_log);
 }
 

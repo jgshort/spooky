@@ -14,39 +14,39 @@
 
 #include "../include/sp_spooky.h"
 
-static errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex);
-static errno_t spooky_command_parser(spooky_context * context, const spooky_console * console, const char * command) ;
-static void spooky_print_licenses(const spooky_hash_table * hash);
-static FILE * spooky_open_pak_file(char ** argv);
+static errno_t sp_loop(sp_context * context, const sp_ex ** ex);
+static errno_t sp_command_parser(sp_context * context, const sp_console * console, const char * command) ;
+static void sp_print_licenses(const sp_hash_table * hash);
+static FILE * sp_open_pak_file(char ** argv);
 
-typedef struct spooky_options {
+typedef struct sp_options {
   bool print_licenses;
   char padding[7];
-} spooky_options;
+} sp_options;
 
-static errno_t spooky_parse_args(int argc, char ** argv, spooky_options * options);
+static errno_t sp_parse_args(int argc, char ** argv, sp_options * options);
 
 int main(int argc, char **argv) {
-  spooky_options options = { 0 };
+  sp_options options = { 0 };
 
-  spooky_parse_args(argc, argv, &options);
+  sp_parse_args(argc, argv, &options);
 
 #ifdef DEBUG
-  spooky_pack_tests();
+  sp_pack_tests();
 #endif
 
-  FILE * fp = spooky_open_pak_file(argv);
+  FILE * fp = sp_open_pak_file(argv);
 
-  spooky_context context = { 0 };
-  const spooky_ex * ex = NULL;
+  sp_context context = { 0 };
+  const sp_ex * ex = NULL;
 
-  spooky_log_startup();
+  sp_log_startup();
   SP_LOG(SLS_INFO, "Logging enabled.\n");
 
-  if(spooky_init_context(&context, fp) != SP_SUCCESS) { goto err0; }
-  if(spooky_test_resources(&context) != SP_SUCCESS) { goto err0; }
+  if(sp_init_context(&context, fp) != SP_SUCCESS) { goto err0; }
+  if(sp_test_resources(&context) != SP_SUCCESS) { goto err0; }
 
-  const spooky_hash_table * hash = context.get_hash(&context);
+  const sp_hash_table * hash = context.get_hash(&context);
 
   fclose(fp);
 
@@ -54,9 +54,9 @@ int main(int argc, char **argv) {
 #ifdef DEBUG
     /* Loading a font from the resource pak example */
     void * temp = NULL;
-    spooky_pack_item_file * font = NULL;
+    sp_pack_item_file * font = NULL;
     hash->find(hash, "pr.number", strnlen("pr.number", SP_MAX_STRING_LEN), &temp);
-    font = (spooky_pack_item_file *)temp;
+    font = (sp_pack_item_file *)temp;
 
     SDL_RWops * src = SDL_RWFromMem(font->data, (int)font->data_len);
     assert(src);
@@ -69,19 +69,19 @@ int main(int argc, char **argv) {
   }
 
   if(options.print_licenses) {
-    spooky_print_licenses(hash);
+    sp_print_licenses(hash);
   }
 
 #ifdef DEBUG
   /* Print out the pak file resources: */
   fseek(fp, 0, SEEK_SET);
-  spooky_pack_print_resources(stdout, fp);
+  sp_pack_print_resources(stdout, fp);
 #endif
 
-  if(spooky_loop(&context, &ex) != SP_SUCCESS) { goto err1; }
-  if(spooky_quit_context(&context) != SP_SUCCESS) { goto err2; }
+  if(sp_loop(&context, &ex) != SP_SUCCESS) { goto err1; }
+  if(sp_quit_context(&context) != SP_SUCCESS) { goto err2; }
 
-  spooky_log_shutdown();
+  sp_log_shutdown();
 
   fprintf(stdout, "\nThank you for playing! Happy gaming!\n");
   fflush(stdout);
@@ -96,7 +96,7 @@ err1:
   if(ex) {
     fprintf(stderr, "%s\n", ex->msg);
   }
-  spooky_release_context(&context);
+  sp_release_context(&context);
   goto err;
 
 err0:
@@ -108,7 +108,7 @@ err:
   return SP_FAILURE;
 }
 
-errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
+errno_t sp_loop(sp_context * context, const sp_ex ** ex) {
   static const double SP_HERTZ = 30.0;
   static const unsigned int SP_TARGET_FPS = 60;
   static const unsigned int SP_MILLI = 1000;
@@ -127,7 +127,7 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
 
   uint64_t last_second_time = (uint64_t) (last_update_time / SP_MILLI);
 
-  const spooky_db * db = spooky_db_acquire();
+  const sp_db * db = sp_db_acquire();
   db = db->ctor(db, "spooky.db");
   if(db->create(db) != 0) {
     fprintf(stderr, "Unable to initialize save game storage. Sorry :(\n");
@@ -158,55 +158,55 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
 
   SDL_Texture * background = NULL;
   SDL_ClearError();
-  if(spooky_gui_load_texture(renderer, "./res/bg3.png", 13, &background) != SP_SUCCESS) { goto err0; }
-  if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
+  if(sp_gui_load_texture(renderer, "./res/bg3.png", 13, &background) != SP_SUCCESS) { goto err0; }
+  if(sp_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
 
   SDL_Texture * letterbox_background = NULL;
   SDL_ClearError();
-  if(spooky_gui_load_texture(renderer, "./res/bg4.png", 13, &letterbox_background) != SP_SUCCESS) { goto err1; }
-  if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
+  if(sp_gui_load_texture(renderer, "./res/bg4.png", 13, &letterbox_background) != SP_SUCCESS) { goto err1; }
+  if(sp_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
 
   assert(background != NULL && letterbox_background != NULL);
 
-  const spooky_wm * wm = spooky_wm_acquire();
+  const sp_wm * wm = sp_wm_acquire();
   wm = wm->ctor(wm, "wm", context);
 
-  const spooky_console * console = spooky_console_acquire();
+  const sp_console * console = sp_console_acquire();
   console = console->ctor(console, "console", context, renderer);
   console->as_base(console)->set_z_order(console->as_base(console), 9999999);
 
   console->push_str(console, "> " PACKAGE_NAME " " PACKAGE_VERSION " <\n");
-  const spooky_debug * debug = spooky_debug_acquire();
+  const sp_debug * debug = sp_debug_acquire();
   debug = debug->ctor(debug, "debug", context);
 
-  const spooky_help * help = spooky_help_acquire();
+  const sp_help * help = sp_help_acquire();
   help = help->ctor(help, "help", context);
   help->as_base(help)->set_z_order(help->as_base(help), 9999998);
 
-  SDL_Rect main_menu_rect = { .x = 0, .y = 0, .w = spooky_gui_window_default_logical_width, .h = 24 };
-  const spooky_menu * main_menu = spooky_menu_load_from_file(context, main_menu_rect, "res/menus.mnudef");
+  SDL_Rect main_menu_rect = { .x = 0, .y = 0, .w = sp_gui_window_default_logical_width, .h = 24 };
+  const sp_menu * main_menu = sp_menu_load_from_file(context, main_menu_rect, "res/menus.mnudef");
 
-  const spooky_text * text = spooky_text_acquire();
+  const sp_text * text = sp_text_acquire();
   text = text->ctor(text, "text", context, renderer);
   text->as_base(text)->set_is_modal(text->as_base(text), true);
   text->as_base(text)->set_z_order(text->as_base(text), 9999997);
 
-  const spooky_base * objects[3] = { 0 };
-  const spooky_base ** first = objects;
-  const spooky_base ** last = objects + ((sizeof objects / sizeof objects[0]));
+  const sp_base * objects[3] = { 0 };
+  const sp_base ** first = objects;
+  const sp_base ** last = objects + ((sizeof objects / sizeof objects[0]));
 
   objects[0] = console->as_base(console);
   objects[1] = help->as_base(help);
   objects[2] = text->as_base(text);
 
-  spooky_base_z_sort(objects, (sizeof objects / sizeof objects[0]));
+  sp_base_z_sort(objects, (sizeof objects / sizeof objects[0]));
 
   if(debug->as_base(debug)->add_child(debug->as_base(debug), help->as_base(help), ex) != SP_SUCCESS) { goto err1; }
 
   int temp_w, temp_h;
   SDL_GetWindowSize(window, &temp_w, &temp_h);
   SDL_Rect box0_rect = { .x = 100, .y = 100, .w = 100, .h = 100 };
-  const spooky_box * box0 = spooky_box_acquire();
+  const sp_box * box0 = sp_box_acquire();
   box0 = box0->ctor(box0, "box0", context, box0_rect);
   box0->set_draw_style(box0, SBDS_FILL);
   wm->register_window(wm, box0->as_base(box0));
@@ -217,10 +217,10 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
 
   SDL_Event evt = { 0 };
 
-  const spooky_base * wm_base = wm->as_base(wm);
-  const spooky_base * menu_base = main_menu->as_base(main_menu);
+  const sp_base * wm_base = wm->as_base(wm);
+  const sp_base * menu_base = main_menu->as_base(main_menu);
 
-  while(spooky_context_get_is_running(context)) {
+  while(sp_context_get_is_running(context)) {
     SDL_SetRenderTarget(renderer, context->get_canvas(context));
 
     SDL_Rect debug_rect = { 0 };
@@ -228,11 +228,11 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
     now = sp_get_time_in_ms();
 
     while((now - last_update_time > SP_TIME_BETWEEN_UPDATES && update_loops < SP_MAX_UPDATES_BEFORE_RENDER)) {
-      if(spooky_is_sdl_error(SDL_GetError())) { SP_LOG(SLS_INFO, "Uncaught SDL error '%s'.", SDL_GetError()); }
+      if(sp_is_sdl_error(SDL_GetError())) { SP_LOG(SLS_INFO, "Uncaught SDL error '%s'.", SDL_GetError()); }
 
       SDL_ClearError();
       while(SDL_PollEvent(&evt) > 0) {
-        if(spooky_is_sdl_error(SDL_GetError())) { SP_LOG(SLS_INFO, "%s", SDL_GetError()); }
+        if(sp_is_sdl_error(SDL_GetError())) { SP_LOG(SLS_INFO, "%s", SDL_GetError()); }
 
         /* NOTE: SDL_PollEvent can set the Error message returned by SDL_GetError; so clear it, here: */
         SDL_ClearError();
@@ -258,7 +258,7 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
         /* Handle top-level global events */
         switch(evt.type) {
           case SDL_QUIT:
-            spooky_context_set_is_running(context, false);
+            sp_context_set_is_running(context, false);
             goto end_of_running_loop;
           case SDL_KEYDOWN:
             {
@@ -267,7 +267,7 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
                 case SDLK_q:
                   /* ctrl-q to quit */
                   if((SDL_GetModState() & KMOD_CTRL) != 0) {
-                    spooky_context_set_is_running(context, false);
+                    sp_context_set_is_running(context, false);
                     goto end_of_running_loop;
                   }
                   break;
@@ -300,7 +300,7 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
                     context->set_is_fullscreen(context, !previous_is_fullscreen);
                     SDL_ClearError();
                     if(SDL_SetWindowFullscreen(window, context->get_is_fullscreen(context) ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0) != 0) {
-                      if(spooky_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
+                      if(sp_is_sdl_error(SDL_GetError())) { fprintf(stderr, "> %s\n", SDL_GetError()); }
                       /* on failure, reset to previous is_fullscreen value */
                       context->set_is_fullscreen(context,  previous_is_fullscreen);
                     }
@@ -319,12 +319,12 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
         menu_base->handle_event(menu_base, &evt);
 
         /* handle debug/HUD events */
-        spooky_debug_handle_event(debug->as_base(debug), &evt);
+        sp_debug_handle_event(debug->as_base(debug), &evt);
 
         /* handle base events */
         if(context->get_modal(context) != NULL) {
           // handle events from the modal; ignore everyone else...
-          const spooky_base * modal = context->get_modal(context);
+          const sp_base * modal = context->get_modal(context);
           if(modal && modal->handle_event != NULL) {
             if(modal->handle_event(modal, &evt)) {
               goto break_events;
@@ -332,9 +332,9 @@ errno_t spooky_loop(spooky_context * context, const spooky_ex ** ex) {
           }
         } else {
           /* No modal? Iterate registered objects... */
-          const spooky_base ** event_iter = last - 1;
+          const sp_base ** event_iter = last - 1;
           do {
-            const spooky_base * obj = *event_iter;
+            const sp_base * obj = *event_iter;
             if(obj != NULL && obj->handle_event != NULL) {
               if(obj->handle_event(obj, &evt)) {
                 goto break_events;
@@ -353,15 +353,15 @@ break_events:
       {
         /* check the console command; execute it if it exists */
         const char * command = NULL;
-        const spooky_base * console_base = console->as_base(console);
+        const sp_base * console_base = console->as_base(console);
         if(console_base->get_focus(console_base) && (command = console->get_current_command(console)) != NULL) {
-          spooky_command_parser(context, console, command);
+          sp_command_parser(context, console, command);
           console->clear_current_command(console);
         }
       }
 
       {
-        ((const spooky_base *)debug)->get_bounds((const spooky_base *)debug, &debug_rect, NULL);
+        ((const sp_base *)debug)->get_bounds((const sp_base *)debug, &debug_rect, NULL);
 
         int w = 0, h = 0;
         SDL_GetRendererOutputSize(renderer, &w, &h);
@@ -380,9 +380,9 @@ break_events:
       /* Currently, the debug/HUD display doesn't need to handle deltas. */
 
       /* Handle deltas for all other base objects... */
-      const spooky_base ** delta_iter = first;
+      const sp_base ** delta_iter = first;
       do {
-        const spooky_base * obj = *delta_iter;
+        const sp_base * obj = *delta_iter;
         if(obj->handle_delta != NULL) {
           obj->handle_delta(obj, &evt, last_update_time, interpolation);
         }
@@ -408,17 +408,17 @@ break_events:
 
     {
       const SDL_Color c = { .r = 1, .g = 20, .b = 36, .a = 255 };
-      const spooky_gui_rgba_context * rgba = spooky_gui_push_draw_color(renderer, &c);
+      const sp_gui_rgba_context * rgba = sp_gui_push_draw_color(renderer, &c);
       {
         SDL_RenderFillRect(renderer, NULL); /* screen color */
-        spooky_gui_pop_draw_color(rgba);
+        sp_gui_pop_draw_color(rgba);
       }
     }
 
     /* render bases */
-    const spooky_base ** render_iter = first;
+    const sp_base ** render_iter = first;
     do {
-      const spooky_base * obj = *render_iter;
+      const sp_base * obj = *render_iter;
       if(obj->render != NULL) { obj->render(obj, renderer); }
     } while(++render_iter < last);
 
@@ -429,7 +429,7 @@ break_events:
     menu_base->render(menu_base, renderer);
 
     /* The debug/HUD is always on top... */
-    spooky_debug_render(debug->as_base(debug), renderer);
+    sp_debug_render(debug->as_base(debug), renderer);
 
     SDL_SetRenderTarget(renderer, NULL);
     SDL_RenderCopy(renderer, canvas, NULL, NULL);
@@ -444,7 +444,7 @@ break_events:
       if(seconds_to_save >= 300) {
         /* Autosave every 5 minutes */
         SP_LOG(SLS_INFO, "Autosaving...");
-        db->save_game(db, "(Autosave)", NULL/* TODO: (spooky_save_game *)&state */);
+        db->save_game(db, "(Autosave)", NULL/* TODO: (sp_save_game *)&state */);
         seconds_to_save = 0;
       }
       /* Every second, update FPS: */
@@ -452,7 +452,7 @@ break_events:
       frame_count = 0;
       last_second_time = this_second;
       seconds_since_start++;
-      spooky_debug_update(debug, fps, seconds_since_start, interpolation);
+      sp_debug_update(debug, fps, seconds_since_start, interpolation);
     }
 
     /* Try to be friendly to the OS: */
@@ -461,7 +461,7 @@ break_events:
       now = sp_get_time_in_ms();
     }
 end_of_running_loop: ;
-  } /* >> while(spooky_context_get_is_running(context)) */
+  } /* >> while(sp_context_get_is_running(context)) */
 
   if(db->close(db) != 0) {
     fprintf(stderr, "Unable to close save game storage; something broke but this is not catastrophic.\n");
@@ -470,11 +470,11 @@ end_of_running_loop: ;
   if(background != NULL) { SDL_DestroyTexture(background), background = NULL; }
   if(letterbox_background != NULL) { SDL_DestroyTexture(letterbox_background), letterbox_background = NULL; }
 
-  spooky_text_release(text);
-  spooky_help_release(help);
-  spooky_console_release(console);
-  spooky_wm_release(wm);
-  spooky_db_release(db);
+  sp_text_release(text);
+  sp_help_release(help);
+  sp_console_release(console);
+  sp_wm_release(wm);
+  sp_db_release(db);
 
   return SP_SUCCESS;
 
@@ -487,7 +487,7 @@ err0:
   return SP_FAILURE;
 }
 
-errno_t spooky_command_parser(spooky_context * context, const spooky_console * console, const char * command) {
+errno_t sp_command_parser(sp_context * context, const sp_console * console, const char * command) {
 
   if(strncmp(command, "clear", sizeof("clear")) == 0) {
     console->clear_console(console);
@@ -530,7 +530,7 @@ errno_t spooky_command_parser(spooky_context * context, const spooky_console * c
         "Time: %ld.%06ld\n"
         "Logging entries: %zu\n"
         , tv_sec, tv_usec
-        , spooky_log_get_global_entries_count()
+        , sp_log_get_global_entries_count()
         );
 #endif
 #ifdef __linux__
@@ -543,18 +543,18 @@ errno_t spooky_command_parser(spooky_context * context, const spooky_console * c
         , tv_sec, tv_usec
         , ru_maxrss
         , ru_minflt, ru_majflt
-        , spooky_log_get_global_entries_count()
+        , sp_log_get_global_entries_count()
         );
 #endif
     console->push_str(console, info);
   } else if(strncmp(command, "log", sizeof("log")) == 0) {
-    spooky_log_dump_to_console(console);
+    sp_log_dump_to_console(console);
   }
 
   return SP_SUCCESS;
 }
 
-static errno_t spooky_parse_args(int argc, char ** argv, spooky_options * options) {
+static errno_t sp_parse_args(int argc, char ** argv, sp_options * options) {
   if(argc <= 1) { goto err0; }
   for(int i = 0; i < argc; i++) {
     if(argv[i][0] == '-') {
@@ -576,7 +576,7 @@ err0:
   return SP_FAILURE;
 }
 
-static FILE * spooky_open_pak_file(char ** argv) {
+static FILE * sp_open_pak_file(char ** argv) {
   FILE * fp = NULL;
 
   long pak_offset = 0;
@@ -592,7 +592,7 @@ static FILE * spooky_open_pak_file(char ** argv) {
     if(fd >= 0) {
       fp = fdopen(fd, "rb");
       if(fp) {
-        errno_t is_valid = spooky_pack_is_valid_pak_file(fp, &pak_offset, &content_offset, &content_len, &index_entries, &index_offset, &index_len);
+        errno_t is_valid = sp_pack_is_valid_pak_file(fp, &pak_offset, &content_offset, &content_len, &index_entries, &index_offset, &index_len);
         if(is_valid != SP_SUCCESS) {
           /* not a valid bundle */
           fclose(fp), fp = NULL;
@@ -620,7 +620,7 @@ static FILE * spooky_open_pak_file(char ** argv) {
 
     if(create) {
       /* only create it if it's not already a valid pak file */
-      spooky_pack_content_entry content[] = {
+      sp_pack_content_entry content[] = {
         { .path = "res/fonts/PRNumber3.ttf", .name = "pr.number" },
         { .path = "res/fonts/PrintChar21.ttf", .name = "print.char" },
         { .path = "res/fonts/DejaVuSansMono.ttf", .name = "deja.sans" },
@@ -628,11 +628,11 @@ static FILE * spooky_open_pak_file(char ** argv) {
         { .path = "res/fonts/deja-license.txt", .name = "deja.license" }
       };
 
-      spooky_pack_create(fp, content, sizeof content / sizeof content[0]);
+      sp_pack_create(fp, content, sizeof content / sizeof content[0]);
     }
     fseek(fp, 0, SEEK_SET);
 
-    errno_t is_valid = spooky_pack_is_valid_pak_file(fp, &pak_offset, &content_offset, &content_len, &index_entries, &index_offset, &index_len);
+    errno_t is_valid = sp_pack_is_valid_pak_file(fp, &pak_offset, &content_offset, &content_len, &index_entries, &index_offset, &index_len);
 
     assert(is_valid == SP_SUCCESS);
   }
@@ -657,11 +657,11 @@ static FILE * spooky_open_pak_file(char ** argv) {
   return fp;
 }
 
-static void spooky_print_licenses(const spooky_hash_table * hash) {
+static void sp_print_licenses(const sp_hash_table * hash) {
   fprintf(stdout, "Licenses:\n");
   fprintf(stdout, "********************************************************************************\n");
 
-  spooky_pack_item_file * temp = NULL;
+  sp_pack_item_file * temp = NULL;
   char * deja_license = NULL, * open_license = NULL;
   if(hash->find(hash, "deja.license", strnlen("deja.license", SP_MAX_STRING_LEN), ((void *)&temp)) == SP_SUCCESS) {
     deja_license = strndup(temp->data, temp->data_len);

@@ -8,53 +8,53 @@ extern "C" {
 #include "sp_context.h"
 #include "sp_sprite.h"
 
-  typedef struct spooky_box spooky_box;
-  typedef struct spooky_box_data spooky_box_data;
+  typedef struct sp_box sp_box;
+  typedef struct sp_box_data sp_box_data;
 
-  typedef enum spooky_box_draw_style {
+  typedef enum sp_box_draw_style {
     SBDS_EMPTY,
     SBDS_DEFAULT,
     SBDS_FILL = SBDS_DEFAULT,
     SBDS_OUTLINE,
     SBDS_EOE
-  } spooky_box_draw_style;
+  } sp_box_draw_style;
 
-  typedef struct spooky_box {
-    spooky_base super;
-    const spooky_box * (*ctor)(const spooky_box * /* self */, const char * /* name */, const spooky_context * /* context */, SDL_Rect /* origin */);
-    const spooky_box * (*dtor)(const spooky_box * /* self */);
-    void (*free)(const spooky_box * /* self */);
-    void (*release)(const spooky_box * /* self */);
-    const spooky_base * (*as_base)(const spooky_box * /* self */);
+  typedef struct sp_box {
+    sp_base super;
+    const sp_box * (*ctor)(const sp_box * /* self */, const char * /* name */, const sp_context * /* context */, SDL_Rect /* origin */);
+    const sp_box * (*dtor)(const sp_box * /* self */);
+    void (*free)(const sp_box * /* self */);
+    void (*release)(const sp_box * /* self */);
+    const sp_base * (*as_base)(const sp_box * /* self */);
 
-    void (*set_name)(const spooky_box * /* self */, const char * /* name */);
-    const char * (*get_name)(const spooky_box * /* self */);
+    void (*set_name)(const sp_box * /* self */, const char * /* name */);
+    const char * (*get_name)(const sp_box * /* self */);
 
-    void (*set_sprite)(const spooky_box * /* self */, const spooky_sprite * /* sprite */);
-    const spooky_sprite * (*get_sprite)(const spooky_box * /* self */);
+    void (*set_sprite)(const sp_box * /* self */, const sp_sprite * /* sprite */);
+    const sp_sprite * (*get_sprite)(const sp_box * /* self */);
 
-    spooky_box_draw_style (*get_draw_style)(const spooky_box * /* self */);
-    void (*set_draw_style)(const spooky_box * /* self */, spooky_box_draw_style /* style */);
+    sp_box_draw_style (*get_draw_style)(const sp_box * /* self */);
+    void (*set_draw_style)(const sp_box * /* self */, sp_box_draw_style /* style */);
 
-    spooky_box_data * data;
-  } spooky_box;
+    sp_box_data * data;
+  } sp_box;
 
-  const spooky_base * spooky_box_as_base(const spooky_box * /* self */);
+  const sp_base * sp_box_as_base(const sp_box * /* self */);
 
   /* Allocate (malloc) interface */
-  const spooky_box * spooky_box_alloc(void);
+  const sp_box * sp_box_alloc(void);
   /* Initialize interface methods */
-  const spooky_box * spooky_box_init(spooky_box * /* self */);
+  const sp_box * sp_box_init(sp_box * /* self */);
   /* Allocate and initialize interface methods */
-  const spooky_box * spooky_box_acquire(void);
+  const sp_box * sp_box_acquire(void);
   /* Construct data */
-  const spooky_box * spooky_box_ctor(const spooky_box * /* self */, const char * /* name */, const spooky_context * /* context */, SDL_Rect /* origin */);
+  const sp_box * sp_box_ctor(const sp_box * /* self */, const char * /* name */, const sp_context * /* context */, SDL_Rect /* origin */);
   /* Destruct (dtor) data */
-  const spooky_box * spooky_box_dtor(const spooky_box * /* self */);
+  const sp_box * sp_box_dtor(const sp_box * /* self */);
   /* Free interface */
-  void spooky_box_free(const spooky_box * /* self */);
+  void sp_box_free(const sp_box * /* self */);
   /* Destruct and free interface */
-  void spooky_box_release(const spooky_box * /* self */);
+  void sp_box_release(const sp_box * /* self */);
 
 
 #if 1 == 2
@@ -66,11 +66,11 @@ extern "C" {
 
   const int scroll_bar_width;
 
-  typedef struct spooky_box spooky_box;
-  typedef struct spooky_box_data spooky_box_data;
-  typedef struct spooky_box_scroll_box_item spooky_box_scroll_box_item;
+  typedef struct sp_box sp_box;
+  typedef struct sp_box_data sp_box_data;
+  typedef struct sp_box_scroll_box_item sp_box_scroll_box_item;
 
-  typedef enum spooky_box_types {
+  typedef enum sp_box_types {
     SBT_NULL,
     SBT_WINDOW,
     SBT_WINDOW_TEXTURED,
@@ -81,80 +81,80 @@ extern "C" {
     SBT_MAIN_MENU,
     SBT_MAIN_MENU_ITEM,
     SBT_EOE
-  } spooky_box_types;
+  } sp_box_types;
 
-  typedef enum spooky_box_scroll_box_direction {
+  typedef enum sp_box_scroll_box_direction {
     SBSBD_VERTICAL = 0,
     SBSBD_HORIZONTAL = 1,
     SBSBD_EOE,
-  } spooky_box_scroll_box_direction;
+  } sp_box_scroll_box_direction;
 
-  typedef struct spooky_box {
-    spooky_base super;
-    const spooky_base * (*as_base)(const spooky_box * self);
-    const spooky_box * (*ctor)(const spooky_box * self, const spooky_context * context, const spooky_wm * wm, const spooky_box * parent, SDL_Window * window, SDL_Renderer * renderer, const char * name, SDL_Rect rect, bool is_visible, spooky_box_types box_type);
-    const spooky_box * (*dtor)(const spooky_box * self);
-    void (*free)(const spooky_box * self);
-    void (*release)(const spooky_box * self);
+  typedef struct sp_box {
+    sp_base super;
+    const sp_base * (*as_base)(const sp_box * self);
+    const sp_box * (*ctor)(const sp_box * self, const sp_context * context, const sp_wm * wm, const sp_box * parent, SDL_Window * window, SDL_Renderer * renderer, const char * name, SDL_Rect rect, bool is_visible, sp_box_types box_type);
+    const sp_box * (*dtor)(const sp_box * self);
+    void (*free)(const sp_box * self);
+    void (*release)(const sp_box * self);
 
-    void (*set_z_order)(const spooky_box * self, int z_order);
-    int (*get_z_order)(const spooky_box * self);
+    void (*set_z_order)(const sp_box * self, int z_order);
+    int (*get_z_order)(const sp_box * self);
 
-    const char * (*get_name)(const spooky_box * self);
-    const SDL_Rect * (*get_rect)(const spooky_box * self);
-    const spooky_box * (*attach_box)(const spooky_box * self, const spooky_box * box);
-    //const spooky_box * (*attach_select_box_item)(const spooky_box * self, const char * text);
-    spooky_box_types (*get_box_type)(const spooky_box * self);
+    const char * (*get_name)(const sp_box * self);
+    const SDL_Rect * (*get_rect)(const sp_box * self);
+    const sp_box * (*attach_box)(const sp_box * self, const sp_box * box);
+    //const sp_box * (*attach_select_box_item)(const sp_box * self, const char * text);
+    sp_box_types (*get_box_type)(const sp_box * self);
 
-    void (*set_x)(const spooky_box * self, int x);
-    int (*get_x)(const spooky_box * self);
-    void (*set_y)(const spooky_box * self, int y);
-    int (*get_y)(const spooky_box * self);
+    void (*set_x)(const sp_box * self, int x);
+    int (*get_x)(const sp_box * self);
+    void (*set_y)(const sp_box * self, int y);
+    int (*get_y)(const sp_box * self);
 
-    void (*set_w)(const spooky_box * self, int w);
-    int (*get_w)(const spooky_box * self);
+    void (*set_w)(const sp_box * self, int w);
+    int (*get_w)(const sp_box * self);
 
-    void (*set_h)(const spooky_box * self, int h);
-    int (*get_h)(const spooky_box * self);
+    void (*set_h)(const sp_box * self, int h);
+    int (*get_h)(const sp_box * self);
 
-    const spooky_box_scroll_box_item * (*attach_scroll_box_item_text)(const spooky_box * self, const char * text, const char * description);
-    const spooky_box_scroll_box_item * (*attach_scroll_box_item_image)(const spooky_box * self, const char * text, const char * description, const char * path);
-    void (*set_direction)(const spooky_box * self, spooky_box_scroll_box_direction direction);
+    const sp_box_scroll_box_item * (*attach_scroll_box_item_text)(const sp_box * self, const char * text, const char * description);
+    const sp_box_scroll_box_item * (*attach_scroll_box_item_image)(const sp_box * self, const char * text, const char * description, const char * path);
+    void (*set_direction)(const sp_box * self, sp_box_scroll_box_direction direction);
 
-    spooky_box_data * data;
-  } spooky_box_interface;
+    sp_box_data * data;
+  } sp_box_interface;
 
-  const spooky_base * spooky_box_as_base(const spooky_box * self);
+  const sp_base * sp_box_as_base(const sp_box * self);
 
-  const spooky_box_interface spooky_box_class;
+  const sp_box_interface sp_box_class;
 
   /* Allocate (malloc) interface */
-  const spooky_box * spooky_box_alloc();
-  const spooky_box * spooky_box_scroll_box_alloc();
+  const sp_box * sp_box_alloc();
+  const sp_box * sp_box_scroll_box_alloc();
 
   /* Initialize interface methods */
-  const spooky_box * spooky_box_init(spooky_box * self);
-  const spooky_box * spooky_box_scroll_box_init(spooky_box * self);
+  const sp_box * sp_box_init(sp_box * self);
+  const sp_box * sp_box_scroll_box_init(sp_box * self);
 
   /* Allocate and initialize interface methods */
-  const spooky_box * spooky_box_acquire();
-  const spooky_box * spooky_box_scroll_box_acquire();
+  const sp_box * sp_box_acquire();
+  const sp_box * sp_box_scroll_box_acquire();
 
   /* Construct data */
-  const spooky_box * spooky_box_ctor(const spooky_box * self, const spooky_context * context, const spooky_wm * wm, const spooky_box * parent, SDL_Window * window, SDL_Renderer * renderer, const char * name, SDL_Rect rect, bool is_visible, spooky_box_types box_type);
+  const sp_box * sp_box_ctor(const sp_box * self, const sp_context * context, const sp_wm * wm, const sp_box * parent, SDL_Window * window, SDL_Renderer * renderer, const char * name, SDL_Rect rect, bool is_visible, sp_box_types box_type);
 
-  const spooky_box * spooky_box_scroll_box_ctor(const spooky_box * self, const spooky_context * context, const spooky_wm * wm, const spooky_box * parent, SDL_Window * window, SDL_Renderer * renderer, const char * name, SDL_Rect rect, bool is_visible, spooky_box_types box_type);
+  const sp_box * sp_box_scroll_box_ctor(const sp_box * self, const sp_context * context, const sp_wm * wm, const sp_box * parent, SDL_Window * window, SDL_Renderer * renderer, const char * name, SDL_Rect rect, bool is_visible, sp_box_types box_type);
 
   /* Destruct (dtor) data */
-  const spooky_box * spooky_box_dtor(const spooky_box * self);
-  const spooky_box * spooky_box_scroll_box_dtor(const spooky_box * self);
+  const sp_box * sp_box_dtor(const sp_box * self);
+  const sp_box * sp_box_scroll_box_dtor(const sp_box * self);
 
   /* Free interface */
-  void spooky_box_free(const spooky_box * self);
+  void sp_box_free(const sp_box * self);
   /* Destruct and free interface */
-  void spooky_box_release(const spooky_box * self);
+  void sp_box_release(const sp_box * self);
 
-  inline bool spooky_box_intersect(const SDL_Rect * const r, int x, int y) {
+  inline bool sp_box_intersect(const SDL_Rect * const r, int x, int y) {
     return (x >= r->x) && (x < r->x + r->w) && (y >= r->y) && (y <= r->y + r->h);
   }
 
