@@ -5,63 +5,72 @@
 #include "sp_iter.h"
 #include "sp_gui.h"
 
-struct spooky_base_data;
-typedef struct spooky_base spooky_base;
-typedef struct spooky_base {
-  const spooky_base * (*ctor)(const spooky_base * /* self */, const char * /* name */, SDL_Rect /* origin */);
-  const spooky_base * (*dtor)(const spooky_base * /* self */);
-  void (*free)(const spooky_base * /* self */);
-  void (*release)(const spooky_base * /* self */);
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-  const char * (*get_name)(const spooky_base * /* self */);
+  struct spooky_base_data;
+  typedef struct spooky_base spooky_base;
+  typedef struct spooky_base {
+    const spooky_base * (*ctor)(const spooky_base * /* self */, const char * /* name */, SDL_Rect /* origin */);
+    const spooky_base * (*dtor)(const spooky_base * /* self */);
+    void (*free)(const spooky_base * /* self */);
+    void (*release)(const spooky_base * /* self */);
 
-  bool (*handle_event)(const spooky_base * /* self */, SDL_Event * /* event */);
-  void (*handle_delta)(const spooky_base * /* self */, const SDL_Event * /* event */, uint64_t /* last_update_time */, double /* interpolation */);
-  void (*render)(const spooky_base * /* self */, SDL_Renderer * /* renderer */);
+    const char * (*get_name)(const spooky_base * /* self */);
 
-  const SDL_Rect * (*get_rect)(const spooky_base * /* self */);
-  errno_t (*set_rect)(const spooky_base * /* self */, const SDL_Rect * /* rect */, const spooky_ex ** /* ex */);
+    bool (*handle_event)(const spooky_base * /* self */, SDL_Event * /* event */);
+    void (*handle_delta)(const spooky_base * /* self */, const SDL_Event * /* event */, uint64_t /* last_update_time */, double /* interpolation */);
+    void (*render)(const spooky_base * /* self */, SDL_Renderer * /* renderer */);
 
-  int (*get_x)(const spooky_base * /* self */);
-  void (*set_x)(const spooky_base * /* self */, int /* x */);
-  int (*get_y)(const spooky_base * /* self */);
-  void (*set_y)(const spooky_base * /* self */, int /* y */);
-  int (*get_w)(const spooky_base * /* self */);
-  void (*set_w)(const spooky_base * /* self */, int /* w */);
-  int (*get_h)(const spooky_base * /* self */);
-  void (*set_h)(const spooky_base * /* self */, int /* h */);
+    const SDL_Rect * (*get_rect)(const spooky_base * /* self */);
+    errno_t (*set_rect)(const spooky_base * /* self */, const SDL_Rect * /* rect */, const spooky_ex ** /* ex */);
 
-  errno_t (*set_rect_relative)(const spooky_base * /* self */, const SDL_Rect * /* from_rect */, const spooky_ex ** /* ex */);
-  errno_t (*get_rect_relative)(const spooky_base * /* self */, const SDL_Rect * /* from_rect */, SDL_Rect * /* out_rect */, const spooky_ex ** /* ex */);
+    int (*get_x)(const spooky_base * /* self */);
+    void (*set_x)(const spooky_base * /* self */, int /* x */);
+    int (*get_y)(const spooky_base * /* self */);
+    void (*set_y)(const spooky_base * /* self */, int /* y */);
+    int (*get_w)(const spooky_base * /* self */);
+    void (*set_w)(const spooky_base * /* self */, int /* w */);
+    int (*get_h)(const spooky_base * /* self */);
+    void (*set_h)(const spooky_base * /* self */, int /* h */);
 
-  const spooky_iter * (*get_iterator)(const spooky_base * /* self */);
-  size_t (*get_children_count)(const spooky_base * /* self */);
-  size_t (*get_children_capacity)(const spooky_base * /* self */);
+    errno_t (*set_rect_relative)(const spooky_base * /* self */, const SDL_Rect * /* from_rect */, const spooky_ex ** /* ex */);
+    errno_t (*get_rect_relative)(const spooky_base * /* self */, const SDL_Rect * /* from_rect */, SDL_Rect * /* out_rect */, const spooky_ex ** /* ex */);
 
-  errno_t (*add_child)(const spooky_base * /* self */, const spooky_base * /* child */, const spooky_ex ** /* ex */);
-  errno_t (*children_iter)(const spooky_base * /* self */, const spooky_iter ** /* out_it */, const spooky_ex ** /* ex */);
-  void (*set_z_order)(const spooky_base * /* self */, size_t /* z_order */);
-  size_t (*get_z_order)(const spooky_base * /*self */);
+    const spooky_iter * (*get_iterator)(const spooky_base * /* self */);
+    size_t (*get_children_count)(const spooky_base * /* self */);
+    size_t (*get_children_capacity)(const spooky_base * /* self */);
 
-  errno_t (*get_bounds)(const spooky_base * /* self */, SDL_Rect * /* out_bounds */, const spooky_ex ** /* ex */);
+    errno_t (*add_child)(const spooky_base * /* self */, const spooky_base * /* child */, const spooky_ex ** /* ex */);
+    errno_t (*children_iter)(const spooky_base * /* self */, const spooky_iter ** /* out_it */, const spooky_ex ** /* ex */);
+    void (*set_z_order)(const spooky_base * /* self */, size_t /* z_order */);
+    size_t (*get_z_order)(const spooky_base * /*self */);
 
-  bool (*get_focus)(const spooky_base * /* self */);
-  void (*set_focus)(const spooky_base * /* self */, bool /* is_focus */);
+    errno_t (*get_bounds)(const spooky_base * /* self */, SDL_Rect * /* out_bounds */, const spooky_ex ** /* ex */);
 
-  bool (*get_is_modal)(const spooky_base * /* self */);
-  void (*set_is_modal)(const spooky_base * /* self */, bool /* is_modal */);
+    bool (*get_focus)(const spooky_base * /* self */);
+    void (*set_focus)(const spooky_base * /* self */, bool /* is_focus */);
 
-  struct spooky_base_data * data;
-} spooky_base;
+    bool (*get_is_modal)(const spooky_base * /* self */);
+    void (*set_is_modal)(const spooky_base * /* self */, bool /* is_modal */);
 
-const spooky_base * spooky_base_init(spooky_base * /* self */);
-const spooky_base * spooky_base_alloc(void);
-const spooky_base * spooky_base_acquire(void);
-const spooky_base * spooky_base_ctor(const spooky_base * /* self */, const char * /* name */, SDL_Rect /* origin */);
-const spooky_base * spooky_base_dtor(const spooky_base * /* self */);
-void spooky_base_free(const spooky_base * /* self */);
-void spooky_base_release(const spooky_base * /* self */);
+    struct spooky_base_data * data;
+  } spooky_base;
 
-void spooky_base_z_sort(const spooky_base ** /* items */, size_t /* items_count */);
+  const spooky_base * spooky_base_init(spooky_base * /* self */);
+  const spooky_base * spooky_base_alloc(void);
+  const spooky_base * spooky_base_acquire(void);
+  const spooky_base * spooky_base_ctor(const spooky_base * /* self */, const char * /* name */, SDL_Rect /* origin */);
+  const spooky_base * spooky_base_dtor(const spooky_base * /* self */);
+  void spooky_base_free(const spooky_base * /* self */);
+  void spooky_base_release(const spooky_base * /* self */);
+
+  void spooky_base_z_sort(const spooky_base ** /* items */, size_t /* items_count */);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* SP_BASE__H */
+
